@@ -1,0 +1,107 @@
+{
+  "revision": "R4",
+  "source": "work\\build_removable_forks.py",
+  "source_sha256": "916b279f330459cc02bb372b96204ffd8d6cf735166430eb89046e87cc796e9d",
+  "parts": [
+    {
+      "name": "01_Removable_Fork_Spine",
+      "quantity": 1,
+      "valid_brep": true,
+      "watertight": true,
+      "single_connected_body": true,
+      "volume_mm3": 22133.417702324252,
+      "dimensions_mm": [
+        70.0,
+        8.0,
+        94.0
+      ]
+    },
+    {
+      "name": "02_Fork_Arm_Left",
+      "quantity": 1,
+      "valid_brep": true,
+      "watertight": true,
+      "single_connected_body": true,
+      "volume_mm3": 2600.6785320911017,
+      "dimensions_mm": [
+        10.0,
+        54.0,
+        27.0
+      ]
+    },
+    {
+      "name": "02_Fork_Arm_Right",
+      "quantity": 1,
+      "valid_brep": true,
+      "watertight": true,
+      "single_connected_body": true,
+      "volume_mm3": 2600.6785320911004,
+      "dimensions_mm": [
+        10.0,
+        54.0,
+        27.0
+      ]
+    },
+    {
+      "name": "03_Cargo_Button_Spacer",
+      "quantity": 2,
+      "valid_brep": true,
+      "watertight": true,
+      "single_connected_body": true,
+      "volume_mm3": 41.11217263547074,
+      "dimensions_mm": [
+        6.9929514657892025,
+        1.4,
+        7.0
+      ]
+    },
+    {
+      "name": "00_M3_Plastic_Fit_Coupon",
+      "quantity": 1,
+      "valid_brep": true,
+      "watertight": true,
+      "single_connected_body": true,
+      "volume_mm3": 8931.884796253044,
+      "dimensions_mm": [
+        42.0,
+        18.0,
+        12.0
+      ]
+    }
+  ],
+  "removable_arms": true,
+  "same_arms_for_both_heights": true,
+  "arm_screws": "4 x M3x16 countersunk, from inner side, directly into PETG",
+  "pilot_diameter_mm": 2.6,
+  "pilot_depth_mm": 6.8,
+  "nominal_thread_engagement_mm": 6,
+  "arm_seat_y_mm": 2,
+  "arm_root_thickness_mm": 6,
+  "side_column_width_mm": 8,
+  "upper_station_offset_mm": 26,
+  "fork_top_low_mm": 6,
+  "fork_top_high_mm": 32,
+  "gap_mm": 20,
+  "outer_span_mm": 32,
+  "lip_height_mm": 2,
+  "vertical_cargo_lift_mm": 7.703,
+  "carriage_fasteners_preserved": true,
+  "assembly_y_mm": 118,
+  "flat_back": true,
+  "no_rear_receiver_rails": true,
+  "min_crossbar_width_mm": 8,
+  "button_window_mm": [
+    9,
+    8
+  ],
+  "button_window_local_z_mm": [
+    12,
+    20
+  ],
+  "button_spacer_quantity": 2,
+  "button_spacer_thickness_mm": 1.4,
+  "spine_requires_supports": false,
+  "previous_spine_volume_mm3": 35164.48721345762,
+  "spine_material_reduction_percent": 37.1,
+  "physical_print_tested": false
+}

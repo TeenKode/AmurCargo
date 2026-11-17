@@ -1,0 +1,21 @@
+{
+  "board": "Arduino Nano / ATmega328P / 16 MHz",
+  "baud": 115200,
+  "page_size": 128,
+  "flash_limit": 30720,
+  "configuration_offset": 134,
+  "configuration_size": 440,
+  "crc_offset": 574,
+  "bytes": 19302,
+  "sha256": "705c9e43928037f7263f9acc7e0cd4af2b314aee510b0c90b68623251bae703e",
+  "signature": [
+    30,
+    149,
+    15
+  ],
+  "physical_upload_tested": false,
+  "compatible_bootloaders": [
+    "ATmegaBOOT_168_atmega328 @ 57600",
+    "Optiboot @ 115200"
+  ]
+}

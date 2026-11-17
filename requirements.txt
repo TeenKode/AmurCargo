@@ -1,0 +1,4 @@
+numpy
+trimesh==5.2.1
+cadquery-ocp==8.0.1.1.0
+Pillow

@@ -1,0 +1,12 @@
+{
+  "name": "amurcargo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node work/test_radial_batch.cjs && node work/test_vertical_cargo.cjs && node work/test_webserial.cjs && node work/test_nano_upload.cjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0",
+    "avr8js": "0.21.1"
+  }
+}

@@ -1,0 +1,727 @@
+{
+  "version": 1,
+  "params": [
+    {
+      "key": "START_HUB",
+      "label": "Начальный круг: 0 левый, 1 правый",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "group": "Маршрут",
+      "unit": ""
+    },
+    {
+      "key": "START_HEADING",
+      "label": "Начальное направление: 0=В, 1=СВ…7=ЮВ",
+      "default": 0,
+      "min": 0,
+      "max": 7,
+      "group": "Маршрут",
+      "unit": ""
+    },
+    {
+      "key": "DROP_RAY",
+      "label": "Луч разгрузки в другом круге",
+      "default": 0,
+      "min": 0,
+      "max": 7,
+      "group": "Маршрут",
+      "unit": ""
+    },
+    {
+      "key": "HUB_MODE",
+      "label": "Круг: 0 по отражению, 1 по времени",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "group": "Маршрут",
+      "unit": ""
+    },
+    {
+      "key": "BRIDGE_CROSSES",
+      "label": "Перекрёстков на перемычке",
+      "default": 1,
+      "min": 0,
+      "max": 4,
+      "group": "Маршрут",
+      "unit": ""
+    },
+    {
+      "key": "DRIVER_MODE",
+      "label": "Драйвер: 0 IN/IN/EN, 1 два PWM-входа",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "LEFT_IN1",
+      "label": "Левый IN1 / PWM A",
+      "default": 2,
+      "min": 2,
+      "max": 19,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "LEFT_IN2",
+      "label": "Левый IN2 / PWM B",
+      "default": 4,
+      "min": 2,
+      "max": 19,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "LEFT_EN",
+      "label": "Левый EN (255 — не используется)",
+      "default": 5,
+      "min": 2,
+      "max": 255,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "RIGHT_IN1",
+      "label": "Правый IN1 / PWM A",
+      "default": 7,
+      "min": 2,
+      "max": 19,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "RIGHT_IN2",
+      "label": "Правый IN2 / PWM B",
+      "default": 8,
+      "min": 2,
+      "max": 19,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "RIGHT_EN",
+      "label": "Правый EN (255 — не используется)",
+      "default": 6,
+      "min": 2,
+      "max": 255,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "STANDBY_PIN",
+      "label": "STBY: 255 — отсутствует",
+      "default": 255,
+      "min": 2,
+      "max": 255,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "SERVO_PIN",
+      "label": "SG90",
+      "default": 9,
+      "min": 2,
+      "max": 19,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "START_PIN",
+      "label": "Кнопка пуска: A3 = 17",
+      "default": 17,
+      "min": 2,
+      "max": 19,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "CONTACT_PIN",
+      "label": "Кнопка груза",
+      "default": 12,
+      "min": 2,
+      "max": 19,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "LINE_LEFT",
+      "label": "Левый датчик: A0 = 14",
+      "default": 14,
+      "min": 14,
+      "max": 19,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "LINE_CENTRE",
+      "label": "Средний датчик: A1 = 15",
+      "default": 15,
+      "min": 14,
+      "max": 19,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "LINE_RIGHT",
+      "label": "Правый датчик: A2 = 16",
+      "default": 16,
+      "min": 14,
+      "max": 19,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "LED_PIN",
+      "label": "Индикатор: 255 — отсутствует",
+      "default": 13,
+      "min": 2,
+      "max": 255,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "LEFT_REVERSE",
+      "label": "Инвертировать левый мотор",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "RIGHT_REVERSE",
+      "label": "Инвертировать правый мотор",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "CONTACT_LOW",
+      "label": "Груз: 1 активный LOW, 0 HIGH",
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "group": "Подключение",
+      "unit": ""
+    },
+    {
+      "key": "DRIVE_PWM",
+      "label": "Движение по лучу",
+      "default": 85,
+      "min": 20,
+      "max": 220,
+      "group": "Движение",
+      "unit": ""
+    },
+    {
+      "key": "LOADED_PWM",
+      "label": "Движение с грузом",
+      "default": 75,
+      "min": 20,
+      "max": 220,
+      "group": "Движение",
+      "unit": ""
+    },
+    {
+      "key": "APPROACH_PWM",
+      "label": "Поиск у зоны / отход",
+      "default": 55,
+      "min": 15,
+      "max": 180,
+      "group": "Движение",
+      "unit": ""
+    },
+    {
+      "key": "CENTRE_PWM",
+      "label": "Подъезд к центру круга",
+      "default": 80,
+      "min": 15,
+      "max": 180,
+      "group": "Движение",
+      "unit": ""
+    },
+    {
+      "key": "TURN_PWM",
+      "label": "Поворот без груза",
+      "default": 85,
+      "min": 20,
+      "max": 200,
+      "group": "Движение",
+      "unit": ""
+    },
+    {
+      "key": "TURN_LOADED_PWM",
+      "label": "Поворот с грузом",
+      "default": 75,
+      "min": 20,
+      "max": 200,
+      "group": "Движение",
+      "unit": ""
+    },
+    {
+      "key": "LEFT_TRIM",
+      "label": "Левый мотор: 1000 = 100%",
+      "default": 1000,
+      "min": 500,
+      "max": 1500,
+      "group": "Движение",
+      "unit": ""
+    },
+    {
+      "key": "RIGHT_TRIM",
+      "label": "Правый мотор: 1000 = 100%",
+      "default": 1000,
+      "min": 500,
+      "max": 1500,
+      "group": "Движение",
+      "unit": ""
+    },
+    {
+      "key": "RAMP_STEP",
+      "label": "Изменение PWM за один шаг",
+      "default": 8,
+      "min": 1,
+      "max": 255,
+      "group": "Движение",
+      "unit": ""
+    },
+    {
+      "key": "RAMP_MS",
+      "label": "Период плавного изменения",
+      "default": 10,
+      "min": 1,
+      "max": 100,
+      "group": "Движение",
+      "unit": "мс"
+    },
+    {
+      "key": "LINE_THRESHOLD",
+      "label": "Порог линии: 0 белое…1000 чёрное",
+      "default": 350,
+      "min": 50,
+      "max": 950,
+      "group": "Датчики",
+      "unit": ""
+    },
+    {
+      "key": "WIDE_THRESHOLD",
+      "label": "Порог широкой чёрной отметки",
+      "default": 800,
+      "min": 400,
+      "max": 1000,
+      "group": "Датчики",
+      "unit": ""
+    },
+    {
+      "key": "HUB_TOLERANCE",
+      "label": "Допуск отражения круга",
+      "default": 85,
+      "min": 5,
+      "max": 250,
+      "group": "Датчики",
+      "unit": ""
+    },
+    {
+      "key": "KP",
+      "label": "Пропорциональная коррекция /1000",
+      "default": 110,
+      "min": 0,
+      "max": 500,
+      "group": "Датчики",
+      "unit": ""
+    },
+    {
+      "key": "KD",
+      "label": "Разность соседних ошибок /1000",
+      "default": 15,
+      "min": 0,
+      "max": 500,
+      "group": "Датчики",
+      "unit": ""
+    },
+    {
+      "key": "MAX_CORRECTION",
+      "label": "Максимальная коррекция PWM",
+      "default": 65,
+      "min": 0,
+      "max": 180,
+      "group": "Датчики",
+      "unit": ""
+    },
+    {
+      "key": "SENSOR_MS",
+      "label": "Период опроса датчиков",
+      "default": 10,
+      "min": 2,
+      "max": 100,
+      "group": "Датчики",
+      "unit": "мс"
+    },
+    {
+      "key": "LOST_MS",
+      "label": "Потеря линии до остановки",
+      "default": 250,
+      "min": 30,
+      "max": 2000,
+      "group": "Датчики",
+      "unit": "мс"
+    },
+    {
+      "key": "MARKER_MS",
+      "label": "Подтверждение Т-отметки",
+      "default": 35,
+      "min": 5,
+      "max": 300,
+      "group": "Датчики",
+      "unit": "мс"
+    },
+    {
+      "key": "MARKER_CLEAR_MS",
+      "label": "Повторное разрешение отметки",
+      "default": 80,
+      "min": 10,
+      "max": 500,
+      "group": "Датчики",
+      "unit": "мс"
+    },
+    {
+      "key": "HUB_CONFIRM_MS",
+      "label": "Подтверждение входа в круг",
+      "default": 60,
+      "min": 10,
+      "max": 500,
+      "group": "Датчики",
+      "unit": "мс"
+    },
+    {
+      "key": "CONTACT_MS",
+      "label": "Подтверждение кнопки груза",
+      "default": 30,
+      "min": 5,
+      "max": 300,
+      "group": "Датчики",
+      "unit": "мс"
+    },
+    {
+      "key": "TURN45_MS",
+      "label": "Поворот на 45° без разгона",
+      "default": 510,
+      "min": 50,
+      "max": 3000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "TURN45_LOADED_MS",
+      "label": "45° с грузом без разгона",
+      "default": 579,
+      "min": 50,
+      "max": 3500,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "TURN_START_MS",
+      "label": "Поправка на разгон поворота",
+      "default": 55,
+      "min": 0,
+      "max": 1000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "TURN_RIGHT_SCALE",
+      "label": "Поправка правого поворота /1000",
+      "default": 1000,
+      "min": 500,
+      "max": 1500,
+      "group": "Навигация",
+      "unit": ""
+    },
+    {
+      "key": "UTURN_MIN_MS",
+      "label": "Начало поиска линии после разворота",
+      "default": 2050,
+      "min": 100,
+      "max": 10000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "UTURN_MAX_MS",
+      "label": "Тайм-аут разворота",
+      "default": 2550,
+      "min": 200,
+      "max": 15000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "UTURN_LOADED_MIN_MS",
+      "label": "Поиск линии после разворота с грузом",
+      "default": 2320,
+      "min": 100,
+      "max": 12000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "UTURN_LOADED_MAX_MS",
+      "label": "Тайм-аут разворота с грузом",
+      "default": 2900,
+      "min": 200,
+      "max": 15000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "TURN_LINE_MS",
+      "label": "Подтверждение линии после разворота",
+      "default": 30,
+      "min": 5,
+      "max": 200,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "SETTLE_MS",
+      "label": "Пауза после остановки",
+      "default": 120,
+      "min": 0,
+      "max": 1000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "HUB_EXIT_MS",
+      "label": "Выезд из круга до поиска линии",
+      "default": 650,
+      "min": 50,
+      "max": 5000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "ACQUIRE_MS",
+      "label": "Тайм-аут захвата линии",
+      "default": 1800,
+      "min": 100,
+      "max": 8000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "CENTRE_LEFT_MS",
+      "label": "До центра левого круга",
+      "default": 1650,
+      "min": 0,
+      "max": 6000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "CENTRE_RIGHT_MS",
+      "label": "До центра правого круга",
+      "default": 1650,
+      "min": 0,
+      "max": 6000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "BRIDGE_MIN_MS",
+      "label": "Минимум до второго круга",
+      "default": 2000,
+      "min": 0,
+      "max": 20000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "BRIDGE_MAX_MS",
+      "label": "Тайм-аут перемычки",
+      "default": 15000,
+      "min": 1000,
+      "max": 60000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "BRIDGE_ENTRY_MS",
+      "label": "Вход во второй круг по времени",
+      "default": 9000,
+      "min": 1000,
+      "max": 50000,
+      "group": "Навигация",
+      "unit": "мс"
+    },
+    {
+      "key": "REVERSE_RATIO",
+      "label": "Компенсация отхода после поиска /1000",
+      "default": 1000,
+      "min": 200,
+      "max": 3000,
+      "group": "Навигация",
+      "unit": ""
+    },
+    {
+      "key": "MISSION_SECONDS",
+      "label": "Общий тайм-аут задания",
+      "default": 240,
+      "min": 30,
+      "max": 1800,
+      "group": "Навигация",
+      "unit": ""
+    },
+    {
+      "key": "LIFT_LOW",
+      "label": "Нижний угол SG90",
+      "default": 20,
+      "min": 0,
+      "max": 180,
+      "group": "Подъёмник",
+      "unit": ""
+    },
+    {
+      "key": "LIFT_HIGH",
+      "label": "Верхний угол SG90",
+      "default": 140,
+      "min": 0,
+      "max": 180,
+      "group": "Подъёмник",
+      "unit": ""
+    },
+    {
+      "key": "SERVO_STEP",
+      "label": "Шаг сервопривода",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "group": "Подъёмник",
+      "unit": ""
+    },
+    {
+      "key": "SERVO_MS",
+      "label": "Время между шагами",
+      "default": 15,
+      "min": 5,
+      "max": 100,
+      "group": "Подъёмник",
+      "unit": "мс"
+    },
+    {
+      "key": "SERVO_SETTLE_MS",
+      "label": "Пауза в конечной позиции",
+      "default": 350,
+      "min": 0,
+      "max": 3000,
+      "group": "Подъёмник",
+      "unit": "мс"
+    },
+    {
+      "key": "CHECK_HELD_CONTACT",
+      "label": "Контролировать груз в пути: 0/1",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "group": "Подъёмник",
+      "unit": ""
+    },
+    {
+      "key": "HELD_LOST_MS",
+      "label": "Допустимое отпускание кнопки",
+      "default": 300,
+      "min": 20,
+      "max": 2000,
+      "group": "Подъёмник",
+      "unit": "мс"
+    },
+    {
+      "key": "ARM_HOLD_MS",
+      "label": "Удержание кнопки для подготовки",
+      "default": 2000,
+      "min": 500,
+      "max": 5000,
+      "group": "Подъёмник",
+      "unit": "мс"
+    }
+  ],
+  "zones": [
+    {
+      "key": "OUT_MIN_MS",
+      "label": "Не учитывать отметки в начале луча",
+      "default": 500,
+      "min": 0,
+      "max": 5000
+    },
+    {
+      "key": "OUT_MAX_MS",
+      "label": "Тайм-аут движения к зоне",
+      "default": 7500,
+      "min": 500,
+      "max": 30000
+    },
+    {
+      "key": "SEARCH_MS",
+      "label": "Поиск груза после Т-отметки",
+      "default": 850,
+      "min": 0,
+      "max": 5000
+    },
+    {
+      "key": "BACKOFF_MS",
+      "label": "Отход перед разворотом",
+      "default": 800,
+      "min": 0,
+      "max": 5000
+    },
+    {
+      "key": "RETURN_MIN_MS",
+      "label": "Минимум до своего круга",
+      "default": 350,
+      "min": 0,
+      "max": 5000
+    },
+    {
+      "key": "RETURN_MAX_MS",
+      "label": "Тайм-аут возврата",
+      "default": 7500,
+      "min": 500,
+      "max": 30000
+    },
+    {
+      "key": "RETURN_ENTRY_MS",
+      "label": "Вход в круг по времени",
+      "default": 1800,
+      "min": 0,
+      "max": 20000
+    },
+    {
+      "key": "DROP_ADVANCE_MS",
+      "label": "Движение после отметки до разгрузки",
+      "default": 0,
+      "min": 0,
+      "max": 4000
+    },
+    {
+      "key": "DROP_BACK_MS",
+      "label": "Отход после разгрузки",
+      "default": 1300,
+      "min": 100,
+      "max": 6000
+    }
+  ],
+  "initialSearch": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ]
+}

@@ -9,6 +9,7 @@
 - [3D-симулятор](outputs/AmurCargo_Radial/Open_Simulation_3D.html) — один HTML без сетевых зависимостей.
 - [Сборка и подключение с картинками](outputs/AmurCargo_Radial/Assembly_Guide_RU.html) — 10 шагов, 7 видов текущей модели и 8 схем.
 - [Покупки и предоставленный набор](outputs/AmurCargo_Radial/Purchase_List_RU.html).
+- [Короткий список покупок с количествами](Shopping_short.txt).
 - [Исходники Arduino](outputs/AmurCargo_Radial/RadialRobot).
 - [Как пересобрать проект](BUILD.md).
 

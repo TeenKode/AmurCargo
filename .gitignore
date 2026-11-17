@@ -1,0 +1,11 @@
+node_modules/
+__pycache__/
+*.pyc
+work/cadlibs/
+work/*cache*/
+work/radial_avr_build/
+work/avr_hardware_test/
+work/project_export_check/
+*.elf
+*.o
+*.zip

@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "checks": [
+    "manual_lift_picks_up_cargo_and_moves_actual_meshes",
+    "lowering_releases_load",
+    "timed_drive_stops_and_measures_distance",
+    "measured_distance_calibrates_speed_once",
+    "measured_turn_calibrates_turn_factor",
+    "surface_presets_sample_real_field_geometry",
+    "stop_holds_servo",
+    "interrupted_drive_cannot_calibrate",
+    "saved_lower_angle_preserves_physical_crank_height",
+    "autonomous_mode_still_starts",
+    "mobile_layout"
+  ],
+  "page_errors": []
+}

@@ -1,0 +1,273 @@
+{
+  "passed": true,
+  "embedded_parts_checked": 273,
+  "all_embedded_parts_match_current_sources": true,
+  "quantization_step_mm": 0.05,
+  "old_fork_and_factory_horn_absent": true,
+  "printed_part_matches": [
+    {
+      "name": "Mast",
+      "stl": "02_Mast.stl",
+      "relative_volume_error": 1.2079880420750588e-08,
+      "max_dimension_error_mm": 3.814697265625e-06
+    },
+    {
+      "name": "Carriage",
+      "stl": "03_Carriage.stl",
+      "relative_volume_error": 1.1163566382382741e-07,
+      "max_dimension_error_mm": 1.9073486328125e-06
+    },
+    {
+      "name": "SG90_mount_plate",
+      "stl": "04_SG90_Bolted_Bracket.stl",
+      "relative_volume_error": 7.022177875966305e-10,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Sensor_bar",
+      "stl": "06_LDR_Trial_Bar.stl",
+      "relative_volume_error": 1.3562883937069371e-08,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Electronics_tray",
+      "stl": "09_Upper_Tray.stl",
+      "relative_volume_error": 2.5181314892929406e-09,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Cargo_feeler",
+      "stl": "11_Cargo_Feeler.stl",
+      "relative_volume_error": 1.2914985650209404e-06,
+      "max_dimension_error_mm": 3.814697265625e-06
+    },
+    {
+      "name": "Caster_spacer",
+      "stl": "12_Caster_Spacer.stl",
+      "relative_volume_error": 6.642890990014835e-07,
+      "max_dimension_error_mm": 2.86102294921875e-06
+    },
+    {
+      "name": "Electronics_carrier",
+      "stl": "15_Electronics_Carrier.stl",
+      "relative_volume_error": 2.3611335560007048e-08,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "UNO_edge_clip",
+      "stl": "19_UNO_Edge_Clip.stl",
+      "relative_volume_error": 9.028019884871288e-08,
+      "max_dimension_error_mm": 1.9073486328125e-06
+    },
+    {
+      "name": "Carrier_riser_0",
+      "stl": "18_Carrier_Riser.stl",
+      "relative_volume_error": 3.858896715767342e-08,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Carrier_riser_1",
+      "stl": "18_Carrier_Riser.stl",
+      "relative_volume_error": 3.6712500588296204e-08,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Carrier_riser_2",
+      "stl": "18_Carrier_Riser.stl",
+      "relative_volume_error": 3.2386857668839266e-08,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Carrier_riser_3",
+      "stl": "18_Carrier_Riser.stl",
+      "relative_volume_error": 9.470952546182365e-08,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Fork_spine_removable",
+      "stl": "01_Removable_Fork_Spine.stl",
+      "relative_volume_error": 3.14092523172236e-09,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Fork_arm_Left_low",
+      "stl": "02_Fork_Arm_Left.stl",
+      "relative_volume_error": 6.8197879841844914e-09,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Fork_arm_Right_low",
+      "stl": "02_Fork_Arm_Right.stl",
+      "relative_volume_error": 8.136968333238536e-09,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Fork_arm_Left_high",
+      "stl": "02_Fork_Arm_Left.stl",
+      "relative_volume_error": 9.986412254479061e-09,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Fork_arm_Right_high",
+      "stl": "02_Fork_Arm_Right.stl",
+      "relative_volume_error": 8.66923188328822e-09,
+      "max_dimension_error_mm": 0.0
+    },
+    {
+      "name": "Cargo_button_spacer_Left",
+      "stl": "03_Cargo_Button_Spacer.stl",
+      "relative_volume_error": 1.1634425879005582e-06,
+      "max_dimension_error_mm": 1.5497207641601562e-06
+    },
+    {
+      "name": "Cargo_button_spacer_Right",
+      "stl": "03_Cargo_Button_Spacer.stl",
+      "relative_volume_error": 1.1634425875548976e-06,
+      "max_dimension_error_mm": 1.5497207641601562e-06
+    },
+    {
+      "name": "SG90_integrated_crank_R18",
+      "stl": "SG90_Integrated_R18_21T_Fit2.stl",
+      "relative_volume_error": 1.1512146240790416e-08,
+      "max_dimension_error_mm": 1.921548204109058e-06
+    }
+  ],
+  "horn_sweep": [
+    {
+      "angle": 20,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 30,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 40,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 50,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 60,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 70,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 80,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 90,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 100,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 110,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 120,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 130,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    },
+    {
+      "angle": 140,
+      "integrated_horn_and_crank": true,
+      "horn_servo_body_overlap_mm3": 0.0,
+      "other_intersections_mm3": {
+        "mast": 0.0,
+        "carriage": 0.0,
+        "spine": 0.0
+      }
+    }
+  ],
+  "shaft_axis_coaxial": true,
+  "limitations": [
+    "Spline profile is provisional; physical fit must be tested",
+    "UNO and L298N are reference purchased-part geometries; selecting Nano changes flashing, not mounting geometry",
+    "Load capacity, friction and thread strength are not verified"
+  ]
+}

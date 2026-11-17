@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "stages": 10,
+  "current_model_illustrations": 7,
+  "wiring_and_mechanism_diagrams": 8,
+  "svg_labels_fit": true,
+  "mobile_no_overflow": true,
+  "zoom_and_checkboxes_work": true,
+  "print_style": true,
+  "external_requests": 0
+}

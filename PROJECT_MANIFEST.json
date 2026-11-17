@@ -1,0 +1,933 @@
+{
+  "format": 1,
+  "project": "AmurCargo",
+  "revision": "R4",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 5466,
+      "sha256": "4de0910bc15b7140d96aaeafb19d986eef0f68d385038e3787aed17bb7007f6a"
+    },
+    {
+      "path": "BUILD.md",
+      "bytes": 5657,
+      "sha256": "8c6ea3932638244d984d6a41c688dd380a0f3516522ff083e2ac8d2f9e55a4f6"
+    },
+    {
+      "path": "Shopping_short.txt",
+      "bytes": 3852,
+      "sha256": "77571746e3f8b9416228a3ebc5a51c227c0958886dfc885af8c7e87a76386c29"
+    },
+    {
+      "path": "work/build_short_purchase.py",
+      "bytes": 3997,
+      "sha256": "29445163510ba45245a8eef036641bf96b048453e6abe486e4618d3cbd25129f"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 162,
+      "sha256": "5426b084596d7e1c4bc57682b737860bee506e7f0017048c43a04f1d62628a31"
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 56,
+      "sha256": "7ed691e8efe40b1094dd8e45108b1e95e87c9fd0591da034cee0059405024687"
+    },
+    {
+      "path": "package.json",
+      "bytes": 326,
+      "sha256": "e85e9e6d55db396552cf4c3300f7bbd88de9346617d2a19ac513219cc3029b22"
+    },
+    {
+      "path": "THIRD_PARTY.md",
+      "bytes": 941,
+      "sha256": "5d77352f622c0ec359668054dc65fe15c817ea4e2b512146fef232b71ea60bed"
+    },
+    {
+      "path": "START.html",
+      "bytes": 1518,
+      "sha256": "46f7e8d7e7a5e152d9dd2e49cffa423b5f29214e652d4c0829d2e38695264b02"
+    },
+    {
+      "path": "work/build_radial_page.py",
+      "bytes": 1026,
+      "sha256": "a634b9df829acea93cb3f73a4c7c38ea26a7b09eaccbf63184a1dddb590a7ad9"
+    },
+    {
+      "path": "work/build_radial_3d.py",
+      "bytes": 8938,
+      "sha256": "09b1180d463c631413ef938c286c166b7f4404e97cac9811a57122091948acaf"
+    },
+    {
+      "path": "work/finalize_portable_page.py",
+      "bytes": 11931,
+      "sha256": "9e50ad1eeb9332e12b97d2d57efa571aa9ecf3f010af5bc2a8283f06d29e1255"
+    },
+    {
+      "path": "work/rebuild_site.py",
+      "bytes": 671,
+      "sha256": "32d2332360381bdc9c0b8eda996e87b4d0b046c9f662ab9e570cdec1067f7793"
+    },
+    {
+      "path": "work/build_radial_settings.py",
+      "bytes": 9945,
+      "sha256": "64a17a60134d62e392283ecd1571fc8c144079e4674c985c631f5b972275dd3f"
+    },
+    {
+      "path": "work/build_flash_image.py",
+      "bytes": 2539,
+      "sha256": "92590f9e22c6265748c1c59a3326343e13b558de932f60b736a02426eb84a656"
+    },
+    {
+      "path": "work/build_nano_firmware.py",
+      "bytes": 1180,
+      "sha256": "37f1f72f29d3126d142484b10b172f4c7a00745519093c779b008e7ca41bdd4e"
+    },
+    {
+      "path": "work/compile_radial_avr.py",
+      "bytes": 3282,
+      "sha256": "28a5cb3efe31196b3639e929f2a6047e6e67f9a3a252f558bdb1e09ff7982890"
+    },
+    {
+      "path": "work/compile_radial_wasm.py",
+      "bytes": 798,
+      "sha256": "afd300a8d620ba93c8119db3a55eebb8ae9fcddefc586fc8b692f4b8de6ef458"
+    },
+    {
+      "path": "work/build_removable_forks.py",
+      "bytes": 8063,
+      "sha256": "916b279f330459cc02bb372b96204ffd8d6cf735166430eb89046e87cc796e9d"
+    },
+    {
+      "path": "work/build_direct_servo_horn.py",
+      "bytes": 6078,
+      "sha256": "5dc26ebf7515f9ca57bc59ed6f0a86de69e77a414b8d60e5ffa7da725c37dbac"
+    },
+    {
+      "path": "work/build_photo.py",
+      "bytes": 36280,
+      "sha256": "3e81821a55de875b1242fe49b00f009947af243cdcb3a9ea34b64387795793ff"
+    },
+    {
+      "path": "work/rigid_mounts.py",
+      "bytes": 12758,
+      "sha256": "b1f83beb947490351ebf8217229d591d12fe18cfafab76b18bfea9a014d960e8"
+    },
+    {
+      "path": "work/build_kit_parts.py",
+      "bytes": 4925,
+      "sha256": "f9b6d5e22b1ac389232ac5dd6ed5a688316d5b115e72bf3c984ca688b2fcfb6c"
+    },
+    {
+      "path": "work/prepare_print_kit.py",
+      "bytes": 27114,
+      "sha256": "dcc29cd0f3dc9b56860b05ecda5c074a22b04504301c141e311f3e7c0e17864e"
+    },
+    {
+      "path": "work/build_quick_guide.py",
+      "bytes": 9022,
+      "sha256": "5fe3f33ea70dae3f17f038dbf44de40830fce491c3aac2b988811de81e4e776f"
+    },
+    {
+      "path": "work/build_calibration_guide.py",
+      "bytes": 8103,
+      "sha256": "56a4c11a015d043e031a37695a15c9c84db536b8309218f754061046a5169dac"
+    },
+    {
+      "path": "work/build_purchase_list.py",
+      "bytes": 22838,
+      "sha256": "b4b9f2b18c59ff2435f20e6463dc6212e166de0e7a2cc9e81a62e4194e838e7d"
+    },
+    {
+      "path": "work/build_illustrated_assembly.py",
+      "bytes": 38925,
+      "sha256": "6c7dc27120acee9f8a52565fa1cf75e9eaef399cb53603a03e86e579205d2625"
+    },
+    {
+      "path": "work/render_assembly_guide.cjs",
+      "bytes": 3174,
+      "sha256": "c6f27d7f2f912a2006ab30eff5cef2574dcc55bcdf2eab2f8eff6224e3c9e9d5"
+    },
+    {
+      "path": "work/package_ready_only.py",
+      "bytes": 6634,
+      "sha256": "a88ca502f93a03420d19fb5b2f0e15a1aa02df061b31d256666816c43571c4d4"
+    },
+    {
+      "path": "work/package_full_project.py",
+      "bytes": 22506,
+      "sha256": "4ab6ae82d2f0ea6f9aabfe75511422e1df54c07dd8916802635d5f4404fb62e2"
+    },
+    {
+      "path": "work/radial_simulator.html",
+      "bytes": 38205,
+      "sha256": "ef512a439e63e633c47213a695dbd2a5c52cee2a22f3972a193df765b816b99d"
+    },
+    {
+      "path": "work/radial_3d.js",
+      "bytes": 11663,
+      "sha256": "c6e3bb3391161d8ac216d9695a3211462447920af9e1b3fa59e1489c7ecead3e"
+    },
+    {
+      "path": "work/world_editor.js",
+      "bytes": 9304,
+      "sha256": "18f4444713a3fd52d32a39468848789b557ed6313a6b7fcbdcaa887e79843a1f"
+    },
+    {
+      "path": "work/manual_panel.js",
+      "bytes": 10021,
+      "sha256": "c328d072017649d4722e10c0e6a6446fa575c2fdc4d8b1eff8ac274f4654a358"
+    },
+    {
+      "path": "work/serial_panel.js",
+      "bytes": 12951,
+      "sha256": "a9fa88f1b01aaa1ea84c012f1945ced4c5304c3b1c1d412deb56ebabd09a8e9e"
+    },
+    {
+      "path": "work/webserial_uploader.js",
+      "bytes": 7537,
+      "sha256": "bfcfdcc2ead1730a90cd4f751c35ce0201051dea7e3fdb34db0b592a294f49c7"
+    },
+    {
+      "path": "work/project_export.js",
+      "bytes": 2758,
+      "sha256": "c7a4f5e38db073d84db6b9aa687eadd0e3a9685e9b3591aeb4833afb7688823c"
+    },
+    {
+      "path": "work/runtime_paths.cjs",
+      "bytes": 526,
+      "sha256": "d89be0be89dc1f8f9f915d75ef098cec26205002938d99ee0ee0f75a9c023fea"
+    },
+    {
+      "path": "work/quick_guide_body.html",
+      "bytes": 5474,
+      "sha256": "7b88c35ab1f1d5240e4bcba942df0a781f0a2084129369d8011a6cf584553098"
+    },
+    {
+      "path": "work/calibration_guide_body.html",
+      "bytes": 6984,
+      "sha256": "c36e59dc2a9d2a775afe01d2ae5ece6d524a2e5686ffb20fe59286536024eb74"
+    },
+    {
+      "path": "work/user_base_payload.json",
+      "bytes": 16439879,
+      "sha256": "fcae49f2b49806f8cddd8b81df9ae2ea251576439fbf1747ec9420ac6721e3a8"
+    },
+    {
+      "path": "work/test_radial_hardware.cpp",
+      "bytes": 3582,
+      "sha256": "e5ab7643c477b4107fa7857e693795234c87009692352294ac9e9d725ef9c30a"
+    },
+    {
+      "path": "work/test_radial_batch.cjs",
+      "bytes": 3121,
+      "sha256": "21cd22ff5211d91499beb92b15e0c34b284029be6e750504e86b7ea6058caaff"
+    },
+    {
+      "path": "work/test_radial_sim.cjs",
+      "bytes": 1328,
+      "sha256": "7192cd074b58102681e4059bcbaa7db30577acc09b9f95019cff9aa1e1726424"
+    },
+    {
+      "path": "work/test_webserial.cjs",
+      "bytes": 3315,
+      "sha256": "d2945f3b1b951f46447c088942fc857db9dfaee3ea5769af2631c057e342bcee"
+    },
+    {
+      "path": "work/test_nano_upload.cjs",
+      "bytes": 2951,
+      "sha256": "dba641ae0f0d3185ffa6025e32d42894937bb2a2b4c5d5a56191d17990bf9db4"
+    },
+    {
+      "path": "work/test_project_export.cjs",
+      "bytes": 2099,
+      "sha256": "3f558c2e4634b2a8532e52924684b3c4f1f5b5e6a965023323ac686d3900394f"
+    },
+    {
+      "path": "work/test_manual_panel.cjs",
+      "bytes": 5180,
+      "sha256": "bcf5abb18fb95b8cc44d192415861fccb7511a09e245507b0a6831dd1334191c"
+    },
+    {
+      "path": "work/test_manual_usb.cjs",
+      "bytes": 2507,
+      "sha256": "c6cb614d0a6f3f5b2106ada757af74fa8e2fa2b86bc6e8b154672dbbd1451888"
+    },
+    {
+      "path": "work/test_illustrated_guide.cjs",
+      "bytes": 2485,
+      "sha256": "7b8aafbb35cf613016c608f3121961062a181ad708e9cb5d263232ccd96f8c60"
+    },
+    {
+      "path": "work/test_current_model.cjs",
+      "bytes": 2786,
+      "sha256": "2f412c3a6c7ed4337b1e5d9300f20a54d1594b98747b5fb10e2cb04548a6c924"
+    },
+    {
+      "path": "work/test_field_stability.cjs",
+      "bytes": 2701,
+      "sha256": "619ffac4b9c0c065c6031019899b3b8e79acd3f503c082d31457f047d190f94d"
+    },
+    {
+      "path": "work/test_simple_help.cjs",
+      "bytes": 3371,
+      "sha256": "c000eb3ab27e091b29fd27c38c47c583c76ad98559ea7c47a4265a54c2e6ca8b"
+    },
+    {
+      "path": "work/test_vertical_cargo.cjs",
+      "bytes": 1635,
+      "sha256": "4891b1c000752e74850ac79acba2e30d82f246a3458b41246b7e9dd2eb646c20"
+    },
+    {
+      "path": "work/test_radial_3d.cjs",
+      "bytes": 5432,
+      "sha256": "8db01320e9fd069e27812f4c97e448cd85c5cfcf1c8ef5c7b5c15ea8369d0bea"
+    },
+    {
+      "path": "work/test_world_editor.cjs",
+      "bytes": 5460,
+      "sha256": "70a748debeb137d04bdde0b5199fa05413847a12f9029f7cfa1b76461be75cf0"
+    },
+    {
+      "path": "work/test_removable_forks.py",
+      "bytes": 5087,
+      "sha256": "a265080de555cfc47f8e6d0ea4d932fe056f71ea02e33bcbe0b6d98b6f03885a"
+    },
+    {
+      "path": "work/test_reverse_nut.py",
+      "bytes": 2298,
+      "sha256": "56913bbe06318a4b2f72676062ca1320948711ddd85f6b40d766010031323a45"
+    },
+    {
+      "path": "work/audit_current_simulator_model.py",
+      "bytes": 7606,
+      "sha256": "c0431cfe346bdd9eea57a45ca48a01a7a1963bb650b44fc227de1f9370fed9a6"
+    },
+    {
+      "path": "work/kit_host/Arduino.h",
+      "bytes": 1179,
+      "sha256": "0dd7c5b874746a8a3f9e20e91ea7fbd305f9812790e2ca4ae79ec5466767cbe3"
+    },
+    {
+      "path": "work/kit_host/EEPROM.h",
+      "bytes": 288,
+      "sha256": "30797e80f0f118034d4a465c76166964b265e839c47438aaf1b2c8ae2777054b"
+    },
+    {
+      "path": "work/kit_host/Servo.h",
+      "bytes": 161,
+      "sha256": "f08c4ffb47c462e738e128e9d8778c80775cb6a9b5beb49ac41392b188246111"
+    },
+    {
+      "path": "work/assembly_illustrations/chassis.png",
+      "bytes": 67788,
+      "sha256": "d68a8e67d04f8107b64ff4e19cb415e707c8a7c0071720211ccb0a55dd0e63af"
+    },
+    {
+      "path": "work/assembly_illustrations/crank.png",
+      "bytes": 36151,
+      "sha256": "d105f53046767093bc5668bd16c8b9834efed1e48b81c323750b3b4768402267"
+    },
+    {
+      "path": "work/assembly_illustrations/electronics.png",
+      "bytes": 194375,
+      "sha256": "6c8f01185061ec11b3a4b04b9d1e561552f793fc77992199073a55fe51371b0d"
+    },
+    {
+      "path": "work/assembly_illustrations/forks.png",
+      "bytes": 73547,
+      "sha256": "912af194bcdcfe99c2190ae6761221cf17db3a5f3c272cadcf8698ba9da45c0f"
+    },
+    {
+      "path": "work/assembly_illustrations/mast.png",
+      "bytes": 94945,
+      "sha256": "a163b451260d5dfe469f6cc879674b6a01ce8ef1cf234ae6a68d0a9ec6dbf0f9"
+    },
+    {
+      "path": "work/assembly_illustrations/overview.png",
+      "bytes": 105559,
+      "sha256": "d0e37530a43de5c9b48729c8779cfcb0a3af26c07ce12711e475ec0e09f9dd58"
+    },
+    {
+      "path": "work/assembly_illustrations/servo_back.png",
+      "bytes": 119754,
+      "sha256": "2ba316c9aea215baed4e950a23c25ee8ec7e1e39b356f2b130f46f2d74279e09"
+    },
+    {
+      "path": "work/vendor/LICENSE_three.txt",
+      "bytes": 1081,
+      "sha256": "7dddf7c5b8fd10ee654db8857d75d104b5557889aa5a91fc4ca545ea7c07062f"
+    },
+    {
+      "path": "work/vendor/OrbitControls.js",
+      "bytes": 27420,
+      "sha256": "5742860df2533c1c5ed580f939228f2a0d88b14967bb167dc9954ceedb1616e8"
+    },
+    {
+      "path": "work/vendor/three.min.js",
+      "bytes": 603451,
+      "sha256": "7ae04663bb431808bc025280122162029ea3a354efc5fcca8bd8f95d1a1933e9"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/RadialRobot/RadialCore.h",
+      "bytes": 9929,
+      "sha256": "636b2078cb0b22bc3e773749b00378803739481f932f22036ac624a36102d08f"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/RadialRobot/RadialRobot.ino",
+      "bytes": 509,
+      "sha256": "194fff375255a5f9f0ffdb2cacd5faa07ca4764019499b1f42a8b978d9d6465c"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/RadialRobot/RobotConfig.h",
+      "bytes": 4312,
+      "sha256": "2acb7f167b288f2d24f9aa745c90f758b602fd5e110b791c252029a5a7d59c5e"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/RadialRobot/RobotHardware.h",
+      "bytes": 11591,
+      "sha256": "557f577051961bcf7587da16fdbfd210ce00d0ddbd4539ec4ab419bbd4f8114d"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/RadialRobot/Settings.h",
+      "bytes": 7028,
+      "sha256": "7cdd7a9ab2aaed0ea24dd7b4559d88a3c4e30054d4dcba418f6e3bc46b7e61fe"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Open_Simulation_3D.html",
+      "bytes": 3610553,
+      "sha256": "472a1dea00c30d757aa64e5f3ddd82b152ff1ace581411b9b742dcebfe8b1645"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Assembly_Guide_RU.html",
+      "bytes": 987706,
+      "sha256": "743e7118b4f009622dc8019129fd7a610f557d2c7036624df8b7f60e2cd21fcf"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Purchase_List_RU.html",
+      "bytes": 35465,
+      "sha256": "8aaf8b4676bac0a3d9f17ef0b70f813b01dc50b68e72693716cc0d84e0284039"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/simulation.js",
+      "bytes": 11969,
+      "sha256": "fc26b70b9699485a23b8ef41560ddb23252a2b53f741fd082589ccb8d6b36aa2"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/settings_schema.json",
+      "bytes": 17806,
+      "sha256": "b514e628f709d391a6e5ec44bfb5f4ae96c53924d04140bdc5b018350c8c36e5"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/WebAssembly.cpp",
+      "bytes": 1873,
+      "sha256": "c0df5839dd774ce24d2aa632b44901613e382e1e29c547e91a1961f983f5a179"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/FirmwareCore.wasm",
+      "bytes": 9843,
+      "sha256": "2f3667a625f2b3104c79773228e578e078866b22cfb4533e09b507e0df5b2da3"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Flash_Image.json",
+      "bytes": 390,
+      "sha256": "6e74c761c94e9373e32445280ba8653c94435759062adb288396761c04f48738"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Flash_Image_Nano.json",
+      "bytes": 492,
+      "sha256": "386a7f62419d47aeb1c54a2ca5028f8aebf0e2e1a78e0cffa43dff4b75008493"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adaptation_Meshes.json",
+      "bytes": 361545,
+      "sha256": "f8a3e156fbff27055093959f3c76b2ac2b1e3d41835d69295f490951f46cd8a5"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Servo_Horn_Mesh.json",
+      "bytes": 60157,
+      "sha256": "cbbd348eebdb7c9853a3dac775a9ec57e67519e7ae8322e854919f9dcf6dd4c1"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Servo_Link_Meshes.json",
+      "bytes": 19831,
+      "sha256": "70a3d1f1bd0186553c4898872fe440d0b76b90a59e0cd27c03fe73fd841193fb"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adaptation_Checks.json",
+      "bytes": 2631,
+      "sha256": "a765cc0ed29d615a256340a3ef13d5fcebfffb132595b670cdb625bfe0240938"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Servo_Horn_Checks.json",
+      "bytes": 2866,
+      "sha256": "bbfc495a2bc5cdf183f5bd47042e879d998c08a83b316920ac717c5a4c7537d6"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Reverse_Nut_Checks.json",
+      "bytes": 340,
+      "sha256": "2f2ff8cf430c423ae6d58928a449bced6731b6c34059810797bd6cfc524b68ea"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Current_Model_Audit.json",
+      "bytes": 7568,
+      "sha256": "202b538ae05a9156634368fb6ef8403753a505808d59b1a4eefc254bb471b824"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Hardware_Adapter_Checks.json",
+      "bytes": 480,
+      "sha256": "e6c9bbc827a1f72c2f06f8e1015d2f454fd2b33ce39a91ab97e78c95c24c2d28"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/AVR_Build_Checks.json",
+      "bytes": 403,
+      "sha256": "8cdeae08390680669c4298a517ebd47fbe05e1a44bc4c497fc91a774ac9c9bb7"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Nano_Build_Checks.json",
+      "bytes": 436,
+      "sha256": "ee26b81687488f806cd4961b149568e5d4c9eaf994399b859125f71a3e6956c3"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Manual_Panel_Checks.json",
+      "bytes": 515,
+      "sha256": "a2129181da3341e92bd96a331d8dc990637aaf02d040d393c660f9474bbea914"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Illustrated_Guide_Checks.json",
+      "bytes": 251,
+      "sha256": "b7fa602f8c25560246cc546c939f6389dd3eaad7456bd8c972dc31c756a0ecc3"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/PRINT_MANIFEST.json",
+      "bytes": 12137,
+      "sha256": "5d0300c1d16cff472c52c98f389f1c33a9b87832803fc411bab8607ce62799af"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/02_Mast.stl",
+      "bytes": 259266,
+      "sha256": "dd4c668bd1a275e0daea6d4205d191827f25d8cfeea52e4de66159a8f08e68aa"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/03_Carriage.stl",
+      "bytes": 155883,
+      "sha256": "44d12fc5bfdcc64bd24125c2c281153f66497516e4be960069927dd537c08c79"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/04_SG90_Bolted_Bracket.stl",
+      "bytes": 249700,
+      "sha256": "0ca0aa3b7254cbaf626b59c65acf2fee1c798265ac77cc07f35afbcf72bb74e1"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/06_LDR_Trial_Bar.stl",
+      "bytes": 75526,
+      "sha256": "e06ebb9f62cf5ad5f83cd73e9de5aef6d064a89b9826517c57d6c99d86bd408a"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/09_Upper_Tray.stl",
+      "bytes": 110151,
+      "sha256": "192ee3c155b8cade259ef171da2eb50581c968235dc9c92e8eaf635e195b6b5c"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/11_Cargo_Feeler.stl",
+      "bytes": 68321,
+      "sha256": "683fe798345fa153a0f23785c5af331b63c6f62d8664caa77b1d31117fc52975"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/12_Caster_Spacer.stl",
+      "bytes": 8506,
+      "sha256": "9079871c3373684a511ac98c26d6cfcb6f1537ba95cab9c18873553e34c8e618"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/15_Electronics_Carrier.stl",
+      "bytes": 893820,
+      "sha256": "203dcedc1839de46fb7c997ba80b79912e5718789f5a5e2dd1706459f201352a"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/18_Carrier_Riser.stl",
+      "bytes": 54503,
+      "sha256": "9a0c151de68d5acc087e9d12167a7ea8c048e09e0a0af39188c4f798f693462a"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/19_UNO_Edge_Clip.stl",
+      "bytes": 35212,
+      "sha256": "3ae5b1a943397b7b87b437ba42fc1371ce0422ebb5a5b04275a172db60d2de6f"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/00_Fit_Coupon.stl",
+      "bytes": 492756,
+      "sha256": "6ad7d77ff5dc6cd2fb547f516be1ccc6b219a3d41de280a5677baba280ee060f"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/00_Guide_Rail.stl",
+      "bytes": 9202,
+      "sha256": "98d622c1ff5249461cf72a12d838ce63f5c132b69b2fce316dd148b5abdb3cce"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Ready/00_Guide_Slider.stl",
+      "bytes": 6143,
+      "sha256": "051a00dbeae8d735db3d32bae9b604228d582d7db1223d84e690359ceb6725c2"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adapters/00_M3_Plastic_Fit_Coupon_Print_Orientation.stl",
+      "bytes": 159003,
+      "sha256": "c6709443f4bdd27743633ca0474927513871c10f3b4801e747161d164f36643d"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adapters/01_Removable_Fork_Spine_Print_Orientation.stl",
+      "bytes": 895516,
+      "sha256": "eabb46bf71b10c83ad7a61cec5660fe217feefdaffc9e018727e4892f7542fb0"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adapters/02_Fork_Arm_Left_Print_Orientation.stl",
+      "bytes": 212088,
+      "sha256": "d9f0939972a493251995d6b58016201380228e31ba9fc339e85aa51a16f31e66"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adapters/02_Fork_Arm_Right_Print_Orientation.stl",
+      "bytes": 212626,
+      "sha256": "59c319767826f1ef4b804b110fb4a73cb7a6c6810cb5991068b332a91983b608"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adapters/03_Cargo_Button_Spacer_Print_Orientation.stl",
+      "bytes": 118213,
+      "sha256": "30aca044deef307af7e68c424909355e558743bef0bb93daefe04180923c8faf"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adapters/00_M3_Plastic_Fit_Coupon.step",
+      "bytes": 28606,
+      "sha256": "3df0380a1fc59268fb0824136600c57a4fdb849d5bbc3855c67c0419079653df"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adapters/01_Removable_Fork_Spine.step",
+      "bytes": 415743,
+      "sha256": "8478914d791be10f4f99c38270a4643d98aeb76ea9637fd98fa1fe55bac8f45e"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adapters/02_Fork_Arm_Left.step",
+      "bytes": 68843,
+      "sha256": "6e9440372bd9808de02a975b93c1f7171cbc569f861a223a6cc53410ace25c93"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adapters/02_Fork_Arm_Right.step",
+      "bytes": 64303,
+      "sha256": "a0861f8dcd3638cd662afbee00eeca356ad8ec7d9d4ea522e810c321e596470c"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Fork_Adapters/03_Cargo_Button_Spacer.step",
+      "bytes": 9332,
+      "sha256": "7f56076e1baa874d7766327dc2e65680f299fa80c0ba032652c888b813bb42d6"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Servo_Horn/SG90_Integrated_R18_20T_Fit3.stl",
+      "bytes": 482142,
+      "sha256": "e6a0d687da6bd436d810040d6a25c357c3b9e4e4f2c219e1beedc0dbf7484fba"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Servo_Horn/SG90_Integrated_R18_20T_Fit4.stl",
+      "bytes": 480192,
+      "sha256": "04b6805d2e782c9680f40eca1aaa82801a1ea211d10eab7154efc0269bc3ba0c"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Servo_Horn/SG90_Integrated_R18_21T_Fit1.stl",
+      "bytes": 490113,
+      "sha256": "5fa308c9523b2dda4bf1641dc9fce1279195a9070c83c7bd938b8f17c6c9d9c9"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Servo_Horn/SG90_Integrated_R18_21T_Fit2.stl",
+      "bytes": 487513,
+      "sha256": "179f58a0d0dc5463cf1b29562c4800e0ed2f23078f88332a36be9e5980ebb5b7"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Servo_Horn/00_SG90_Spline_Fit_Test.stl",
+      "bytes": 1955197,
+      "sha256": "644412f9f49f20c25b40ff18f37a3f6fa06b73a2577ece927003ac14fe801e24"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Parts/02_Mast.step",
+      "bytes": 274998,
+      "sha256": "80ccc9732d21b90bcc172961f25f6b9fb42f6ace9c79f5ebb6bb30a44bfd97a1"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Parts/03_Carriage.step",
+      "bytes": 247463,
+      "sha256": "c473f9c6c7b8a7247a7d70e0fc4bbd2e1ef576ea860aa36ed2289101be11a7a0"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Parts/04_SG90_Bolted_Bracket.step",
+      "bytes": 65318,
+      "sha256": "973f106f707c94421a1440f359110795f81cf60cc22ee6a9387f0ebeaf588499"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Parts/06_LDR_Trial_Bar.step",
+      "bytes": 113522,
+      "sha256": "c98a52544393531cdce1db14bd89aee3d2959b7cdc63511479f8b2df279a284e"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Parts/09_Upper_Tray.step",
+      "bytes": 29900,
+      "sha256": "c3b64525671ea00f73f5fc7df56781da7cf97075b629a5e7db1e419ec7dbe82c"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Parts/11_Cargo_Feeler.step",
+      "bytes": 72824,
+      "sha256": "3e9bfe964bfd966cf890dec25807ec9646faf2c3b0bea9a117dafaa2527a52e1"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Parts/12_Caster_Spacer.step",
+      "bytes": 43403,
+      "sha256": "07345c117575ac6515fa77bb29e6755cf4d146e4d2704cc26d1ac5e301fcffc3"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Parts/15_Electronics_Carrier.step",
+      "bytes": 288915,
+      "sha256": "9a9c40f0095d33a8bcc348129cd5652338698b1a9c40c0aca17f5979ca0d94cb"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Parts/18_Carrier_Riser.step",
+      "bytes": 9315,
+      "sha256": "658450e270b985d8bd1da3141b68f818c5c64b65e419da973e84a99c03b7b5c2"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Print_Parts/19_UNO_Edge_Clip.step",
+      "bytes": 37466,
+      "sha256": "532a58c8793c857a66b300451ca2b15796697fd01124cd25a38cabbeb4218a41"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/18650_Cell.step",
+      "bytes": 12177,
+      "sha256": "2c3770f471d1c65184772e087e05bccf4a81dd387fe500cd9dbf5b654265ab6f"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/18650_Holder_Keystone.step",
+      "bytes": 133175,
+      "sha256": "a2619c57b6cbde390255e9d78b62fba05a8e1ea94aa927f23e1db9f7a1fa69a9"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/Adafruit_License.txt",
+      "bytes": 1076,
+      "sha256": "f60436644e066301d4c2e8f1f0674a157b1f60e4fd5586717b99dde255cc18cd"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/Adafruit_README.md",
+      "bytes": 94,
+      "sha256": "9ed9beac7600623b7b9bd0d02e1fdcd86610ce22966723179e6c6b618e399dce"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/FreeCAD_Assets_License.txt",
+      "bytes": 20620,
+      "sha256": "f14f4d7cf4bf40f8f589b6b461a110d849031e2e43958235e018b3763e54b859"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/FreeCAD_Code_License.txt",
+      "bytes": 27602,
+      "sha256": "a880e1e9679e55ce367e5a5559d590bb6982295e128cb58a95b8f20f2ad95ef9"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/FreeCAD_README.md",
+      "bytes": 5859,
+      "sha256": "aa560c49ce3b9b4dcdb3557da02238f8ef0b279384249d637aa26a6697166666"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/KiCad_License.txt",
+      "bytes": 2105,
+      "sha256": "285b027a721577d0bc0198f36e948c6c282ddaa4b58fef8ed826749576eb0aef"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/L298N.step",
+      "bytes": 626259,
+      "sha256": "85a25934934a49eaca09fd8db0e59b1eb5095bb3705ac0943f9bdb4e9be82af5"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/L298N_License.txt",
+      "bytes": 455,
+      "sha256": "5cb37a5e25d37fe8a526c575fd89a27b97cacdba3814aa54261ce5a39d8aa8d0"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/LED_3mm.step",
+      "bytes": 87737,
+      "sha256": "7dcb79e6809c788fd0d398bf27e57dc4d4deaa095ff30e368e4401ce9d3d3fc4"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/Motor_README.md",
+      "bytes": 1813,
+      "sha256": "b17265acf97020d8f527ca29c004ae3cf77b01326adb158f9d9fc15272136f19"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/Photoresistor.step",
+      "bytes": 218928,
+      "sha256": "bf7403dbf28ba687435840197a8bfb2514e335ff33f769730a290f4aefa46b5e"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/Photoresistor_README.md",
+      "bytes": 56,
+      "sha256": "d2d4da57235f96695c4eb93369d41baa70966eea13c571d3fc65effc647f39f2"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/Resistor_220.step",
+      "bytes": 79740,
+      "sha256": "c54f947813a92dbcca8a9f5460d014f8961f72ff238a9d243266ca32ca35847e"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/Screw_M3x12.step",
+      "bytes": 58483,
+      "sha256": "0b66ca95204778079dcbbda3982a15369c59e842a5ebcadeb04b06658e9943da"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/SG90.step",
+      "bytes": 1503392,
+      "sha256": "9ad7b12887580bf68135e7bf544f0fc231ab9af988508184c097b1d1c3e7d734"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/SG90_Horn.step",
+      "bytes": 85272,
+      "sha256": "d74e1e0e056ecc071f24daba43380b887b819eb55c300a41f2429d455180b0df"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/SG90_README.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/Tactile_Button.step",
+      "bytes": 484365,
+      "sha256": "09c958d58e473390aad8ac9a0c08f62698eda2ae862c13bb194068b5720e07af"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Downloaded_Models/UNO_R3.FCStd",
+      "bytes": 8308664,
+      "sha256": "aca28665fbaed05a1e2a2a898821982b77fd43353303d7b40e0816641e8d46e2"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/assembly_data.json",
+      "bytes": 26480830,
+      "sha256": "696ec2029efc59f2cb5023616e5ea378540a7d3d48fcfeeacbfbdd73239dfe16"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/SOURCES.md",
+      "bytes": 4696,
+      "sha256": "d783e398704f8ce4a58446f888f22289f8203f9df27c108c0e3ccf099e0e4ee5"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/download_manifest.json",
+      "bytes": 12581,
+      "sha256": "a0ed729178d566f5c4fb57e6b2763bd209475eaea54b908753c3e501a634d885"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/Printability_Checks.json",
+      "bytes": 8067,
+      "sha256": "292166d1b7db6934d41b86a92f6a000c39496959d79f37f2a7c8f97aeb11d76c"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/component_manifest.json",
+      "bytes": 10659,
+      "sha256": "bf81b4c3094af13285f088afbdf9374c459e790eeeccf49e948b98bb5ffb1d25"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/User_Models/2wd_robot_original.blend",
+      "bytes": 44575812,
+      "sha256": "bdaf002db1fe614a7ee0c5c21e4258803cd2f9eba35aadcfdb4e275114a8f042"
+    },
+    {
+      "path": "outputs/AmurCargo_Photo/User_Models/SOURCE.json",
+      "bytes": 352,
+      "sha256": "dadbf0b0f114de754fcf8e57605a26c7a3a4d06fb25085f7bc2f304f052a7ccd"
+    },
+    {
+      "path": "Inputs/Case.pdf",
+      "bytes": 517157,
+      "sha256": "5f709234869267b9072badad8973f18cdbf82c947e96d2722af157f9776f4396"
+    },
+    {
+      "path": "Inputs/Case_Details.docx",
+      "bytes": 19329,
+      "sha256": "7ef0f7b445a925433877fa6ce4e0d0bf8421e84fcf5b591709d59daf3d5727b9"
+    },
+    {
+      "path": "Inputs/Criteria.docx",
+      "bytes": 34571,
+      "sha256": "4afff7bd4c9c26e96406f8575efcabab658b2cb12ec160a342ed4fd247c58432"
+    },
+    {
+      "path": "Inputs/Equipment.docx",
+      "bytes": 17746,
+      "sha256": "857a1a5e6d82e686f5b46cefd47932ff9bc5ad2798a83b465a03c4c04c902acd"
+    },
+    {
+      "path": "Inputs/Cargo_1.jfif",
+      "bytes": 212208,
+      "sha256": "f81ac093f0696ce7b1460ee8d00760b388a44dd3e6900e422fd8b61a57ffc1e9"
+    },
+    {
+      "path": "Inputs/Cargo_2.jfif",
+      "bytes": 225054,
+      "sha256": "b1daf503e986106c47b87e82eaeff44217ab26657560dcf1a8b77706aebf7630"
+    },
+    {
+      "path": "Inputs/Cargo_3.jfif",
+      "bytes": 246835,
+      "sha256": "10d4119ec5712b9710fb1878d721a727bca366c7f2cd9473bd7add87a8a9e0eb"
+    },
+    {
+      "path": "Inputs/Similar_Radial_Field.png",
+      "bytes": 170859,
+      "sha256": "6bf9c4418fee033ef3719c0181fdba1616bd1e26506dd2e12d0d656cc1b0c114"
+    },
+    {
+      "path": "work/export_user_base.py",
+      "bytes": 3567,
+      "sha256": "b1ccc5ddc98e1551c6a56d77ac7f42e2d82c5ebf4c616ba32591f3d05e66893e"
+    },
+    {
+      "path": "work/export_pickup_samples.cjs",
+      "bytes": 1260,
+      "sha256": "2e8d0040b1910b825807b85048aa08d67ed68918cc1b51bc693e0344045d0e8e"
+    },
+    {
+      "path": "work/audit_full_mechanics.py",
+      "bytes": 5639,
+      "sha256": "318d120cf42d6d5000de0ce4ec0a9dee5c097a50b6fd9dca40334de53ba34c41"
+    },
+    {
+      "path": "work/build_hardware_runtime_test.py",
+      "bytes": 2901,
+      "sha256": "a73a9a5238998381468421ea62007206c9d4b33896cb79d44e9ec0ef66e5d27b"
+    },
+    {
+      "path": "work/test_hardware_runtime.cjs",
+      "bytes": 1326,
+      "sha256": "a044763c94238a18a768a21688a96e7acd6db92c98499a05c9883647c25b1415"
+    },
+    {
+      "path": "work/test_servo_direction_ui.cjs",
+      "bytes": 2011,
+      "sha256": "6c622b2473e5bbefd0751fee726766038066d1a7ceb8908aedd8d44422b0dfd5"
+    },
+    {
+      "path": "work/test_exported_project.py",
+      "bytes": 1247,
+      "sha256": "de502ebd4ac297851f1f81eabfbdf0fda4508c26ae214d6afb9ce44fcd280275"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Full_Mechanical_Audit.json",
+      "bytes": 5361,
+      "sha256": "871343eba444d173ed5aaa195c8869c91b4e6ff92a7918f086b3d71c0ad2cd14"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Removable_Fork_Mounting_Checks.json",
+      "bytes": 732,
+      "sha256": "e1855c8257792c9ba273fc5183dd6a2867d1b346be45930d61415f002bb3b846"
+    },
+    {
+      "path": "outputs/AmurCargo_Radial/Pickup_Geometry_Samples.json",
+      "bytes": 4584,
+      "sha256": "9a5e4c5dcdd619646c249cb2aa9c4781ea2a9acdb753b43df7a37704d7e677bd"
+    }
+  ],
+  "identical_files_omitted": [
+    {
+      "omitted_duplicate": "outputs/AmurCargo_Photo/Downloaded_Models/three_License.txt",
+      "same_as": "work/vendor/LICENSE_three.txt"
+    }
+  ]
+}

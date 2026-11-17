@@ -1,0 +1,233 @@
+[
+  {
+    "file": "SG90.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electrical%20Parts/Servos/SG-90/Servo-sg90.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electrical%20Parts/Servos/SG-90/Servo-sg90.step",
+    "bytes": 1503392,
+    "sha256": "9ad7b12887580bf68135e7bf544f0fc231ab9af988508184c097b1d1c3e7d734"
+  },
+  {
+    "file": "SG90_Horn.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electrical%20Parts/Servos/SG-90/SG90-1-arm-horn.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electrical%20Parts/Servos/SG-90/SG90-1-arm-horn.step",
+    "bytes": 85272,
+    "sha256": "d74e1e0e056ecc071f24daba43380b887b819eb55c300a41f2429d455180b0df"
+  },
+  {
+    "file": "TT_Motor.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electrical%20Parts/Motors/DC%20motor/Yellow_gearmotor/straight/Yellow_gearmotor_straight.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electrical%20Parts/Motors/DC%20motor/Yellow_gearmotor/straight/Yellow_gearmotor_straight.step",
+    "bytes": 483631,
+    "sha256": "37d7fdea3520a5b04b353a24eb5ff844f1d1e19c77865a52ad26a415a8de59e9"
+  },
+  {
+    "file": "Wheel_65mm.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electrical%20Parts/Motors/DC%20motor/Yellow_wheel_65mm/Yellow_wheel_65mm.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electrical%20Parts/Motors/DC%20motor/Yellow_wheel_65mm/Yellow_wheel_65mm.step",
+    "bytes": 5555823,
+    "sha256": "d11559aef731e8b869e124856722c117b198e4c6e49c2cc1a992bbcbd5cb3c76"
+  },
+  {
+    "file": "L298N.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electrical%20Parts/Motor%20Drivers/L298N/L298N.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electrical%20Parts/Motor%20Drivers/L298N/L298N.step",
+    "bytes": 626259,
+    "sha256": "85a25934934a49eaca09fd8db0e59b1eb5095bb3705ac0943f9bdb4e9be82af5"
+  },
+  {
+    "file": "UNO_Compatible.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Computing/SingleBoardComputers/Arduino/freaduino-uno.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Computing/SingleBoardComputers/Arduino/freaduino-uno.step",
+    "bytes": 16482880,
+    "sha256": "0ba8f99e67b8544faa55fd39b3a024b90173f775574e6cf8848bcacd86d8678b"
+  },
+  {
+    "file": "UNO_R3.FCStd",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Computing/SingleBoardComputers/Arduino/Arduino%20UNO/Arduino%20UNO.FCStd",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Computing/SingleBoardComputers/Arduino/Arduino%20UNO/Arduino%20UNO.FCStd",
+    "bytes": 8308664,
+    "sha256": "aca28665fbaed05a1e2a2a898821982b77fd43353303d7b40e0816641e8d46e2"
+  },
+  {
+    "file": "Photoresistor.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electronics%20Parts/Photoresistor/Photoresistor.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electronics%20Parts/Photoresistor/Photoresistor.step",
+    "bytes": 218928,
+    "sha256": "bf7403dbf28ba687435840197a8bfb2514e335ff33f769730a290f4aefa46b5e"
+  },
+  {
+    "file": "LED_3mm.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electronics%20Parts/LEDs/led-3mm-short.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electronics%20Parts/LEDs/led-3mm-short.step",
+    "bytes": 87737,
+    "sha256": "7dcb79e6809c788fd0d398bf27e57dc4d4deaa095ff30e368e4401ce9d3d3fc4"
+  },
+  {
+    "file": "Tactile_Button.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electronics%20Parts/Buttons/THT/pushbutton-mini.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electronics%20Parts/Buttons/THT/pushbutton-mini.step",
+    "bytes": 484365,
+    "sha256": "09c958d58e473390aad8ac9a0c08f62698eda2ae862c13bb194068b5720e07af"
+  },
+  {
+    "file": "Resistor_220.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electronics%20Parts/Resistors/res-1_4w-220ohm.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electronics%20Parts/Resistors/res-1_4w-220ohm.step",
+    "bytes": 79740,
+    "sha256": "c54f947813a92dbcca8a9f5460d014f8961f72ff238a9d243266ca32ca35847e"
+  },
+  {
+    "file": "Resistor_Generic.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electronics%20Parts/Resistors/Resistencia%20generica.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electronics%20Parts/Resistors/Resistencia%20generica.step",
+    "bytes": 79618,
+    "sha256": "2b047dfa0579e23d600e7cabe8529a2984891daefbce41c3460296e048f6425e"
+  },
+  {
+    "file": "FreeCAD_Assets_License.txt",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/LICENSE-Assets",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/LICENSE-Assets",
+    "bytes": 20620,
+    "sha256": "f14f4d7cf4bf40f8f589b6b461a110d849031e2e43958235e018b3763e54b859"
+  },
+  {
+    "file": "FreeCAD_Code_License.txt",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/LICENSE-Code",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/LICENSE-Code",
+    "bytes": 27602,
+    "sha256": "a880e1e9679e55ce367e5a5559d590bb6982295e128cb58a95b8f20f2ad95ef9"
+  },
+  {
+    "file": "FreeCAD_README.md",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/README.md",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/README.md",
+    "bytes": 5859,
+    "sha256": "aa560c49ce3b9b4dcdb3557da02238f8ef0b279384249d637aa26a6697166666"
+  },
+  {
+    "file": "SG90_README.md",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electrical%20Parts/Servos/SG-90/README.md",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electrical%20Parts/Servos/SG-90/README.md",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "Photoresistor_README.md",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electronics%20Parts/Photoresistor/README.md",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electronics%20Parts/Photoresistor/README.md",
+    "bytes": 56,
+    "sha256": "d2d4da57235f96695c4eb93369d41baa70966eea13c571d3fc65effc647f39f2"
+  },
+  {
+    "file": "L298N_License.txt",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electrical%20Parts/Motor%20Drivers/L298N/LICENSE.txt",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electrical%20Parts/Motor%20Drivers/L298N/LICENSE.txt",
+    "bytes": 455,
+    "sha256": "5cb37a5e25d37fe8a526c575fd89a27b97cacdba3814aa54261ce5a39d8aa8d0"
+  },
+  {
+    "file": "Motor_README.md",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electrical%20Parts/Motors/DC%20motor/README.md",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electrical%20Parts/Motors/DC%20motor/README.md",
+    "bytes": 1813,
+    "sha256": "b17265acf97020d8f527ca29c004ae3cf77b01326adb158f9d9fc15272136f19"
+  },
+  {
+    "file": "KiCad_Battery_Models.7z",
+    "url": "https://kicad.github.io/download/packages3d/Battery.3dshapes.7z",
+    "source_page": "https://kicad.github.io/packages3d/Battery.html",
+    "bytes": 712054,
+    "sha256": "193bdc55eeb0cddddbc162c12f032d4a2c0a0e72ddec31d1c36b4ede17a1e7e4"
+  },
+  {
+    "file": "three.min.js",
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js",
+    "source_page": "https://github.com/mrdoob/three.js/tree/r128",
+    "bytes": 603445,
+    "sha256": "9274bbcec8d96168626c732b5d31c775aa8cfb7eaa0599bec0c175908a2c1ce2"
+  },
+  {
+    "file": "OrbitControls.js",
+    "url": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js",
+    "source_page": "https://github.com/mrdoob/three.js/tree/r128",
+    "bytes": 26375,
+    "sha256": "02bb4ade710f3e607329e37a21f098bc3ac70eb6e33daf8a65e79f4db785e7b2"
+  },
+  {
+    "file": "TT_Motor_Adafruit.step",
+    "url": "https://raw.githubusercontent.com/adafruit/Adafruit_CAD_Parts/main/3777%20TT%20Motor/3777%20TT%20Motor.step",
+    "source_page": "https://github.com/adafruit/Adafruit_CAD_Parts/tree/main/3777%20TT%20Motor",
+    "bytes": 112694,
+    "sha256": "12e0fa54576085011cc9f5221ad95aca62d565e051d995523d192d0a65797ce3"
+  },
+  {
+    "file": "Breadboard_400.step",
+    "url": "https://raw.githubusercontent.com/adafruit/Adafruit_CAD_Parts/main/64%20Halfsize%20Breadboard/64%20Halfsize%20Breadboard.step",
+    "source_page": "https://github.com/adafruit/Adafruit_CAD_Parts/tree/main/64%20Halfsize%20Breadboard",
+    "bytes": 23037,
+    "sha256": "b8e48b1c25d45354f6d3f90d5e75cbf3d4063d48e3d1867d255cb52b9de0d279"
+  },
+  {
+    "file": "18650_Cell.step",
+    "url": "https://raw.githubusercontent.com/adafruit/Adafruit_CAD_Parts/main/1781%202200mAh%20Battery/1781%202200mAh%20Battery.step",
+    "source_page": "https://github.com/adafruit/Adafruit_CAD_Parts/tree/main/1781%202200mAh%20Battery",
+    "bytes": 12177,
+    "sha256": "2c3770f471d1c65184772e087e05bccf4a81dd387fe500cd9dbf5b654265ab6f"
+  },
+  {
+    "file": "2WD_Chassis_Reference.stl",
+    "url": "https://raw.githubusercontent.com/rafaellevissa/2wd/main/rafael%20segundo%20modelo.STL",
+    "source_page": "https://github.com/rafaellevissa/2wd",
+    "bytes": 42284,
+    "sha256": "e0e16a0e17fe16ccc4081874530379ec37a22b117bcd518ddf0c24a978884df3"
+  },
+  {
+    "file": "2WD_Chassis_Reference_Detailed.stl",
+    "url": "https://raw.githubusercontent.com/rafaellevissa/2wd/main/rafael.STL",
+    "source_page": "https://github.com/rafaellevissa/2wd",
+    "bytes": 1388434,
+    "sha256": "7ba83150373fd8a8cf07596d71644f7552e7fbb6523cb2f92cad751720e97f19"
+  },
+  {
+    "file": "Adafruit_License.txt",
+    "url": "https://raw.githubusercontent.com/adafruit/Adafruit_CAD_Parts/main/LICENSE",
+    "source_page": "https://github.com/adafruit/Adafruit_CAD_Parts",
+    "bytes": 1076,
+    "sha256": "f60436644e066301d4c2e8f1f0674a157b1f60e4fd5586717b99dde255cc18cd"
+  },
+  {
+    "file": "Adafruit_README.md",
+    "url": "https://raw.githubusercontent.com/adafruit/Adafruit_CAD_Parts/main/README.md",
+    "source_page": "https://github.com/adafruit/Adafruit_CAD_Parts",
+    "bytes": 94,
+    "sha256": "9ed9beac7600623b7b9bd0d02e1fdcd86610ce22966723179e6c6b618e399dce"
+  },
+  {
+    "file": "three_License.txt",
+    "url": "https://raw.githubusercontent.com/mrdoob/three.js/r128/LICENSE",
+    "source_page": "https://github.com/mrdoob/three.js/tree/r128",
+    "bytes": 1081,
+    "sha256": "7dddf7c5b8fd10ee654db8857d75d104b5557889aa5a91fc4ca545ea7c07062f"
+  },
+  {
+    "file": "KiCad_License.txt",
+    "url": "https://raw.githubusercontent.com/KiCad/kicad-packages3D/master/LICENSE.md",
+    "source_page": "https://www.kicad.org/libraries/license/",
+    "bytes": 2105,
+    "sha256": "285b027a721577d0bc0198f36e948c6c282ddaa4b58fef8ed826749576eb0aef"
+  },
+  {
+    "file": "Dupont_1x3.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Electronics%20Parts/Connectors/dupont-connectors/dupont-2_54mm-female-conn-1x3.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Electronics%20Parts/Connectors/dupont-connectors/dupont-2_54mm-female-conn-1x3.step",
+    "bytes": 469596,
+    "sha256": "ae7ac6f898a8a88bf72a3b26c889e2bc812e697c7c67e5cc67a70753550f60f4"
+  },
+  {
+    "file": "Screw_M3x12.step",
+    "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/master/Mechanical%20Parts/Fasteners/Bolts%20%26%20Screws/Metric/ISO4762_Hex_Socket_Head_Cap_Screw_M3x12.step",
+    "source_page": "https://github.com/FreeCAD/FreeCAD-library/blob/master/Mechanical%20Parts/Fasteners/Bolts%20%26%20Screws/Metric/ISO4762_Hex_Socket_Head_Cap_Screw_M3x12.step",
+    "bytes": 58483,
+    "sha256": "0b66ca95204778079dcbbda3982a15369c59e842a5ebcadeb04b06658e9943da"
+  }
+]

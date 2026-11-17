@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "nut_inserted_from_servo_side": true,
+  "nut_retained_by_front_wall_mm": 1.4,
+  "pocket_depth_mm": 2.6,
+  "nut_thickness_mm": 2.4,
+  "sleeve_length_mm": 10.5,
+  "bolt_length_mm": 16,
+  "bolt_protrusion_beyond_nut_mm": 1.2,
+  "nut_and_sleeve_no_arm_intersections": true,
+  "physical_assembly_tested": false
+}

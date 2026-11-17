@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "executed_actual_cpp_hardware_adapter": true,
+  "test_harness_cpu": "AVR, enlarged RAM for independent test instances",
+  "mocked_gpio_servo_and_eeprom": true,
+  "instructions": 10363000,
+  "servo_reverse_persists": true,
+  "reverse_loaded_before_first_servo_write": true,
+  "sensor_calibration_erase_and_crc_do_not_change_direction": true,
+  "raised_fork_change_refused": true,
+  "detached_confirmation_required": true,
+  "physical_hardware_tested": false
+}
