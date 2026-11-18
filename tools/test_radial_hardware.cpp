@@ -1,6 +1,7 @@
 #include "RobotHardware.h"
 #include <cassert>
 #include <cstdio>
+#include <initializer_list>
 void cmd(RobotHardware &h,const char *s){char b[160];strcpy(b,s);h.handle(b,clockMs);}
 void steps(RobotHardware &h,int count){for(int i=0;i<count;i++){clockMs+=10;h.tick();}}
 void sample(RobotHardware &h,const char *name,int adc){for(int i=14;i<=16;i++)adcPins[i]=adc;cmd(h,name);steps(h,32);assert(!h.calibrating);}
@@ -12,6 +13,17 @@ int main(){
  assert(normalizeAdc(800,800,200)==0&&normalizeAdc(200,800,200)==1000&&normalizeAdc(500,800,200)==500);
  cmd(h,"save");RobotHardware restored;restored.init();assert(restored.calibrationReady());
  cmd(h,"arm");cmd(h,"jog 100 -100 100");assert(h.jogging);steps(h,5);assert(outputPins[5]>0&&outputPins[6]>0);steps(h,6);assert(!h.jogging&&outputPins[5]==0&&outputPins[6]==0);
+ for(int duration : {1000, 20}){
+  cmd(h,"arm");
+  cmd(h,duration==20?"jog 100 100 20":"jog 100 100 1000");
+  assert(h.jogging);
+  steps(h,1);
+  inputPins[h.v(P_START_PIN)]=LOW;steps(h,5);
+  assert(!h.jogging&&!h.armed&&outputPins[5]==0&&outputPins[6]==0);
+  inputPins[h.v(P_START_PIN)]=HIGH;steps(h,5);
+  assert(h.robot.state==IDLE&&!h.armed);
+ }
+ cmd(h,"arm");
  cmd(h,"high");steps(h,250);assert(h.robot.servoAngle==h.v(P_LIFT_HIGH));h.releaseButton(100,clockMs);assert(h.robot.state==IDLE);
  cmd(h,"low");steps(h,250);assert(h.robot.servoAngle==h.v(P_LIFT_LOW));h.releaseButton(100,clockMs);assert(h.robot.active());
  cmd(h,"jog 100 100 1000");assert(!h.jogging);const int angle=h.robot.servoAngle;cmd(h,"stop");steps(h,2);assert(h.robot.state==FAULT&&h.robot.fault==ABORTED&&outputPins[5]==0&&outputPins[6]==0&&h.robot.servoAngle==angle);

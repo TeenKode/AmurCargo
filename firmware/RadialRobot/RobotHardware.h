@@ -18,7 +18,7 @@ inline uint16_t normalizeAdc(uint16_t raw,uint16_t white,uint16_t black){int32_t
 struct RobotHardware {
  Settings settings;RadialRobot robot;Servo lift;StoredCalibration cal;
  uint16_t raw[3];SensorInput input;
- bool armed,stream,calibrating,jogging,rawButton,stableButton,lineOverflow,servoReversed;
+ bool armed,stream,calibrating,jogging,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed;
  uint8_t calKind,samples,lineLength;
  uint32_t sampleSum[3],lastRead,buttonChanged,buttonPressed,lastStream,jogStarted;
  uint8_t defaultServoLow,defaultServoHigh;
@@ -45,7 +45,7 @@ struct RobotHardware {
  void init(){
   Serial.begin(115200);loadUserSettings(settings);
   configError=settingsError(settings);if(!configError)configError=pinSettingsError(settings);
-  armed=stream=calibrating=jogging=lineOverflow=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
+  armed=stream=calibrating=jogging=skipButtonRelease=lineOverflow=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
   if(configError){Serial.print(F("CONFIG ERROR "));Serial.println(configError);return;}
   uint8_t outs[8]={(uint8_t)v(P_LEFT_IN1),(uint8_t)v(P_LEFT_IN2),(uint8_t)v(P_RIGHT_IN1),(uint8_t)v(P_RIGHT_IN2),(uint8_t)v(P_LEFT_EN),(uint8_t)v(P_RIGHT_EN),(uint8_t)v(P_LED_PIN),(uint8_t)v(P_STANDBY_PIN)};
   for(uint8_t i=0;i<8;i++)if(outs[i]!=255&&(v(P_DRIVER_MODE)==0||i<4||i>5)){pinMode(outs[i],OUTPUT);digitalWrite(outs[i],LOW);}
@@ -91,9 +91,21 @@ struct RobotHardware {
   robot.start(now);
  }
  void button(uint32_t now){
-  bool b=digitalRead(v(P_START_PIN))==LOW;if(b!=rawButton){rawButton=b;buttonChanged=now;}
-  if(b!=stableButton&&(uint32_t)(now-buttonChanged)>=35){stableButton=b;if(b){buttonPressed=now;if(robot.active()){robot.fail(ABORTED,now);armed=false;}if(jogging){jogging=false;robot.stop();outputMotors(0,0);}}
-   else releaseButton(now-buttonPressed,now);
+  bool pressed=digitalRead(v(P_START_PIN))==LOW;
+  if(pressed!=rawButton){
+   rawButton=pressed;buttonChanged=now;
+  }
+  // Remember the stop even if the timed jog expires during button debounce.
+  if(pressed&&jogging)skipButtonRelease=true;
+  if((uint32_t)(now-buttonChanged)<35)return;
+  if(pressed==stableButton){if(!pressed)skipButtonRelease=false;return;}
+  stableButton=pressed;
+  if(pressed){
+   buttonPressed=now;
+   if(robot.active()){robot.fail(ABORTED,now);armed=false;}
+   if(skipButtonRelease){jogging=false;armed=false;robot.stop();outputMotors(0,0);}
+  }else if(!skipButtonRelease){
+   releaseButton(now-buttonPressed,now);
   }
  }
  void status(){
@@ -178,7 +190,7 @@ struct RobotHardware {
   }
   if(!strcmp(cmd,"jog")){
    long l,r,t;char *a=strtok(0," \t"),*b=strtok(0," \t"),*c=strtok(0," \t");
-   if(!armed||calibrating||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-150||l>150||r<-150||r>150||t<1||t>2000){Serial.println(F("JOG REFUSED: arm, low, no load; PWM +/-150, 1..2000ms."));return;}
+   if(!armed||calibrating||digitalRead(v(P_START_PIN))==LOW||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-150||l>150||r<-150||r>150||t<1||t>2000){Serial.println(F("JOG REFUSED: arm, low, no load; PWM +/-150, 1..2000ms."));return;}
    jogLeft=l;jogRight=r;jogDuration=t;jogStarted=now;jogging=true;return;
   }
   Serial.println(F("UNKNOWN COMMAND"));
