@@ -51,7 +51,7 @@ s=s.replace('SG90: цельная качалка','R4 · окно кнопки 9
 s=s.replace('Крепёж — четыре М3×12 в пластик.','Крепёж — четыре боковых М3×16 с потайной головкой в пластик.')
 s=s.replace('setupAmurSerial({getCfg:', 'setupAmurSerial({projectConfig:configHeader,getCfg:')
 s=s.replace('let world=null;let cfg=', 'let manualPanel=null;let world=null;let cfg=')
-s=s.replace('<button data-tab="arduino">Arduino</button>', '<button data-tab="arduino">Arduino</button><button data-tab="manual">Проверка</button>')
+s=s.replace('<button data-tab="arduino">Arduino</button>', '<button data-tab="manual">Проверка</button><button data-tab="arduino">Робот · USB</button>')
 s=s.replace('</aside>', '<section class="pane" id="pane-manual"></section></aside>',1)
 s=s.replace('<button id="step">', '<button id="openManual">Проверка</button><button id="step">',1)
 s=s.replace(' function updateUi(force=false){', ' function updateUi(force=false){manualPanel?.sync();')

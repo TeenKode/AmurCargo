@@ -19,3 +19,6 @@ tools/project_export_check/
 /simulator/Assembly_Guide_Template.html
 /simulator/*_Preview.png
 /tools/Ready_Archive_Checks.json
+
+/simulator/RadialRobot_*.hex
+/tools/avr8js-*.tgz

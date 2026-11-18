@@ -9,6 +9,7 @@
 
 #pragma pack(push,1)
 struct StoredCalibration {uint32_t magic;uint8_t version,pins[3],mask;uint16_t white[3],black[3],hub[2][3],crc;};
+struct StoredServoLimits { uint32_t magic; uint8_t low, high, reverse, check; };
 struct StoredServoDirection {uint32_t magic;uint8_t reverse,check;};
 #pragma pack(pop)
 inline uint16_t calibrationCrc(const StoredCalibration &c){const uint8_t *p=(const uint8_t*)&c;uint16_t crc=0xA51D;for(uint8_t i=0;i<sizeof(c)-2;i++){crc^=(uint16_t)p[i]<<8;for(uint8_t b=0;b<8;b++)crc=crc&0x8000?(crc<<1)^0x1021:crc<<1;}return crc;}
@@ -20,6 +21,7 @@ struct RobotHardware {
  bool armed,stream,calibrating,jogging,rawButton,stableButton,lineOverflow,servoReversed;
  uint8_t calKind,samples,lineLength;
  uint32_t sampleSum[3],lastRead,buttonChanged,buttonPressed,lastStream,jogStarted;
+ uint8_t defaultServoLow,defaultServoHigh;
  uint16_t jogDuration;int16_t jogLeft,jogRight;int configError;char command[80];
  uint16_t v(Param p)const{return settings.v[p];}
  bool contact()const{return digitalRead(v(P_CONTACT_PIN))==(v(P_CONTACT_LOW)?LOW:HIGH);}
@@ -41,7 +43,7 @@ struct RobotHardware {
   if(v(P_STANDBY_PIN)!=255)digitalWrite(v(P_STANDBY_PIN),(l||r)?HIGH:LOW);
  }
  void init(){
-  Serial.begin(115200);loadUserSettings(settings);robot.init(settings,millis());
+  Serial.begin(115200);loadUserSettings(settings);
   configError=settingsError(settings);if(!configError)configError=pinSettingsError(settings);
   armed=stream=calibrating=jogging=lineOverflow=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
   if(configError){Serial.print(F("CONFIG ERROR "));Serial.println(configError);return;}
@@ -51,6 +53,15 @@ struct RobotHardware {
   rawButton=stableButton=digitalRead(v(P_START_PIN))==LOW;buttonPressed=millis();
   EEPROM.get(0,cal);bool valid=cal.magic==0x52414431UL&&cal.version==1&&cal.crc==calibrationCrc(cal);
   StoredServoDirection direction;EEPROM.get(1000,direction);servoReversed=direction.magic==0x53525631UL&&direction.reverse<=1&&direction.check==(uint8_t)(direction.reverse^255)&&direction.reverse;
+  defaultServoLow=v(P_LIFT_LOW);defaultServoHigh=v(P_LIFT_HIGH);
+  StoredServoLimits limits;
+  EEPROM.get(990, limits);
+  if(limits.magic==0x534C4D31UL && limits.low<limits.high && limits.high<=180 &&
+     limits.reverse==servoReversed && limits.check==servoLimitsCheck(limits)){
+   settings.v[P_LIFT_LOW]=limits.low;
+   settings.v[P_LIFT_HIGH]=limits.high;
+  }
+  robot.init(settings,millis());
   const uint8_t pins[3]={(uint8_t)v(P_LINE_LEFT),(uint8_t)v(P_LINE_CENTRE),(uint8_t)v(P_LINE_RIGHT)};
   for(uint8_t i=0;i<3;i++)if(cal.pins[i]!=pins[i])valid=false;
   if(!valid){memset(&cal,0,sizeof(cal));cal.magic=0x52414431UL;cal.version=1;for(uint8_t i=0;i<3;i++)cal.pins[i]=pins[i];}
@@ -89,7 +100,14 @@ struct RobotHardware {
   Serial.print(F("state="));Serial.print((int)robot.state);Serial.print(F(" fault="));Serial.print((int)robot.fault);Serial.print(F(" armed="));Serial.print(armed);
   Serial.print(F(" hub="));Serial.print(robot.hub);Serial.print(F(" ray="));Serial.print(robot.ray);Serial.print(F(" held="));Serial.print(robot.loaded);Serial.print(F(" angle="));Serial.print(robot.servoAngle);
   Serial.print(F(" servo_reverse="));Serial.print(servoReversed?1:0);Serial.print(F(" servo_output="));Serial.print(servoOutputAngle());
+  Serial.print(F(" servo_goal="));Serial.print(robot.servoGoal);
+  Serial.print(F(" servo_low="));Serial.print(v(P_LIFT_LOW));
+  Serial.print(F(" servo_high="));Serial.print(v(P_LIFT_HIGH));
+  Serial.print(F(" start_button="));Serial.print(stableButton?1:0);
   Serial.print(F(" raw="));for(uint8_t i=0;i<3;i++){Serial.print(raw[i]);Serial.print(' ');}Serial.print(F(" line="));for(uint8_t i=0;i<3;i++){Serial.print(input.line[i]);Serial.print(' ');}Serial.print(F(" contact="));Serial.println(contact());
+ }
+ static uint8_t servoLimitsCheck(const StoredServoLimits &limits){
+  return 0xA7 ^ limits.low ^ (uint8_t)(limits.high*3) ^ limits.reverse;
  }
  uint8_t servoOutputAngle()const{return servoReversed?180-robot.servoAngle:robot.servoAngle;}
  bool number(char *s,long &n){if(!s)return false;char *end;n=strtol(s,&end,10);return *s&&!*end;}
@@ -97,16 +115,59 @@ struct RobotHardware {
   char *cmd=strtok(line," \t");if(!cmd)return;
   if(!strcmp(cmd,"stop")){jogging=false;robot.fail(ABORTED,now);armed=false;outputMotors(0,0);Serial.println(F("STOPPED. Servo holds current angle."));return;}
   if(!strcmp(cmd,"status")){status();return;}
-  if(!strcmp(cmd,"stream")){stream=!stream;return;}
+  if(!strcmp(cmd,"stream")){
+   char *mode=strtok(0," \t");
+   if(!mode)stream=!stream;
+   else if(!strcmp(mode,"on"))stream=true;
+   else if(!strcmp(mode,"off"))stream=false;
+   else {Serial.println(F("Use stream on or off."));return;}
+   if(stream)status();
+   return;
+  }
   if(robot.active()||jogging){Serial.println(F("BUSY: only status, stream, stop."));return;}
-  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; servo normal|reverse detached; jog L R ms; status; stream; reset; erase; stop"));return;}
+  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; jog L R ms; status; stream; reset; erase; stop"));return;}
   if(!strcmp(cmd,"low")||!strcmp(cmd,"high")){robot.servoGoal=!strcmp(cmd,"low")?v(P_LIFT_LOW):v(P_LIFT_HIGH);Serial.println(F("MANUAL SERVO: support any load."));return;}
   if(!strcmp(cmd,"reset")){if(robot.servoAngle!=v(P_LIFT_LOW)||contact()){Serial.println(F("RESET REFUSED: lower forks and remove load."));return;}robot.init(settings,now);armed=false;return;}
   if(robot.state!=IDLE){Serial.println(F("RESET REQUIRED"));return;}
+  if(!strcmp(cmd,"angle")||!strcmp(cmd,"limits")){
+   if(calibrating||contact()){
+    Serial.println(F("SERVO REFUSED: finish sensor calibration and remove load"));return;
+   }
+   long low,high;
+   char *first=strtok(0," \t"),*second=strtok(0," \t");
+   if(!number(first,low)||low<0||low>180||strtok(0," \t")){
+    Serial.println(F("SERVO REFUSED: angle must be 0..180"));return;
+   }
+   if(!strcmp(cmd,"angle")){
+    if(second){Serial.println(F("Use angle N"));return;}
+    armed=false;
+    robot.servoGoal=(uint8_t)low;
+   }else{
+    if(!number(second,high)||high<=low||high>180||robot.servoAngle!=robot.servoGoal){
+     Serial.println(F("SERVO REFUSED: wait for servo and set low < high <= 180"));return;
+    }
+    StoredServoLimits limits={0x534C4D31UL,(uint8_t)low,(uint8_t)high,(uint8_t)servoReversed,0};
+    limits.check=servoLimitsCheck(limits);
+    EEPROM.put(990,limits);
+    settings.v[P_LIFT_LOW]=limits.low;
+    settings.v[P_LIFT_HIGH]=limits.high;
+    armed=false;
+    Serial.println(F("SERVO LIMITS SAVED"));
+   }
+   status();
+   return;
+  }
   if(!strcmp(cmd,"servo")){
    char *mode=strtok(0," \t"),*detached=strtok(0," \t");
    if(!mode||!detached||strcmp(detached,"detached")||strtok(0," \t")||(strcmp(mode,"normal")&&strcmp(mode,"reverse"))||calibrating||contact()||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)){Serial.println(F("SERVO REFUSED: idle, low, no load; detach horn; servo normal|reverse detached"));return;}
-   servoReversed=!strcmp(mode,"reverse");StoredServoDirection direction={0x53525631UL,(uint8_t)servoReversed,(uint8_t)(servoReversed^255)};EEPROM.put(1000,direction);armed=false;lift.write(servoOutputAngle());Serial.print(F("SERVO SAVED reverse="));Serial.println(servoReversed?1:0);return;
+   const bool reverse=!strcmp(mode,"reverse");
+   if(reverse!=servoReversed){
+    EEPROM.put(990,(uint8_t)0);
+    settings.v[P_LIFT_LOW]=defaultServoLow;
+    settings.v[P_LIFT_HIGH]=defaultServoHigh;
+    robot.servoAngle=robot.servoGoal=v(P_LIFT_LOW);
+   }
+   servoReversed=reverse;StoredServoDirection direction={0x53525631UL,(uint8_t)servoReversed,(uint8_t)(servoReversed^255)};EEPROM.put(1000,direction);armed=false;lift.write(servoOutputAngle());Serial.print(F("SERVO SAVED reverse="));Serial.println(servoReversed?1:0);return;
   }
   if(!strcmp(cmd,"arm")){armed=true;Serial.println(F("ARMED"));return;}
   if(!strcmp(cmd,"erase")){memset(&cal,0,sizeof(cal));cal.magic=0x52414431UL;cal.version=1;cal.pins[0]=v(P_LINE_LEFT);cal.pins[1]=v(P_LINE_CENTRE);cal.pins[2]=v(P_LINE_RIGHT);cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);armed=false;Serial.println(F("CAL ERASED. Servo direction retained."));return;}
@@ -117,7 +178,7 @@ struct RobotHardware {
   }
   if(!strcmp(cmd,"jog")){
    long l,r,t;char *a=strtok(0," \t"),*b=strtok(0," \t"),*c=strtok(0," \t");
-   if(!armed||calibrating||robot.servoAngle!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-150||l>150||r<-150||r>150||t<1||t>2000){Serial.println(F("JOG REFUSED: arm, low, no load; PWM +/-150, 1..2000ms."));return;}
+   if(!armed||calibrating||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-150||l>150||r<-150||r>150||t<1||t>2000){Serial.println(F("JOG REFUSED: arm, low, no load; PWM +/-150, 1..2000ms."));return;}
    jogLeft=l;jogRight=r;jogDuration=t;jogStarted=now;jogging=true;return;
   }
   Serial.println(F("UNKNOWN COMMAND"));

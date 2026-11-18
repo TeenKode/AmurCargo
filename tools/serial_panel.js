@@ -5,22 +5,124 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  real.append(direction);const powerNote=document.createElement('p');powerNote.className='hint';powerNote.textContent='Для USB-проб отсоедините внешний провод 5 В от Arduino: плата питается от USB, моторы и серво — от своих источников. Общий GND оставьте соединённым.';real.append(powerNote);pane.append(real);
  const projectButton=document.createElement('button');projectButton.id='downloadProject';projectButton.textContent='↓ Скачать проект Arduino (ZIP)';$('downloadHex').after(projectButton);
  projectButton.onclick=()=>{try{if(configError())throw Error('Сначала исправьте настройки программы');const blob=AmurProject.build(projectConfig(),getCfg().uploadBoard||'uno'),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='AmurCargo_Arduino_Project.zip';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);log('Проект скачан. Распакуйте ZIP и откройте RadialRobot.ino в Arduino IDE.');}catch(e){log(e.message);}};
+ const connection=document.querySelector('#openMonitor').parentElement;
+ const sensors=$('calButtons').parentElement;
+ sensors.querySelector('h2').remove();
+ const flashing=document.createElement('div');
+ for(const element of [...pane.children]){
+  if(element===$('serialSupport'))break;
+  flashing.append(element);
+ }
+ const section=(label,node,open=false)=>{
+  const details=document.createElement('details');
+  const title=document.createElement('summary');
+  title.textContent=label;
+  details.open=open;
+  details.append(title,node);
+  return details;
+ };
+ const controls=document.createElement('div');
+ controls.innerHTML=`
+   <p>Сними груз. Подводи механизм к нужной высоте шагами по 1°.</p>
+   <p class="hint">Угол на экране — команда Arduino. Положение вил проверь на роботе.</p>
+   <p id="liveHardware" aria-live="polite">Нажми «Статус» или включи телеметрию.</p>
+   <div class="cal-buttons">
+    <button data-command="status">Статус</button>
+    <button data-command="stream on">Телеметрия вкл.</button>
+    <button data-command="stream off">Телеметрия выкл.</button>
+    <button data-command="stop" class="danger">Стоп</button>
+   </div>
+ `;
+ const limits=document.createElement('div');
+ limits.innerHTML=`
+   <h2>Положения вил</h2>
+   <div class="form-row"><label for="servoTarget">Пробный угол (0–180°)</label><input id="servoTarget" type="number" min="0" max="180"></div>
+   <div class="cal-buttons">
+    <button id="servoBack">−1°</button><button id="servoForward">+1°</button><button id="servoPreview">Перейти к углу</button>
+    <button data-command="low">Вниз</button><button data-command="high">Вверх</button>
+   </div>
+   <div class="form-row"><label for="servoLow">Нижний угол</label><input id="servoLow" type="number" min="0" max="179"><button id="captureLow">Взять текущий</button></div>
+   <div class="form-row"><label for="servoHigh">Верхний угол</label><input id="servoHigh" type="number" min="1" max="180"><button id="captureHigh">Взять текущий</button></div>
+   <button id="saveServoLimits">Сохранить оба в Arduino</button>
+   <p class="hint" id="servoLimitsStatus">Для калибровки нужна обновлённая прошивка. Сохранённые углы действуют и в автоматическом заезде.</p>
+ `;
+ const terminal=document.createElement('div');
+ terminal.append($('serialLog'),$('serialForm'));
+ const clearLog=document.createElement('button');
+ clearLog.textContent='Очистить журнал';
+ clearLog.onclick=()=>$('serialLog').textContent='';
+ terminal.append(clearLog);
+ const directionSection=section('Направление SG90',direction);
+ limits.append(directionSection);
+ const heading=document.createElement('h2');
+ heading.textContent='Реальный робот';
+ const portStatus=document.createElement('p');
+ portStatus.id='portStatus';
+ pane.replaceChildren(heading,$('serialSupport'),connection,portStatus,controls,
+  section('Сервопривод',limits,true),section('Датчики',sensors),
+  section('Проба моторов',real),section('Прошивка',flashing),section('Терминал COM',terminal));
+ let telemetry=null,limitsLoaded=false;
  let busy=false,controller=null,monitorPort=null,reader=null,writer=null,pump=null;
- const log=s=>{$('serialLog').textContent=($('serialLog').textContent+'\n'+s).slice(-10000);$('serialLog').scrollTop=$('serialLog').scrollHeight;const match=String(s).match(/(?:servo_reverse|SERVO SAVED reverse)=(0|1)/);if(match){$('servoDirection').value=match[1]==='1'?'reverse':'normal';$('servoDirectionStatus').textContent='Плата сообщает: '+(match[1]==='1'?'обратное':'обычное')+' направление SG90. Сохранено в EEPROM. Установите качалку в нижнем положении при выключенном питании.';}};
+ const log=s=>{$('serialLog').textContent=($('serialLog').textContent+'\n'+s).slice(-10000);$('serialLog').scrollTop=$('serialLog').scrollHeight;const status=String(s).match(/angle=(\d+).*?servo_output=(\d+).*?servo_goal=(\d+).*?servo_low=(\d+).*?servo_high=(\d+).*?start_button=(\d).*?raw=([^=]+?) line=.*?contact=(\d)/);
+ if(status){
+  const [angle,physical,goal,low,high,start,raw,contact]=status.slice(1);
+  telemetry={angle:Number(angle),goal:Number(goal)};
+  $('liveHardware').textContent=`Серво ${angle}° → ${goal}° · выход ${physical}° · датчики ${raw.trim()} · старт ${start==='1'?'нажата':'отпущена'} · груз ${contact==='1'?'есть':'нет'}`;
+  $('servoLimitsStatus').textContent=`В Arduino сохранены рабочие положения ${low}° и ${high}°.`;
+  if(!limitsLoaded||String(s).includes('SERVO LIMITS SAVED')){
+   $('servoLow').value=low;$('servoHigh').value=high;$('servoTarget').value=goal;
+   limitsLoaded=true;
+  }
+  buttons();
+ }
+ if(String(s).startsWith('SERVO REFUSED')||String(s).startsWith('BUSY')||String(s).startsWith('RESET REQUIRED'))$('servoLimitsStatus').textContent=s;
+ if(String(s)==='SERVO LIMITS SAVED'){limitsLoaded=false;$('servoLimitsStatus').textContent='Положения записаны в Arduino.';}
+ if(s.startsWith('RADIAL READY'))send('status').catch(e=>log(e.message));
+ const match=String(s).match(/(?:servo_reverse|SERVO SAVED reverse)=(0|1)/);if(match){if(String(s).startsWith('SERVO SAVED')){limitsLoaded=false;}$('servoDirection').value=match[1]==='1'?'reverse':'normal';$('servoDirectionStatus').textContent='Плата сообщает: '+(match[1]==='1'?'обратное':'обычное')+' направление SG90. Сохранено в EEPROM. Установите качалку в нижнем положении при выключенном питании.';}};
  const supported=!!navigator.serial&&isSecureContext;
  $('serialSupport').textContent=supported?'USB доступен. Выберите плату в окне браузера.':('USB здесь недоступен. Откройте файл в Chrome или Edge. Если не помогло — попросите наставника открыть страницу через HTTPS или localhost.');
  function syncBoard(){const raw=getCfg().uploadBoard,key=typeof raw==='string'&&AmurFlash.profiles[raw]?raw:'uno';getCfg().uploadBoard=key;$('boardProfile').value=key;$('boardHelp').textContent=key.startsWith('nano')?'У китайской Nano могут быть разные загрузчики. Не знаете — выберите автоподбор. CH340 не указывает тип загрузчика.':'Обычная UNO: 115200. Для неизвестного загрузчика выберите автоподбор. Происхождение платы и USB-чип не определяют загрузчик; поддерживается ATmega328P, 16 МГц.';} $('boardProfile').onchange=()=>{getCfg().uploadBoard=$('boardProfile').value;syncBoard();};syncBoard();
- function buttons(){ $('flashUno').disabled=!supported||busy||!!monitorPort;$('openMonitor').disabled=!supported||busy||!!monitorPort;$('closeMonitor').disabled=!monitorPort;$('cancelFlash').disabled=!busy;$('downloadHex').disabled=busy;$('boardProfile').disabled=busy||!!monitorPort;$('manualReset').disabled=busy||!!monitorPort;$('applyServoDirection').disabled=!monitorPort||busy||!$('servoDetached').checked;}
+ function buttons(){ $('flashUno').disabled=!supported||busy||!!monitorPort;$('openMonitor').disabled=!supported||busy||!!monitorPort;$('closeMonitor').disabled=!monitorPort;$('cancelFlash').disabled=!busy;$('downloadHex').disabled=busy;$('boardProfile').disabled=busy||!!monitorPort;$('manualReset').disabled=busy||!!monitorPort;$('applyServoDirection').disabled=!monitorPort||busy||!$('servoDetached').checked;
+  $('portStatus').textContent=monitorPort?'COM-порт подключён · 115200 бод':'COM-порт отключён';
+  for(const button of pane.querySelectorAll('[data-command],[data-real-command],[data-real-jog],#calButtons button,#serialForm button'))button.disabled=!monitorPort||busy;
+  for(const id of ['servoBack','servoForward','servoPreview','captureLow','captureHigh','saveServoLimits'])$(id).disabled=!monitorPort||busy||!telemetry;
+ }
  function image(){if(configError())throw Error('Сначала исправьте настройки программы');return AmurFlash.patch(base,AmurFlash.boardMeta(meta,getCfg().uploadBoard||'uno'),getCfg());}
  $('downloadHex').onclick=()=>{try{download((getCfg().uploadBoard||'uno').startsWith('nano')?'AmurCargo_NANO.hex':'AmurCargo_UNO.hex',AmurFlash.hex(image()));log('HEX сформирован с текущими настройками.');}catch(e){log(e.message);}};
  $('flashUno').onclick=async()=>{if(busy)return;try{const firmware=image(),key=getCfg().uploadBoard||'uno',port=await navigator.serial.requestPort();busy=true;controller=new AbortController();buttons();await AmurFlash.uploadBoard(port,firmware,meta,key,(p,s)=>{$('flashProgress').value=p;log(s);},controller.signal,$('manualReset').checked);}catch(e){log(e.name==='NotFoundError'?'Порт не выбран. В окне браузера нажмите на свою плату / COM-порт, затем «Подключить».':e.name==='NetworkError'?'Не удалось открыть порт. Закройте Arduino IDE и другие вкладки с подключением к плате.':'Загрузка: '+e.message);}finally{busy=false;controller=null;buttons();}};
  $('cancelFlash').onclick=()=>controller?.abort();
- $('openMonitor').onclick=async()=>{try{const p=await navigator.serial.requestPort();await p.open({baudRate:115200});monitorPort=p;reader=p.readable.getReader();writer=p.writable.getWriter();const decoder=new TextDecoder();pump=(async()=>{let incoming='';try{while(true){const {value,done}=await reader.read();if(done)break;incoming+=decoder.decode(value,{stream:true});let at;while((at=incoming.indexOf('\n'))>=0){log(incoming.slice(0,at).replace(/\r$/,''));incoming=incoming.slice(at+1);}if(incoming.length>2048){log(incoming);incoming='';}}}catch(e){log('Порт: '+e.message);}})();buttons();log('Монитор подключён, 115200 бод.');}catch(e){log('Подключение: '+e.message);}};
- $('closeMonitor').onclick=async()=>{const p=monitorPort;if(!p)return;try{await reader.cancel();await pump;reader.releaseLock();writer.releaseLock();await p.close();}catch(e){log(e.message);}finally{reader=writer=monitorPort=null;buttons();}};
+ $('openMonitor').onclick=async()=>{try{const p=await navigator.serial.requestPort();await p.open({baudRate:115200});telemetry=null;limitsLoaded=false;monitorPort=p;reader=p.readable.getReader();writer=p.writable.getWriter();const decoder=new TextDecoder();pump=(async()=>{let incoming='';try{while(true){const {value,done}=await reader.read();if(done)break;incoming+=decoder.decode(value,{stream:true});let at;while((at=incoming.indexOf('\n'))>=0){log(incoming.slice(0,at).replace(/\r$/,''));incoming=incoming.slice(at+1);}if(incoming.length>2048){log(incoming);incoming='';}}}catch(e){log('Порт: '+e.message);}})();buttons();log('Монитор подключён, 115200 бод.');}catch(e){log('Подключение: '+e.message);}};
+ $('closeMonitor').onclick=async()=>{const p=monitorPort;if(!p)return;try{await reader.cancel();await pump;reader.releaseLock();writer.releaseLock();await p.close();}catch(e){log(e.message);}finally{reader=writer=monitorPort=null;telemetry=null;limitsLoaded=false;buttons();}};
  async function send(command){if(!writer){log('Сначала подключите монитор порта.');return;}if(command.length>70||/[\r\n]/.test(command)){log('Недопустимая команда');return;}await writer.write(new TextEncoder().encode(command+'\n'));log('> '+command);}
  $('servoDetached').onchange=buttons;$('applyServoDirection').onclick=()=>{if(!monitorPort||!$('servoDetached').checked)return;const mode=$('servoDirection').value;if(!['normal','reverse'].includes(mode))return;send('servo '+mode+' detached').catch(e=>log(e.message));$('servoDetached').checked=false;buttons();};
  for(const [label,command]of [['Разрешить пробы','arm'],['↑ Поднять вилы','high'],['↓ Опустить вилы','low'],['Сброс','reset'],['■ Стоп','stop']]){const b=document.createElement('button');b.textContent=label;b.dataset.realCommand=command;b.onclick=()=>send(command).catch(e=>log(e.message));$('realControls').append(b);}
  for(const [label,l,r]of [['↑ Вперёд',1,1],['↓ Назад',-1,-1],['↶ Влево',-1,1],['↷ Вправо',1,-1]]){const b=document.createElement('button');b.textContent=label;b.dataset.realJog=l+','+r;b.onclick=()=>{const p=Number($('realPwm').value),t=Number($('realDuration').value);if(!Number.isInteger(p)||p<1||p>150||!Number.isInteger(t)||t<50||t>2000){log('PWM: 1–150; время: 50–2000 мс.');return;}send('jog '+l*p+' '+r*p+' '+t).catch(e=>log(e.message));};$('realControls').append(b);}
+ const command=s=>{
+  if(telemetry && /^(angle |low$|high$|stop$)/.test(s))telemetry.angle=null;
+  send(s).catch(e=>log(e.message));
+ };
+ for(const button of pane.querySelectorAll('[data-command]'))button.onclick=()=>command(button.dataset.command);
+ const angle=id=>$(id).value===''?NaN:Number($(id).value);
+ const preview=value=>{
+  if(Number.isInteger(value)&&value>=0&&value<=180){$('servoTarget').value=value;telemetry.goal=value;command('angle '+value);}
+  else $('servoLimitsStatus').textContent='Укажи целый угол от 0 до 180°.';
+ };
+ $('servoPreview').onclick=()=>preview(angle('servoTarget'));
+ $('servoBack').onclick=()=>preview(telemetry.goal-1);
+ $('servoForward').onclick=()=>preview(telemetry.goal+1);
+ for(const [button,input] of [['captureLow','servoLow'],['captureHigh','servoHigh']]){
+  $(button).onclick=()=>{
+   if(telemetry.angle===null||telemetry.angle!==telemetry.goal){$('servoLimitsStatus').textContent='Дождись остановки и нажми «Статус» или включи телеметрию.';return;}
+   $(input).value=telemetry.angle;
+  };
+ }
+ $('saveServoLimits').onclick=()=>{
+  const low=angle('servoLow'),high=angle('servoHigh');
+  if(!Number.isInteger(low)||!Number.isInteger(high)||low<0||high>180||low>=high){
+   $('servoLimitsStatus').textContent='Нижний угол должен быть меньше верхнего. Допустимый диапазон 0–180°.';return;
+  }
+  command('limits '+low+' '+high);
+ };
  $('serialForm').onsubmit=e=>{e.preventDefault();send($('serialCommand').value.trim()).catch(e=>log(e.message));};
  for(const[label,command]of [['Белое','cal white'],['Чёрное','cal black'],['Левый круг','cal left'],['Правый круг','cal right'],['Сохранить','save'],['Статус','status'],['Поток','stream'],['Опустить','low'],['Стоп','stop']]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>send(command).catch(e=>log(e.message));$('calButtons').append(b);}buttons();return {image,syncBoard,get busy(){return busy;}};
 };

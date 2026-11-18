@@ -30,5 +30,15 @@ int main(){
  cmd(invBoot,"erase");RobotHardware erased;erased.init();assert(erased.servoReversed&&!erased.calibrationReady());
  EEPROM.bytes[15]^=1;RobotHardware damagedCal;damagedCal.init();assert(damagedCal.servoReversed&&damagedCal.lift.position==160);
  cmd(damagedCal,"servo normal detached");assert(!damagedCal.servoReversed&&damagedCal.lift.position==20);
+ cmd(damagedCal,"angle 31");
+ cmd(damagedCal,"limits 31 119");assert(damagedCal.v(P_LIFT_LOW)==20);
+ steps(damagedCal,30);assert(damagedCal.lift.position==31);
+ cmd(damagedCal,"limits 119 31");assert(damagedCal.v(P_LIFT_LOW)==20);
+ cmd(damagedCal,"limits 31 119");assert(damagedCal.v(P_LIFT_LOW)==31);
+ RobotHardware calibrated;calibrated.init();assert(calibrated.lift.position==31);
+ cmd(calibrated,"high");steps(calibrated,250);assert(calibrated.lift.position==119);
+ assert(calibrated.v(P_LIFT_HIGH)==119);
+ cmd(calibrated,"stream on");assert(calibrated.stream);
+ cmd(calibrated,"stream off");assert(!calibrated.stream);
  puts("PASS: hardware adapter including independent persistent servo inversion, startup output, high/low mapping, detached confirmation, raised-fork lock and sensor-calibration erase/CRC independence");
 }
