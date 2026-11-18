@@ -50,7 +50,7 @@ python tools/rebuild_site.py
 Для снимков модели и браузерных тестов:
 
 ```
-npm install
+npm ci
 npx playwright install chromium
 node tools/render_assembly_guide.cjs
 python tools/build_illustrated_assembly.py
@@ -61,11 +61,14 @@ python tools/package_ready_only.py
 
 ## Проверки
 
+GitHub Actions проверяет опубликованные образы, собирает прошивку заново, запускает тесты симуляции, браузера и CAD и прикладывает готовый ZIP к успешному запуску.
+
 ```
 python tools/rebuild_site.py
 npm test
 node tools/test_manual_panel.cjs
 node tools/test_manual_usb.cjs
+node tools/test_serial_reconnect.cjs
 node tools/test_illustrated_guide.cjs
 python tools/test_reverse_nut.py
 python tools/test_removable_forks.py

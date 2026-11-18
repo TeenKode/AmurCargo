@@ -12,7 +12,7 @@ def crc(data):
 values=[p['default'] for p in schema['params']]+[p['default'] for h in range(2) for r in range(8) for p in schema['zones']]
 payload=struct.pack('<216H8B',*values,1,2,3,4,5,6,7,7);assert len(payload)==440
 blob=b'AMURCFG2026V001!'+payload+struct.pack('<H',crc(payload));assert len(blob)==458
-normal=H.read_text(encoding='utf-8');normal=normal.split('// WEB_FLASH_CONFIG')[0]
+normal=H.read_text(encoding='utf-8');normal=normal.split('// WEB_FLASH_CONFIG')[0].rstrip()+'\n'
 normal=normal.replace('inline void loadUserSettings(Settings &s)', 'inline void loadDefaultSettings(Settings &s)')
 addon='''
 // WEB_FLASH_CONFIG: fixed-size flash configuration patched by the offline page.

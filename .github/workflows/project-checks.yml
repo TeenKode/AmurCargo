@@ -1,0 +1,67 @@
+name: Project checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: arduino/setup-arduino-cli@v2
+        with:
+          version: '1.3.1'
+      - name: Install tools
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          python -m pip install -r requirements.txt ziglang==0.13.0
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr@1.8.6
+          arduino-cli lib install Servo@1.2.2
+      - name: Verify committed firmware and rebuild from source
+        env:
+          ARDUINO_DATA: /home/runner/.arduino15
+          ARDUINO_SERVO: /home/runner/Arduino/libraries/Servo
+        run: |
+          python tools/rebuild_site.py
+          python tools/build_flash_image.py
+          python tools/build_nano_firmware.py
+          ZIG="$(python -c 'import pathlib, ziglang; print(pathlib.Path(ziglang.__file__).with_name("zig"))')" python tools/compile_radial_wasm.py
+          python tools/rebuild_site.py
+      - name: Test firmware and simulated missions
+        run: |
+          npm test
+          g++ -std=c++17 -Itools/kit_host -Ifirmware/RadialRobot tools/test_radial_hardware.cpp -o "$RUNNER_TEMP/amur-hardware-test"
+          "$RUNNER_TEMP/amur-hardware-test"
+      - name: Test browser and CAD
+        run: |
+          node tools/test_serial_reconnect.cjs
+          node tools/test_manual_usb.cjs
+          node tools/test_manual_panel.cjs
+          node tools/test_illustrated_guide.cjs
+          python tools/test_reverse_nut.py
+          python tools/test_removable_forks.py
+          python tools/audit_current_simulator_model.py
+      - name: Build ready-to-print archive
+        run: |
+          python tools/build_illustrated_assembly.py
+          python tools/package_ready_only.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pogruzchik-ready
+          path: outputs/Pogruzchik_Ready_R4_STL_HTML.zip
+          if-no-files-found: error
