@@ -351,7 +351,7 @@ def pose_shape(item,lifted=False,angle=None):
 def export_step(path,lifted=False,light=False):
  doc=TDocStd_Document(TCollection_ExtendedString('MDTV-XCAF'))
  st=XCAFDoc_DocumentTool.ShapeTool_s(doc.Main());ct=XCAFDoc_DocumentTool.ColorTool_s(doc.Main())
- rootLabel=st.NewShape();st.SetShape(rootLabel,compound([]));TDataStd_Name.Set_s(rootLabel,TCollection_ExtendedString('AmurCargo_Virtual_Prototype'))
+ rootLabel=st.NewShape();st.SetShape(rootLabel,compound([]));TDataStd_Name.Set_s(rootLabel,TCollection_ExtendedString('Pogruzchik_Virtual_Prototype'))
  for key,comp in components.items():
   label=st.NewShape();st.SetShape(label,compound([]));TDataStd_Name.Set_s(label,TCollection_ExtendedString(comp['title']))
   for item in [x for x in items if x['component']==key]:

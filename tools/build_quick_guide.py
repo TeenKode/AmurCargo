@@ -1,7 +1,7 @@
 from pathlib import Path
 import html,re
 R=Path(__file__).resolve().parents[1];O=R/'simulator'
-guide='''# Робот-погрузчик: как начать
+guide='''# ПОГРУЗЧИК: как начать
 
 ## 1. Открой симулятор
 
@@ -55,4 +55,4 @@ for line in guide.splitlines():
 body='\n'.join(parts)
 (R/'tools/quick_guide_body.html').write_text(body,encoding='utf-8')
 css='body{margin:0;background:#eef3f7;color:#20374a;font:16px/1.55 "Segoe UI",Arial,sans-serif}main{max-width:760px;background:white;margin:25px auto;padding:30px 38px;border-radius:14px}h1{font-size:27px;margin:0 0 20px}h2{font-size:18px;margin:21px 0 6px}p{margin:6px 0}b{font-weight:650}@media(max-width:600px){main{margin:0;padding:20px;border-radius:0}}@media print{@page{size:A4;margin:14mm}body{font-size:10pt;background:white;line-height:1.4}main{margin:0;padding:0;max-width:none}h1{font-size:19pt;margin-bottom:12px}h2{font-size:12pt;margin-top:12px}p{margin:4px 0}}'
-(O/'Quick_Start_RU.html').write_text('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Робот-погрузчик: как начать</title><style>'+css+'</style><main>'+body+'</main></html>',encoding='utf-8')
+(O/'Quick_Start_RU.html').write_text('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ПОГРУЗЧИК: как начать</title><style>'+css+'</style><main>'+body+'</main></html>',encoding='utf-8')

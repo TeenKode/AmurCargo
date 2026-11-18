@@ -19,7 +19,7 @@ guide=(O/'Assembly_Guide_Template.html').read_text(encoding='utf-8').replace('__
 files['Print/Instructions.html']=guide.encode('utf-8')
 standalone=re.sub(r'<a href="([^\"]+\.stl)">([^<]+)</a>',r'\2',guide)
 (O/'Assembly_Guide_RU.html').write_text(standalone,encoding='utf-8')
-start='''<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AmurCargo — начать</title><style>body{background:#edf3f8;color:#19364a;font:17px/1.6 "Segoe UI",sans-serif}main{max-width:800px;margin:35px auto;padding:30px;background:white;border-radius:16px}a{display:block;padding:14px;margin:12px 0;background:#f1f6fb;border-radius:9px;color:#24639b}</style><main><h1>Робот-погрузчик: готовый комплект</h1><p>Распакуйте ZIP целиком. Откройте нужный HTML в Chrome или Edge.</p><a href="Print/Instructions.html">1. Сборка и подключение с картинками</a><a href="Simulator.html">2. Симулятор, настройка и прошивка UNO / Nano</a><a href="Shopping_List.html">3. Покупки и предоставленный набор</a><p>В Print — по одному STL на деталь, в положении для печати. Прошивка находится внутри симулятора. Там можно скачать HEX или проект Arduino с текущими настройками.</p><p>Новая спинка плоская сзади; лапы крепятся сбоку четырьмя М3×16 с потайной головкой. Для платы кнопки нужны две проставки 1,4 мм. Гайка качалки вставляется со стороны серво.</p><p>Симуляцию, посадки и грузоподъёмность проверьте на настоящем роботе.</p></main></html>'''
+start='''<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ПОГРУЗЧИК — начать</title><style>body{background:#edf3f8;color:#19364a;font:17px/1.6 "Segoe UI",sans-serif}main{max-width:800px;margin:35px auto;padding:30px;background:white;border-radius:16px}a{display:block;padding:14px;margin:12px 0;background:#f1f6fb;border-radius:9px;color:#24639b}</style><main><h1>ПОГРУЗЧИК: готовый комплект</h1><p>Распакуйте ZIP целиком. Откройте нужный HTML в Chrome или Edge.</p><a href="Print/Instructions.html">1. Сборка и подключение с картинками</a><a href="Simulator.html">2. Симулятор, настройка и прошивка UNO / Nano</a><a href="Shopping_List.html">3. Покупки и предоставленный набор</a><p>В Print — по одному STL на деталь, в положении для печати. Прошивка находится внутри симулятора. Там можно скачать HEX или проект Arduino с текущими настройками.</p><p>Новая спинка плоская сзади; лапы крепятся сбоку четырьмя М3×16 с потайной головкой. Для платы кнопки нужны две проставки 1,4 мм. Гайка качалки вставляется со стороны серво.</p><p>Симуляцию, посадки и грузоподъёмность проверьте на настоящем роботе.</p></main></html>'''
 files['START.html']=start.encode('utf-8')
 seen={}
 for name,data in files.items():
@@ -29,7 +29,7 @@ for name,data in files.items():
  for target in re.findall(r'href="([^\"]+)"',data.decode('utf-8')):
   if target.startswith(('http:','https:','#','blob:')):continue
   resolved=posixpath.normpath(posixpath.join(posixpath.dirname(name),target.split('#')[0]));assert resolved in files,(name,target)
-archive=R/'outputs/AmurCargo_Ready_R4_STL_HTML.zip'
+archive=R/'outputs/Pogruzchik_Ready_R4_STL_HTML.zip'
 archive.parent.mkdir(exist_ok=True)
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
  for name,data in files.items():z.writestr(name,data)

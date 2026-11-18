@@ -43,7 +43,7 @@ quick=(R/'tools/quick_guide_body.html').read_text(encoding='utf-8');cal=(R/'tool
 s=s.replace('Физическая отдача левого мотора','Отдача левого мотора').replace('Физическая отдача правого мотора','Отдача правого мотора')
 dialog='<dialog id="helpDialog" class="help-dialog"><button id="closeHelp">Закрыть</button><div class="quick-guide">'+quick+'<details><summary>Как подогнать модель под робота</summary><div class="cal-guide">'+cal+'</div></details></div></dialog>'
 s=s.replace('<script>',dialog+'<script>',1)
-s=s.replace('<h1>Доставка в трёх измерениях.</h1>','<div class="title-row"><h1>Робот-погрузчик</h1><button id="helpButton">Как начать</button></div>',1)
+s=s.replace('<h1>Доставка в трёх измерениях.</h1>','<div class="title-row"><h1>ПОГРУЗЧИК</h1><button id="helpButton">Как начать</button></div>',1)
 s=s.replace(' world=createWorldEditor('," $('helpButton').onclick=()=>$('helpDialog').showModal();$('closeHelp').onclick=()=>$('helpDialog').close();\n world=createWorldEditor(",1)
 s=s.replace('</style>','.title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.help-dialog{border:1px solid #ccd8e3;border-radius:14px;max-width:650px;width:90vw;max-height:85dvh;padding:20px;color:#20374a}.help-dialog::backdrop{background:#172d3e88}.quick-guide h1{font-size:21px;margin:8px 0 16px}.quick-guide h2{font-size:15px;margin:16px 0 5px}.quick-guide p{font-size:13px;line-height:1.55;margin:6px 0}.help-dialog #closeHelp{position:sticky;top:0;float:right;z-index:1}.quick-guide details{margin-top:20px}.cal-guide{padding:12px}</style>',1)
 s=s.replace('Общий алгоритм с Arduino','SG90: цельная качалка')
