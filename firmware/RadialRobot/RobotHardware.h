@@ -25,10 +25,29 @@ struct RobotHardware {
  uint16_t jogDuration;int16_t jogLeft,jogRight;int configError;char command[80];
  uint16_t v(Param p)const{return settings.v[p];}
  bool contact()const{return digitalRead(v(P_CONTACT_PIN))==(v(P_CONTACT_LOW)?LOW:HIGH);}
- bool calibrationReady()const{
-  uint8_t required=v(P_HUB_MODE)==0?15:3;if((cal.mask&required)!=required)return false;
-  for(uint8_t i=0;i<3;i++)if(cal.white[i]>1023||cal.black[i]>1023||abs16((int16_t)cal.black[i]-(int16_t)cal.white[i])<70)return false;
-  return true;
+ enum CalibrationState { CAL_READY, CAL_INCOMPLETE, CAL_HUB_OVERLAP };
+ CalibrationState calibrationState()const{
+  const bool useHubSamples=v(P_HUB_MODE)==0;
+  const uint8_t required=useHubSamples?15:3;
+  if((cal.mask&required)!=required)return CAL_INCOMPLETE;
+  for(uint8_t i=0;i<3;i++){
+   if(cal.white[i]>1023||cal.black[i]>1023||abs16((int16_t)cal.black[i]-(int16_t)cal.white[i])<70)return CAL_INCOMPLETE;
+  }
+  if(!useHubSamples)return CAL_READY;
+  // Disjoint tolerance ranges on any sensor make the two matches mutually exclusive.
+  for(uint8_t i=0;i<3;i++){
+   const int16_t left=normalizeAdc(cal.hub[0][i],cal.white[i],cal.black[i]);
+   const int16_t right=normalizeAdc(cal.hub[1][i],cal.white[i],cal.black[i]);
+   if(abs16(left-right)>2*v(P_HUB_TOLERANCE))return CAL_READY;
+  }
+  return CAL_HUB_OVERLAP;
+ }
+ bool calibrationReady()const{return calibrationState()==CAL_READY;}
+ bool requireCalibration()const{
+  const CalibrationState state=calibrationState();
+  if(state==CAL_HUB_OVERLAP)Serial.println(F("CAL HUB OVERLAP: resample left and right circles."));
+  else if(state==CAL_INCOMPLETE)Serial.println(F("CAL REQUIRED: sample white, black and required circles."));
+  return state==CAL_READY;
  }
  void safeChannel(uint8_t a,uint8_t b,uint8_t en,int16_t value){
   analogWrite(en,0);digitalWrite(a,value>0?HIGH:LOW);digitalWrite(b,value<0?HIGH:LOW);analogWrite(en,abs16(value));
@@ -85,7 +104,7 @@ struct RobotHardware {
   if(robot.state==FAULT){if(held>=v(P_ARM_HOLD_MS)&&robot.servoAngle==v(P_LIFT_LOW)&&!contact()){robot.init(settings,now);armed=false;Serial.println(F("FAULT RESET"));}return;}
   if(held>=v(P_ARM_HOLD_MS)){armed=true;Serial.println(F("ARMED. Release, then short press START."));return;}
   if(!armed){Serial.println(F("NOT ARMED: hold START or send arm."));return;}
-  if(!calibrationReady()){Serial.println(F("CAL REQUIRED: white black left right; save."));return;}
+  if(!requireCalibration())return;
   if(robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)){Serial.println(F("LOWER FORKS BEFORE START"));return;}
   if(contact()){Serial.println(F("CONTACT ALREADY PRESSED"));return;}
   robot.start(now);
@@ -183,7 +202,7 @@ struct RobotHardware {
   }
   if(!strcmp(cmd,"arm")){armed=true;Serial.println(F("ARMED"));return;}
   if(!strcmp(cmd,"erase")){memset(&cal,0,sizeof(cal));cal.magic=0x52414431UL;cal.version=1;cal.pins[0]=v(P_LINE_LEFT);cal.pins[1]=v(P_LINE_CENTRE);cal.pins[2]=v(P_LINE_RIGHT);cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);armed=false;Serial.println(F("CAL ERASED. Servo direction retained."));return;}
-  if(!strcmp(cmd,"save")){if(!calibrationReady()){Serial.println(F("INCOMPLETE CALIBRATION"));return;}cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);Serial.println(F("EEPROM SAVED"));return;}
+  if(!strcmp(cmd,"save")){if(!requireCalibration())return;cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);Serial.println(F("EEPROM SAVED"));return;}
   if(!strcmp(cmd,"cal")){
    char *kind=strtok(0," \t");int8_t k=kind&& !strcmp(kind,"white")?0:kind&&!strcmp(kind,"black")?1:kind&&!strcmp(kind,"left")?2:kind&&!strcmp(kind,"right")?3:-1;
    if(k<0||calibrating){Serial.println(F("CAL ARGUMENT ERROR"));return;}calKind=k;samples=0;for(uint8_t i=0;i<3;i++)sampleSum[i]=0;calibrating=true;armed=false;return;

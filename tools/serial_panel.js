@@ -8,6 +8,10 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  const connection=document.querySelector('#openMonitor').parentElement;
  const sensors=$('calButtons').parentElement;
  sensors.querySelector('h2').remove();
+ const calibrationFeedback=document.createElement('p');
+ calibrationFeedback.id='calibrationFeedback';
+ calibrationFeedback.setAttribute('aria-live','polite');
+ sensors.append(calibrationFeedback);
  const flashing=document.createElement('div');
  for(const element of [...pane.children]){
   if(element===$('serialSupport'))break;
@@ -79,6 +83,9 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   buttons();
  }
  if(String(s).startsWith('SERVO REFUSED')||String(s).startsWith('BUSY')||String(s).startsWith('RESET REQUIRED'))$('servoLimitsStatus').textContent=s;
+ if(s.startsWith('CAL HUB OVERLAP'))$('calibrationFeedback').textContent='Показания кругов перекрываются. Снимите образцы левого и правого кругов заново.';
+ if(s.startsWith('CAL REQUIRED'))$('calibrationFeedback').textContent='Снимите образцы белого, чёрного и требуемых кругов.';
+ if(s.startsWith('CAL SAMPLE OK')||s==='EEPROM SAVED')$('calibrationFeedback').textContent=s==='EEPROM SAVED'?'Калибровка сохранена.':'Образец записан. После завершения нажмите «Сохранить».';
  if(String(s)==='SERVO LIMITS SAVED'){limitsLoaded=false;$('servoLimitsStatus').textContent='Положения записаны в Arduino.';}
  if(s.startsWith('RADIAL READY'))send('status').catch(e=>log(e.message));
  const match=String(s).match(/(?:servo_reverse|SERVO SAVED reverse)=(0|1)/);if(match){if(String(s).startsWith('SERVO SAVED')){limitsLoaded=false;}$('servoDirection').value=match[1]==='1'?'reverse':'normal';$('servoDirectionStatus').textContent='Плата сообщает: '+(match[1]==='1'?'обратное':'обычное')+' направление SG90. Сохранено в EEPROM. Установите качалку в нижнем положении при выключенном питании.';}};
@@ -106,6 +113,7 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   telemetry=null;limitsLoaded=false;
   for(const [id,message] of Object.entries(telemetryPlaceholders))$(id).textContent=message;
   for(const id of ['servoLow','servoHigh','servoTarget'])$(id).value='';
+  $('calibrationFeedback').textContent='';
   $('servoDetached').checked=false;
   $('servoDirection').value='normal';
  }

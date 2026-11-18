@@ -11,6 +11,15 @@ int main(){
  h.releaseButton(2200,clockMs);h.releaseButton(100,clockMs);assert(h.robot.state==IDLE);
  sample(h,"cal white",800);sample(h,"cal black",200);sample(h,"cal left",500);sample(h,"cal right",368);assert(h.calibrationReady());
  assert(normalizeAdc(800,800,200)==0&&normalizeAdc(200,800,200)==1000&&normalizeAdc(500,800,200)==500);
+ sample(h,"cal right",500);
+ assert(h.calibrationState()==RobotHardware::CAL_HUB_OVERLAP);
+ cmd(h,"arm");h.releaseButton(100,clockMs);assert(h.robot.state==IDLE);
+ cmd(h,"save");RobotHardware unsaved;unsaved.init();assert(!unsaved.calibrationReady());
+ sample(h,"cal right",398); // 670 versus 500, with an inclusive tolerance of 85.
+ assert(h.calibrationState()==RobotHardware::CAL_HUB_OVERLAP);
+ h.settings.v[P_HUB_MODE]=1;assert(h.calibrationReady());h.settings.v[P_HUB_MODE]=0;
+ sample(h,"cal right",397);assert(h.calibrationReady());
+ sample(h,"cal right",368);assert(h.calibrationReady());
  cmd(h,"save");RobotHardware restored;restored.init();assert(restored.calibrationReady());
  cmd(h,"arm");cmd(h,"jog 100 -100 100");assert(h.jogging);steps(h,5);assert(outputPins[5]>0&&outputPins[6]>0);steps(h,6);assert(!h.jogging&&outputPins[5]==0&&outputPins[6]==0);
  for(int duration : {1000, 20}){
