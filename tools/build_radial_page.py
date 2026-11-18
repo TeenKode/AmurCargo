@@ -3,7 +3,6 @@ import base64
 R=Path(__file__).resolve().parents[1]; O=R/'simulator'
 p=O/'simulation.js'
 s=p.read_text(encoding='utf-8').replace('this.trace.push({x:this.robot.x,y:this.robot.y})','this.trace.push({x:this.robot.x,y:this.robot.y,loaded:this.cargo.attached})')
-p.write_text(s,encoding='utf-8')
 t=(R/'tools/radial_simulator.html').read_text(encoding='utf-8')
 t=t.replace('!Number.isInteger(n/step)','Math.abs(n/step-Math.round(n/step))>1e-6')
 t=t.replace('r<250||r>750))))','r<250||r>750)))')

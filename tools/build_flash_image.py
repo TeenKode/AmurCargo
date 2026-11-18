@@ -1,5 +1,6 @@
 from pathlib import Path
 import json,struct,subprocess,hashlib,base64
+from firmware_artifacts import source_digest
 R=Path(__file__).resolve().parents[1];O=R/'simulator';H=R/'firmware/RadialRobot/RobotConfig.h'
 schema=json.loads((O/'settings_schema.json').read_text(encoding='utf-8'))
 def crc(data):
@@ -37,4 +38,4 @@ for line in (O/'RadialRobot_UNO.hex').read_text().splitlines():
   a=int.from_bytes(b[1:3],'big');memory[a:a+b[0]]=b[4:4+b[0]];end=max(end,a+b[0])
 image=memory[:end];offset=image.find(blob);assert offset>=0 and image.find(blob,offset+1)==-1;assert end<=32256
 (O/'Firmware_Uno.bin').write_bytes(image)
-(O/'Flash_Image.json').write_text(json.dumps(dict(board='Arduino UNO / ATmega328P / Optiboot',baud=115200,page_size=128,flash_limit=32256,configuration_offset=offset+16,configuration_size=440,crc_offset=offset+456,bytes=len(image),sha256=hashlib.sha256(image).hexdigest(),signature=[30,149,15],physical_upload_tested=False),indent=2),encoding='utf-8');print('Patchable firmware',end,'bytes; settings offset',offset+16)
+(O/'Flash_Image.json').write_text(json.dumps(dict(board='Arduino UNO / ATmega328P / Optiboot',baud=115200,page_size=128,flash_limit=32256,configuration_offset=offset+16,configuration_size=440,crc_offset=offset+456,bytes=len(image),sha256=hashlib.sha256(image).hexdigest(),source_sha256=source_digest('uno'),signature=[30,149,15],physical_upload_tested=False),indent=2),encoding='utf-8');print('Patchable firmware',end,'bytes; settings offset',offset+16)

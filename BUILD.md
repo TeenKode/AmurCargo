@@ -18,13 +18,13 @@ Python 3.10+ и Node.js 20+. Все команды выполняются из �
 python tools/rebuild_site.py
 ```
 
-Правьте tools/radial_simulator.html, tools/radial_3d.js, tools/world_editor.js, tools/manual_panel.js, tools/serial_panel.js, tools/webserial_uploader.js и simulator/simulation.js. Three.js и OrbitControls локальные, в tools/vendor. Если бинарный образ Arduino отсутствует, сборщик извлечёт его из существующего готового HTML. Изменения C++ не попадут в бинарный образ без отдельной компиляции.
+Правьте tools/radial_simulator.html, tools/radial_3d.js, tools/world_editor.js, tools/manual_panel.js, tools/serial_panel.js, tools/webserial_uploader.js и simulator/simulation.js. Three.js и OrbitControls локальные, в tools/vendor. Сборщик использует встроенный образ Arduino, когда локальных BIN-файлов нет. Он проверяет отпечатки исходников и контрольные суммы AVR и WASM перед сборкой HTML. После изменения прошивки сначала пересоберите соответствующие образы командами ниже.
 
 ## Прошивка и общий алгоритм
 
 Настройки/схема: tools/build_radial_settings.py. Движение: RadialCore.h. Оборудование: RobotHardware.h. Обёртка WASM: WebAssembly.cpp.
 
-Для компиляции на Windows нужны установленный пакет Arduino AVR Boards и библиотека Servo. Сборщик ищет Arduino15 в LOCALAPPDATA; можно задать ARDUINO_DATA и ARDUINO_SERVO.
+Для компиляции нужны Arduino AVR Boards 1.8.6 и Servo 1.2.2. Укажите ARDUINO_DATA (каталог Arduino15) и, если библиотека установлена отдельно, ARDUINO_SERVO (путь к Servo). На Windows по умолчанию используется Arduino15 из LOCALAPPDATA.
 
 ```
 python tools/build_flash_image.py
@@ -32,7 +32,7 @@ python tools/build_nano_firmware.py
 python tools/rebuild_site.py
 ```
 
-Если меняли RadialCore.h или макет Settings: также пересоберите FirmwareCore.wasm через tools/compile_radial_wasm.py. Нужен Zig в PATH или переменная ZIG. Макет настроек Web Serial фиксирован: 440 байт; при его изменении обновите упаковщик и тесты.
+Если меняли RadialCore.h, Settings.h, RobotConfig.h или WebAssembly.cpp, до пересборки HTML запустите также python tools/compile_radial_wasm.py (Zig 0.13.0). Нужен Zig в PATH или переменная ZIG. Макет настроек Web Serial фиксирован: 440 байт; при его изменении обновите упаковщик и тесты.
 
 ## CAD и печатные детали
 
