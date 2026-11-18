@@ -1,5 +1,5 @@
-#include "RadialRobot/RobotConfig.h"
-#include "RadialRobot/RadialCore.h"
+#include "../firmware/RadialRobot/RobotConfig.h"
+#include "../firmware/RadialRobot/RadialCore.h"
 #include <stddef.h>
 extern "C" void *memset(void *d,int v,size_t n){volatile unsigned char *p=(volatile unsigned char*)d;while(n--)*p++=(unsigned char)v;return d;}
 extern "C" void *memcpy(void *d,const void *s,size_t n){unsigned char *p=(unsigned char*)d;const unsigned char *q=(const unsigned char*)s;while(n--)*p++=*q++;return d;}

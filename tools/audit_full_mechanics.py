@@ -28,7 +28,7 @@ def overlap(a,b):
  return vol(BRepAlgoAPI_Common(a,b).Shape())
 paths=list((R/'mechanics/Print_Ready').glob('*.stl'))
 paths=[p for p in paths if p.name not in ('01_Fork_Pair_TipStops.stl','05_Crank_R18_Trial.stl')]
-paths+=list((O/'Fork_Adapters').glob('*_Print_Orientation.stl'))+list((O/'Servo_Horn').glob('SG90_Integrated_R18_*.stl'))+[O/'Servo_Horn/00_SG90_Spline_Fit_Test.stl']
+paths+=list(((R/'mechanics')/'Fork_Adapters').glob('*_Print_Orientation.stl'))+list(((R/'mechanics')/'Servo_Horn').glob('SG90_Integrated_R18_*.stl'))+[(R/'mechanics')/'Servo_Horn/00_SG90_Spline_Fit_Test.stl']
 mesh_checks=[]
 for p in paths:
  m=trimesh.load(p,force='mesh');assert m.is_watertight and m.is_winding_consistent and m.volume>0,p
@@ -46,7 +46,7 @@ source=(R/'tools/build_photo.py').read_text(encoding='utf-8').split('# STEP expo
 ns={'__file__':str(R/'tools/build_photo.py')}
 with contextlib.redirect_stdout(io.StringIO()):exec(compile(source,'base_mechanics','exec'),ns)
 contacts=ns['joint_rows'];assert all(c['gap_mm']<.011 for c in contacts)
-spine=read(O/'Fork_Adapters/01_Removable_Fork_Spine.step');arms=[read(O/'Fork_Adapters'/('02_Fork_Arm_'+side+'.step')) for side in ('Left','Right')]
+spine=read((R/'mechanics')/'Fork_Adapters/01_Removable_Fork_Spine.step');arms=[read((R/'mechanics')/'Fork_Adapters'/('02_Fork_Arm_'+side+'.step')) for side in ('Left','Right')]
 primary=['Mast','SG90','SG90_mount_plate','Sensor_bar','Electronics_carrier','Electronics_tray']
 statics={p['name']:p['shape'] for p in ns['items'] if p['name'] in primary}
 local_parts={p['name']:p['shape'] for p in ns['items'] if p['name'] in ['Carriage','Cargo_button','Cargo_switch_PCB','Cargo_feeler'] or p['name'].startswith(('Fork_screw_','Cargo_switch_M3','Cargo_switch_nut','Feeler_anchor_','Drive_pin_'))}

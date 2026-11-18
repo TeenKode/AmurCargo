@@ -42,6 +42,6 @@ for name,v,f in raw:
   print(name,'PLATE LEVELS',sorted(levels.items(),key=lambda x:x[1],reverse=True)[:8],flush=True)
 world=allv@rotation.T+offset
 result=dict(source_units='scene METRIC, scale_length=0.001: coordinates are millimetres',rigid_rotation_degrees=180,translation=offset.tolist(),caster_vertical_correction_mm=caster_shift,wheel_axis_y=35,wheel_axis_z=float(np.mean(cz)-ground),raw_wheel_axis_y=axis_y,raw_ground=ground,raw_center_x=cx,bounds=[world.min(0).tolist(),world.max(0).tolist()],dimensions=(world.max(0)-world.min(0)).tolist(),objects=report,items=payload)
-(ROOT/'tools/user_base_payload.json').write_text(json.dumps(result,separators=(',',':')),encoding='utf-8')
+(ROOT/'mechanics/user_base_payload.json').write_text(json.dumps(result,separators=(',',':')),encoding='utf-8')
 (ROOT/'tools/user_base_summary.json').write_text(json.dumps({k:v for k,v in result.items() if k!='items'},ensure_ascii=False,indent=2),encoding='utf-8')
 print('USER BASE SUMMARY', {k:v for k,v in result.items() if k not in ['objects','items']},flush=True)

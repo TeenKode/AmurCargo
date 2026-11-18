@@ -45,7 +45,6 @@ guide='''# Робот-погрузчик: как начать
 
 **Важно:** размеры поля не меняют время движений автоматически. Проверь его на роботе. Симуляция не проверяет прочность и пробуксовку. USB-загрузчик пока испытан только на программной модели платы.
 '''
-(O/'README.md').write_text(guide+'\n[Как подогнать модель под настоящего робота](Calibration_Guide_RU.html)\n\n[Как прошить китайскую Nano](Nano_Guide_RU.md)\n',encoding='utf-8');(O/'World_And_USB_Guide_RU.md').write_text(guide,encoding='utf-8')
 parts=[]
 for line in guide.splitlines():
  line=html.escape(line)
@@ -57,18 +56,3 @@ body='\n'.join(parts)
 (R/'tools/quick_guide_body.html').write_text(body,encoding='utf-8')
 css='body{margin:0;background:#eef3f7;color:#20374a;font:16px/1.55 "Segoe UI",Arial,sans-serif}main{max-width:760px;background:white;margin:25px auto;padding:30px 38px;border-radius:14px}h1{font-size:27px;margin:0 0 20px}h2{font-size:18px;margin:21px 0 6px}p{margin:6px 0}b{font-weight:650}@media(max-width:600px){main{margin:0;padding:20px;border-radius:0}}@media print{@page{size:A4;margin:14mm}body{font-size:10pt;background:white;line-height:1.4}main{margin:0;padding:0;max-width:none}h1{font-size:19pt;margin-bottom:12px}h2{font-size:12pt;margin-top:12px}p{margin:4px 0}}'
 (O/'Quick_Start_RU.html').write_text('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Робот-погрузчик: как начать</title><style>'+css+'</style><main>'+body+'</main></html>',encoding='utf-8')
-(O/'Fork_Adapters/README_RU.md').write_text('''# Съёмные лапы: сборка
-
-1. Напечатайте одну спинку, левую и правую лапы. Начните с пробника 00_M3_Plastic_Fit_Coupon.
-2. Закрепите спинку на каретке штатным крепежом.
-3. Гантель лежит — поставьте лапы вниз: опора на высоте 6 мм.
-4. Гантель стоит — переставьте лапы на 26 мм выше: опора на высоте 32 мм.
-5. Каждую лапу закрепите двумя винтами М3×12 с потайной головкой. Они входят прямо в пластик. Гайки для лап не нужны.
-
-Между лапами — 20 мм. Уступы на концах — 2 мм. Отверстия под винты: Ø2,6 мм, глубина 8,8 мм. Сначала проверьте посадку на пробнике. Затягивайте вручную: пластиковую резьбу легко сорвать.
-
-Материал — PETG, 5–6 стенок. Файлы _Print_Orientation.stl уже повёрнуты для печати. Для спинки нужны поддержки. После печати очистите отверстия и посадки.
-
-Физическую печать и прочность пока не проверяли. Подробные размеры сохранены в Reproducibility/Mechanical_Reference_RU.md в корне комплекта.
-''',encoding='utf-8')
-print('Quick guide created and technical details moved to reference files')

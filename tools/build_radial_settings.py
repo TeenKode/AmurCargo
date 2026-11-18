@@ -1,6 +1,6 @@
 from pathlib import Path
 import json
-ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'simulator';SK=OUT/'RadialRobot';SK.mkdir(parents=True,exist_ok=True)
+ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'simulator';SK=ROOT/'firmware/RadialRobot';SK.mkdir(parents=True,exist_ok=True)
 params=[]
 def p(key,label,default,lo,hi,group,unit=''):params.append(dict(key=key,label=label,default=default,min=lo,max=hi,group=group,unit=unit))
 for row in [

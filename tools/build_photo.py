@@ -197,7 +197,7 @@ arm=BRepAlgoAPI_Cut(arm,hex_prism(5.8,2.95,18,0,1.1)).Shape()
 designed['05_Crank_R18_Trial']=arm
 
 
-native_data=json.loads((ROOT/'tools/user_base_payload.json').read_text(encoding='utf-8'))
+native_data=json.loads((ROOT/'mechanics/user_base_payload.json').read_text(encoding='utf-8'))
 CASTER_XY=np.array([-.1391,-.2471,0.])
 component('user_chassis','Шасси из вашего архива','2wd_robot.blend / RobotChassis.001','Оригинальная сетка, масштаб 1:1; STEP — габаритная замена')
 component('user_drive','Моторы с колёсами из вашего архива','2wd_robot.blend / Motor, Motor.001','Оригинальные размеры и взаимное расположение, масштаб 1:1',2)

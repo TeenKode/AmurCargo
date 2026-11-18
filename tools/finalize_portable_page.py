@@ -1,7 +1,7 @@
 from pathlib import Path
 import json,base64
 R=Path(__file__).resolve().parents[1];O=R/'simulator';p=O/'Open_Simulation_3D.html';s=p.read_text(encoding='utf-8')
-sources={f.name:f.read_text(encoding='utf-8') for f in (O/'RadialRobot').iterdir() if f.suffix in ('.h','.ino')}
+sources={f.name:f.read_text(encoding='utf-8') for f in (R/'firmware/RadialRobot').iterdir() if f.suffix in ('.h','.ino')}
 scripts='<script>window.AMUR_PROJECT_SOURCES='+json.dumps(sources,ensure_ascii=True).replace('<','\\u003c')+';</script>'
 scripts+=''.join('<script>'+(R/'tools'/f).read_text(encoding='utf-8')+'</script>' for f in ['world_editor.js','webserial_uploader.js','project_export.js','serial_panel.js','manual_panel.js'])
 s=s.replace('<script>',scripts+'<script>',1)

@@ -16,7 +16,7 @@ from OCP.BRep import BRep_Tool
 from OCP.TopLoc import TopLoc_Location
 from OCP.gp import gp_Pnt,gp_Dir,gp_Ax2,gp_Trsf,gp_Vec
 from OCP.ShapeUpgrade import ShapeUpgrade_UnifySameDomain
-O=R/'simulator';P=O/'Fork_Adapters';P.mkdir(exist_ok=True)
+O=R/'simulator';P=(R/'mechanics')/'Fork_Adapters';P.mkdir(exist_ok=True)
 src=Path(__file__).resolve()
 def box(x,y,z,X,Y,Z):return BRepPrimAPI_MakeBox(gp_Pnt(x,y,z),X-x,Y-y,Z-z).Shape()
 def cyl(radius,length,x,y,z,d=(0,1,0)):return BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(x,y,z),gp_Dir(*d)),radius,length).Shape()
@@ -47,7 +47,7 @@ def mesh(shape):
  return m
 records=[];items=[]
 def export(name,shape,quantity=1):
- m=mesh(shape);w=STEPControl_Writer();w.Transfer(shape,STEPControl_AsIs);w.Write(str(P/(name+'.step')));m.export(P/(name+'.stl'))
+ m=mesh(shape);w=STEPControl_Writer();w.Transfer(shape,STEPControl_AsIs);w.Write(str(P/(name+'.step')))
  bed=m.copy();bed.apply_transform(trimesh.transformations.rotation_matrix(math.pi/2,[1,0,0]));bed.apply_translation(-bed.bounds[0]);bed.export(P/(name+'_Print_Orientation.stl'))
  records.append(dict(name=name,quantity=quantity,valid_brep=True,watertight=True,single_connected_body=True,volume_mm3=float(m.volume),dimensions_mm=m.extents.tolist()));return m
 def add(name,m,profile=None,offset=0,color='#e8b53f'):

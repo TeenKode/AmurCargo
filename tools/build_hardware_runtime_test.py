@@ -27,7 +27,7 @@ test=(R/'tools/test_radial_hardware.cpp').read_text(encoding='utf-8').replace('#
 prefix='volatile uint16_t testStatus=0;\n#define assert(x) do{if(!(x)){testStatus=__LINE__;for(;;){}}}while(0)\n'
 (D/'test.cpp').write_text('#include <stdint.h>\n'+prefix+test+'\nint main(){testStatus=1;runTest();testStatus=65535;for(;;){}}\n',encoding='utf-8')
 SDK=Path(os.environ.get('ARDUINO_DATA',str(Path(os.environ.get('LOCALAPPDATA',str(Path.home()/'AppData/Local')))/'Arduino15')))
-TC=sorted((SDK/'packages/arduino/tools/avr-gcc').iterdir())[-1]/'bin';src=R/'simulator/RadialRobot'
+TC=sorted((SDK/'packages/arduino/tools/avr-gcc').iterdir())[-1]/'bin';src=R/'firmware/RadialRobot'
 subprocess.run([str(TC/'avr-g++.exe'),'-mmcu=atmega1284p','-Os','-std=gnu++1z','-fno-exceptions','-fno-rtti','-I'+str(D),'-I'+str(src),str(D/'test.cpp'),'-o',str(D/'test.elf')],check=True)
 subprocess.run([str(TC/'avr-objcopy.exe'),'-O','binary',str(D/'test.elf'),str(D/'test.bin')],check=True)
 symbols=subprocess.check_output([str(TC/'avr-nm.exe'),str(D/'test.elf')]).decode();address=int(re.search(r'^([0-9a-f]+) [A-Za-z] testStatus\r?$',symbols,re.M).group(1),16)-0x800000

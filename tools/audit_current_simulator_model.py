@@ -30,7 +30,7 @@ for name,stem in mapping.items():
   phase=math.radians(70);rotation=np.array([[math.cos(phase),-math.sin(phase),0],[0,0,1],[-math.sin(phase),-math.cos(phase),0]]);a.vertices=a.vertices@rotation
  dv=abs(abs(a.volume)-abs(b.volume))/max(abs(b.volume),1);dd=max(abs(np.sort(a.extents)-np.sort(b.extents)));assert dv<.001 and dd<.02,(name,dv,dd);matches.append(dict(name=name,stl=stem+'.stl',relative_volume_error=float(dv),max_dimension_error_mm=float(dd)))
 for name,filename in [('Fork_spine_removable','01_Removable_Fork_Spine'),('Fork_arm_Left_low','02_Fork_Arm_Left'),('Fork_arm_Right_low','02_Fork_Arm_Right'),('Fork_arm_Left_high','02_Fork_Arm_Left'),('Fork_arm_Right_high','02_Fork_Arm_Right'),('Cargo_button_spacer_Left','03_Cargo_Button_Spacer'),('Cargo_button_spacer_Right','03_Cargo_Button_Spacer'),('SG90_integrated_crank_R18','SG90_Integrated_R18_21T_Fit2')]:
- a=rawmesh(byname[name]);b=trimesh.load(O/('Servo_Horn' if name=='SG90_integrated_crank_R18' else 'Fork_Adapters')/(filename+('' if name=='SG90_integrated_crank_R18' else '_Print_Orientation')+'.stl'),force='mesh')
+ a=rawmesh(byname[name]);b=trimesh.load((R/'mechanics')/('Servo_Horn' if name=='SG90_integrated_crank_R18' else 'Fork_Adapters')/(filename+('' if name=='SG90_integrated_crank_R18' else '_Print_Orientation')+'.stl'),force='mesh')
  if name=='SG90_integrated_crank_R18':
   phase=math.radians(70);rotation=np.array([[math.cos(phase),-math.sin(phase),0],[0,0,1],[-math.sin(phase),-math.cos(phase),0]]);a.vertices=a.vertices@rotation
  dv=abs(abs(a.volume)-abs(b.volume))/max(abs(b.volume),1);dd=max(abs(np.sort(a.extents)-np.sort(b.extents)));assert dv<.001 and dd<.02,(name,dv,dd);matches.append(dict(name=name,stl=filename+'.stl',relative_volume_error=float(dv),max_dimension_error_mm=float(dd)))
@@ -50,7 +50,7 @@ direct=tf(ns['horn'](21,4.85),T(-12,99,93)@RX(-90)@RZ(70));servo=tf(read(S/'Down
 shaft_zone=BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(-12,97.5,93),gp_Dir(0,1,0)),2.65,5.5).Shape()
 def mounted(stem,name):
  shape=read(S/'Print_Parts'/(stem+'.step'));b=Bnd_Box();BRepBndLib.AddOptimal_s(shape,b,False,False);p=b.CornerMin();offset=rawmesh(byname[name]).bounds[0]-np.array([p.X(),p.Y(),p.Z()]);return tf(shape,T(*offset))
-mast=mounted('02_Mast','Mast');carriage=mounted('03_Carriage','Carriage');spine=tf(read(O/'Fork_Adapters/01_Removable_Fork_Spine.step'),T(0,118,2))
+mast=mounted('02_Mast','Mast');carriage=mounted('03_Carriage','Carriage');spine=tf(read((R/'mechanics')/'Fork_Adapters/01_Removable_Fork_Spine.step'),T(0,118,2))
 sweep=[]
 for angle in range(20,141,10):
  pose=T(-12,101,93)@RY(20-angle)@T(12,-101,-93);h=tf(direct,pose)

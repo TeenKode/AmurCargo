@@ -17,7 +17,7 @@ from OCP.TopExp import TopExp_Explorer
 from OCP.TopAbs import TopAbs_SOLID
 from OCP.Bnd import Bnd_Box
 from OCP.BRepBndLib import BRepBndLib
-O=R/'simulator';P=O/'Fork_Adapters';SRC=R/'mechanics/Print_Parts'
+O=R/'simulator';P=(R/'mechanics')/'Fork_Adapters';SRC=R/'mechanics/Print_Parts'
 def read(path):
  r=STEPControl_Reader();assert r.ReadFile(str(path))==1;r.TransferRoots();return r.OneShape()
 def move(s,xyz):

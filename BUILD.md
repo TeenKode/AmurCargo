@@ -6,7 +6,7 @@
 
 ## Arduino
 
-Откройте simulator/RadialRobot/RadialRobot.ino в Arduino IDE. Установите Arduino AVR Boards и Servo. UNO / Nano: ATmega328P, 16 МГц. Из симулятора можно выгрузить этот проект с выбранными параметрами; скачивание заменяет RobotConfig.h на текущую конфигурацию.
+Откройте firmware/RadialRobot/RadialRobot.ino в Arduino IDE. Установите Arduino AVR Boards и Servo. UNO / Nano: ATmega328P, 16 МГц. Из симулятора можно выгрузить этот проект с выбранными параметрами; скачивание заменяет RobotConfig.h на текущую конфигурацию.
 
 Направление серво — калибровка конкретной платы. Оно хранится в отдельной записи EEPROM с адреса 1000 и сохраняется при стирании калибровки датчиков. `servo reverse detached` / `servo normal detached`: только на остановленной плате, в нижнем логическом положении, без груза и со снятой качалкой. Поля `angle` и `servo_output` в status показывают логический и физический угол. Это не настройка геометрии симулятора.
 
@@ -43,7 +43,7 @@ python tools/build_direct_servo_horn.py
 python tools/rebuild_site.py
 ```
 
-Модели меняются параметрами в этих генераторах. Они создают актуальные STL и сетки для симулятора. Для полной базовой сборки: build_photo.py и prepare_print_kit.py; им нужны библиотечные STEP/FCStd и tools/user_base_payload.json, включённые в проект. Генератор build_kit_parts.py используется как источник исходных заготовок.
+Модели меняются параметрами в этих генераторах. Они создают актуальные STL и сетки для симулятора. Для полной базовой сборки: build_photo.py и prepare_print_kit.py; им нужны библиотечные STEP/FCStd и mechanics/user_base_payload.json, включённые в проект. Генератор build_kit_parts.py используется как источник исходных заготовок.
 
 ## Инструкция и готовый архив
 
@@ -71,8 +71,8 @@ python tools/test_reverse_nut.py
 python tools/test_removable_forks.py
 ```
 
-Браузер выбирается из установленного Edge или Playwright Chromium; BROWSER_EXECUTABLE и PLAYWRIGHT_MODULE позволяют переопределить пути. Нативный тест оборудования: g++ -std=c++17 -Itools/kit_host -Isimulator/RadialRobot tools/test_radial_hardware.cpp -o hardware_test, затем запустить hardware_test. Проверки не заменяют испытаний настоящей платы и механизма.
+Браузер выбирается из установленного Edge или Playwright Chromium; BROWSER_EXECUTABLE и PLAYWRIGHT_MODULE позволяют переопределить пути. Нативный тест оборудования: g++ -std=c++17 -Itools/kit_host -Ifirmware/RadialRobot tools/test_radial_hardware.cpp -o hardware_test, затем запустить hardware_test. Проверки не заменяют испытаний настоящей платы и механизма.
 
 ## Новое шасси из Blender
 
-При изменении исходного шасси откройте исходный .blend в Blender 4.5 и запустите tools/export_user_base.py через --python. Он обновит tools/user_base_payload.json. Затем пересоберите базовую CAD-сборку, съёмные вилы и HTML. Blender и библиотеки разработчика не включены в архив.
+При изменении исходного шасси откройте исходный .blend в Blender 4.5 и запустите tools/export_user_base.py через --python. Он обновит mechanics/user_base_payload.json. Затем пересоберите базовую CAD-сборку, съёмные вилы и HTML. Blender и библиотеки разработчика не включены в архив.

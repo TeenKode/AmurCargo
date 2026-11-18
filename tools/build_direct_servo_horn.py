@@ -17,7 +17,7 @@ from OCP.gp import gp_Pnt,gp_Dir,gp_Ax2,gp_Vec
 from OCP.ShapeUpgrade import ShapeUpgrade_UnifySameDomain
 # Reuse our own validated CAD-to-mesh function without running the fork builder.
 tree=ast.parse((R/'tools/build_removable_forks.py').read_text(encoding='utf-8'));fn=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='mesh');exec(compile(ast.Module(body=[fn],type_ignores=[]),'mesh_helper','exec'))
-O=R/'simulator';D=O/'Servo_Horn';D.mkdir(exist_ok=True)
+O=R/'simulator';D=(R/'mechanics')/'Servo_Horn';D.mkdir(exist_ok=True)
 def cyl(r,h,x=0,y=0,z=0):return BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(x,y,z),gp_Dir(0,0,1)),r,h).Shape()
 def box(x,y,z,X,Y,Z):return BRepPrimAPI_MakeBox(gp_Pnt(x,y,z),X-x,Y-y,Z-z).Shape()
 def spline_cut(teeth,diameter):
