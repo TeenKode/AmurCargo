@@ -6,11 +6,11 @@
 
 Скачайте репозиторий целиком: **Code → Download ZIP**, распакуйте и откройте `START.html`.
 
-- [3D-симулятор](outputs/AmurCargo_Radial/Open_Simulation_3D.html) — один HTML без сетевых зависимостей.
-- [Сборка и подключение с картинками](outputs/AmurCargo_Radial/Assembly_Guide_RU.html) — 10 шагов, 7 видов текущей модели и 8 схем.
-- [Покупки и предоставленный набор](outputs/AmurCargo_Radial/Purchase_List_RU.html).
+- [3D-симулятор](simulator/Open_Simulation_3D.html) — один HTML без сетевых зависимостей.
+- [Сборка и подключение с картинками](simulator/Assembly_Guide_RU.html) — 10 шагов, 7 видов текущей модели и 8 схем.
+- [Покупки и предоставленный набор](simulator/Purchase_List_RU.html).
 - [Короткий список покупок с количествами](Shopping_short.txt).
-- [Исходники Arduino](outputs/AmurCargo_Radial/RadialRobot).
+- [Исходники Arduino](simulator/RadialRobot).
 - [Как пересобрать проект](BUILD.md).
 
 GitHub показывает исходный текст HTML. Для запуска откройте скачанный файл в Chrome или Edge. GitHub Pages отдельно не включён.
@@ -26,7 +26,7 @@ GitHub показывает исходный текст HTML. Для запус�
 
 ## Печать
 
-Актуальные файлы перечислены в инструкции. Основные STL находятся в `outputs/AmurCargo_Photo/Print_Ready`; новые съёмные вилы — в `outputs/AmurCargo_Radial/Fork_Adapters`, качалка и пробник — в `Servo_Horn`.
+Актуальные файлы перечислены в инструкции. Основные STL находятся в `mechanics/Print_Ready`; новые съёмные вилы — в `simulator/Fork_Adapters`, качалка и пробник — в `Servo_Horn`.
 
 Для вил берите файлы `*_Print_Orientation.stl`. Из четырёх посадок качалки печатается одна после примерки пробника. STEP в `Print_Parts` — редактируемые исходные заготовки; это не дополнительный комплект для печати.
 
@@ -42,6 +42,15 @@ GitHub показывает исходный текст HTML. Для запус�
 
 ## Исходные материалы
 
-`Inputs` содержит предоставленные материалы кейса и фото. `outputs/AmurCargo_Photo/User_Models` — исходное шасси пользователя, `Downloaded_Models` — использованные библиотечные модели. Источники и условия сторонних материалов перечислены в `THIRD_PARTY.md` и `outputs/AmurCargo_Photo/SOURCES.md`.
+`references` содержит предоставленные материалы кейса и фото. `mechanics/User_Models` — исходное шасси пользователя, `Downloaded_Models` — использованные библиотечные модели. Источники и условия сторонних материалов перечислены в `THIRD_PARTY.md` и `mechanics/SOURCES.md`.
 
-В комплекте нет старых готовых сборок, альтернативных OBJ/GLB, временных файлов, установленных библиотек и вложенных ZIP. Список файлов с контрольными суммами — `PROJECT_MANIFEST.json`.
+
+## Структура проекта
+
+- `simulator/` — готовый HTML, инструкция, список покупок, прошивка Arduino и настройки.
+- `mechanics/` — основные STL в `Print_Ready/`, исходники CAD в `Print_Parts/` и модели поставщиков.
+- `references/` — документы кейса и фотографии.
+- `tools/` — генераторы, исходники интерфейса и проверки.
+- `outputs/` — локальные архивы после сборки.
+
+Команда `python tools/package_full_project.py` создаёт ZIP из текущего коммита.
