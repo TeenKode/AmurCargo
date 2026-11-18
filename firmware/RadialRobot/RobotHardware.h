@@ -18,17 +18,36 @@ inline uint16_t normalizeAdc(uint16_t raw,uint16_t white,uint16_t black){int32_t
 struct RobotHardware {
  Settings settings;RadialRobot robot;Servo lift;StoredCalibration cal;
  uint16_t raw[3];SensorInput input;
- bool armed,stream,calibrating,jogging,rawButton,stableButton,lineOverflow,servoReversed;
+ bool armed,stream,calibrating,jogging,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed;
  uint8_t calKind,samples,lineLength;
  uint32_t sampleSum[3],lastRead,buttonChanged,buttonPressed,lastStream,jogStarted;
  uint8_t defaultServoLow,defaultServoHigh;
  uint16_t jogDuration;int16_t jogLeft,jogRight;int configError;char command[80];
  uint16_t v(Param p)const{return settings.v[p];}
  bool contact()const{return digitalRead(v(P_CONTACT_PIN))==(v(P_CONTACT_LOW)?LOW:HIGH);}
- bool calibrationReady()const{
-  uint8_t required=v(P_HUB_MODE)==0?15:3;if((cal.mask&required)!=required)return false;
-  for(uint8_t i=0;i<3;i++)if(cal.white[i]>1023||cal.black[i]>1023||abs16((int16_t)cal.black[i]-(int16_t)cal.white[i])<70)return false;
-  return true;
+ enum CalibrationState { CAL_READY, CAL_INCOMPLETE, CAL_HUB_OVERLAP };
+ CalibrationState calibrationState()const{
+  const bool useHubSamples=v(P_HUB_MODE)==0;
+  const uint8_t required=useHubSamples?15:3;
+  if((cal.mask&required)!=required)return CAL_INCOMPLETE;
+  for(uint8_t i=0;i<3;i++){
+   if(cal.white[i]>1023||cal.black[i]>1023||abs16((int16_t)cal.black[i]-(int16_t)cal.white[i])<70)return CAL_INCOMPLETE;
+  }
+  if(!useHubSamples)return CAL_READY;
+  // Disjoint tolerance ranges on any sensor make the two matches mutually exclusive.
+  for(uint8_t i=0;i<3;i++){
+   const int16_t left=normalizeAdc(cal.hub[0][i],cal.white[i],cal.black[i]);
+   const int16_t right=normalizeAdc(cal.hub[1][i],cal.white[i],cal.black[i]);
+   if(abs16(left-right)>2*v(P_HUB_TOLERANCE))return CAL_READY;
+  }
+  return CAL_HUB_OVERLAP;
+ }
+ bool calibrationReady()const{return calibrationState()==CAL_READY;}
+ bool requireCalibration()const{
+  const CalibrationState state=calibrationState();
+  if(state==CAL_HUB_OVERLAP)Serial.println(F("CAL HUB OVERLAP: resample left and right circles."));
+  else if(state==CAL_INCOMPLETE)Serial.println(F("CAL REQUIRED: sample white, black and required circles."));
+  return state==CAL_READY;
  }
  void safeChannel(uint8_t a,uint8_t b,uint8_t en,int16_t value){
   analogWrite(en,0);digitalWrite(a,value>0?HIGH:LOW);digitalWrite(b,value<0?HIGH:LOW);analogWrite(en,abs16(value));
@@ -45,7 +64,7 @@ struct RobotHardware {
  void init(){
   Serial.begin(115200);loadUserSettings(settings);
   configError=settingsError(settings);if(!configError)configError=pinSettingsError(settings);
-  armed=stream=calibrating=jogging=lineOverflow=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
+  armed=stream=calibrating=jogging=skipButtonRelease=lineOverflow=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
   if(configError){Serial.print(F("CONFIG ERROR "));Serial.println(configError);return;}
   uint8_t outs[8]={(uint8_t)v(P_LEFT_IN1),(uint8_t)v(P_LEFT_IN2),(uint8_t)v(P_RIGHT_IN1),(uint8_t)v(P_RIGHT_IN2),(uint8_t)v(P_LEFT_EN),(uint8_t)v(P_RIGHT_EN),(uint8_t)v(P_LED_PIN),(uint8_t)v(P_STANDBY_PIN)};
   for(uint8_t i=0;i<8;i++)if(outs[i]!=255&&(v(P_DRIVER_MODE)==0||i<4||i>5)){pinMode(outs[i],OUTPUT);digitalWrite(outs[i],LOW);}
@@ -85,15 +104,27 @@ struct RobotHardware {
   if(robot.state==FAULT){if(held>=v(P_ARM_HOLD_MS)&&robot.servoAngle==v(P_LIFT_LOW)&&!contact()){robot.init(settings,now);armed=false;Serial.println(F("FAULT RESET"));}return;}
   if(held>=v(P_ARM_HOLD_MS)){armed=true;Serial.println(F("ARMED. Release, then short press START."));return;}
   if(!armed){Serial.println(F("NOT ARMED: hold START or send arm."));return;}
-  if(!calibrationReady()){Serial.println(F("CAL REQUIRED: white black left right; save."));return;}
+  if(!requireCalibration())return;
   if(robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)){Serial.println(F("LOWER FORKS BEFORE START"));return;}
   if(contact()){Serial.println(F("CONTACT ALREADY PRESSED"));return;}
   robot.start(now);
  }
  void button(uint32_t now){
-  bool b=digitalRead(v(P_START_PIN))==LOW;if(b!=rawButton){rawButton=b;buttonChanged=now;}
-  if(b!=stableButton&&(uint32_t)(now-buttonChanged)>=35){stableButton=b;if(b){buttonPressed=now;if(robot.active()){robot.fail(ABORTED,now);armed=false;}if(jogging){jogging=false;robot.stop();outputMotors(0,0);}}
-   else releaseButton(now-buttonPressed,now);
+  bool pressed=digitalRead(v(P_START_PIN))==LOW;
+  if(pressed!=rawButton){
+   rawButton=pressed;buttonChanged=now;
+  }
+  // Remember the stop even if the timed jog expires during button debounce.
+  if(pressed&&jogging)skipButtonRelease=true;
+  if((uint32_t)(now-buttonChanged)<35)return;
+  if(pressed==stableButton){if(!pressed)skipButtonRelease=false;return;}
+  stableButton=pressed;
+  if(pressed){
+   buttonPressed=now;
+   if(robot.active()){robot.fail(ABORTED,now);armed=false;}
+   if(skipButtonRelease){jogging=false;armed=false;robot.stop();outputMotors(0,0);}
+  }else if(!skipButtonRelease){
+   releaseButton(now-buttonPressed,now);
   }
  }
  void status(){
@@ -171,14 +202,14 @@ struct RobotHardware {
   }
   if(!strcmp(cmd,"arm")){armed=true;Serial.println(F("ARMED"));return;}
   if(!strcmp(cmd,"erase")){memset(&cal,0,sizeof(cal));cal.magic=0x52414431UL;cal.version=1;cal.pins[0]=v(P_LINE_LEFT);cal.pins[1]=v(P_LINE_CENTRE);cal.pins[2]=v(P_LINE_RIGHT);cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);armed=false;Serial.println(F("CAL ERASED. Servo direction retained."));return;}
-  if(!strcmp(cmd,"save")){if(!calibrationReady()){Serial.println(F("INCOMPLETE CALIBRATION"));return;}cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);Serial.println(F("EEPROM SAVED"));return;}
+  if(!strcmp(cmd,"save")){if(!requireCalibration())return;cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);Serial.println(F("EEPROM SAVED"));return;}
   if(!strcmp(cmd,"cal")){
    char *kind=strtok(0," \t");int8_t k=kind&& !strcmp(kind,"white")?0:kind&&!strcmp(kind,"black")?1:kind&&!strcmp(kind,"left")?2:kind&&!strcmp(kind,"right")?3:-1;
    if(k<0||calibrating){Serial.println(F("CAL ARGUMENT ERROR"));return;}calKind=k;samples=0;for(uint8_t i=0;i<3;i++)sampleSum[i]=0;calibrating=true;armed=false;return;
   }
   if(!strcmp(cmd,"jog")){
    long l,r,t;char *a=strtok(0," \t"),*b=strtok(0," \t"),*c=strtok(0," \t");
-   if(!armed||calibrating||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-150||l>150||r<-150||r>150||t<1||t>2000){Serial.println(F("JOG REFUSED: arm, low, no load; PWM +/-150, 1..2000ms."));return;}
+   if(!armed||calibrating||digitalRead(v(P_START_PIN))==LOW||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-150||l>150||r<-150||r>150||t<1||t>2000){Serial.println(F("JOG REFUSED: arm, low, no load; PWM +/-150, 1..2000ms."));return;}
    jogLeft=l;jogRight=r;jogDuration=t;jogStarted=now;jogging=true;return;
   }
   Serial.println(F("UNKNOWN COMMAND"));

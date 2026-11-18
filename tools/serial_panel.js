@@ -8,6 +8,10 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  const connection=document.querySelector('#openMonitor').parentElement;
  const sensors=$('calButtons').parentElement;
  sensors.querySelector('h2').remove();
+ const calibrationFeedback=document.createElement('p');
+ calibrationFeedback.id='calibrationFeedback';
+ calibrationFeedback.setAttribute('aria-live','polite');
+ sensors.append(calibrationFeedback);
  const flashing=document.createElement('div');
  for(const element of [...pane.children]){
   if(element===$('serialSupport'))break;
@@ -62,7 +66,10 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   section('Сервопривод',limits,true),section('Датчики',sensors),
   section('Проба моторов',real),section('Прошивка',flashing),section('Терминал COM',terminal));
  let telemetry=null,limitsLoaded=false;
- let busy=false,controller=null,monitorPort=null,reader=null,writer=null,pump=null;
+ let busy=false,controller=null,monitor=null,openingMonitor=false;
+ const telemetryPlaceholders=Object.fromEntries(
+  ['liveHardware','servoLimitsStatus','servoDirectionStatus'].map(id=>[id,$(id).textContent])
+ );
  const log=s=>{$('serialLog').textContent=($('serialLog').textContent+'\n'+s).slice(-10000);$('serialLog').scrollTop=$('serialLog').scrollHeight;const status=String(s).match(/angle=(\d+).*?servo_output=(\d+).*?servo_goal=(\d+).*?servo_low=(\d+).*?servo_high=(\d+).*?start_button=(\d).*?raw=([^=]+?) line=.*?contact=(\d)/);
  if(status){
   const [angle,physical,goal,low,high,start,raw,contact]=status.slice(1);
@@ -76,25 +83,98 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   buttons();
  }
  if(String(s).startsWith('SERVO REFUSED')||String(s).startsWith('BUSY')||String(s).startsWith('RESET REQUIRED'))$('servoLimitsStatus').textContent=s;
+ if(s.startsWith('CAL HUB OVERLAP'))$('calibrationFeedback').textContent='Показания кругов перекрываются. Снимите образцы левого и правого кругов заново.';
+ if(s.startsWith('CAL REQUIRED'))$('calibrationFeedback').textContent='Снимите образцы белого, чёрного и требуемых кругов.';
+ if(s.startsWith('CAL SAMPLE OK')||s==='EEPROM SAVED')$('calibrationFeedback').textContent=s==='EEPROM SAVED'?'Калибровка сохранена.':'Образец записан. После завершения нажмите «Сохранить».';
  if(String(s)==='SERVO LIMITS SAVED'){limitsLoaded=false;$('servoLimitsStatus').textContent='Положения записаны в Arduino.';}
  if(s.startsWith('RADIAL READY'))send('status').catch(e=>log(e.message));
  const match=String(s).match(/(?:servo_reverse|SERVO SAVED reverse)=(0|1)/);if(match){if(String(s).startsWith('SERVO SAVED')){limitsLoaded=false;}$('servoDirection').value=match[1]==='1'?'reverse':'normal';$('servoDirectionStatus').textContent='Плата сообщает: '+(match[1]==='1'?'обратное':'обычное')+' направление SG90. Сохранено в EEPROM. Установите качалку в нижнем положении при выключенном питании.';}};
  const supported=!!navigator.serial&&isSecureContext;
  $('serialSupport').textContent=supported?'USB доступен. Выберите плату в окне браузера.':('USB здесь недоступен. Откройте файл в Chrome или Edge. Если не помогло — попросите наставника открыть страницу через HTTPS или localhost.');
  function syncBoard(){const raw=getCfg().uploadBoard,key=typeof raw==='string'&&AmurFlash.profiles[raw]?raw:'uno';getCfg().uploadBoard=key;$('boardProfile').value=key;$('boardHelp').textContent=key.startsWith('nano')?'У китайской Nano могут быть разные загрузчики. Не знаете — выберите автоподбор. CH340 не указывает тип загрузчика.':'Обычная UNO: 115200. Для неизвестного загрузчика выберите автоподбор. Происхождение платы и USB-чип не определяют загрузчик; поддерживается ATmega328P, 16 МГц.';} $('boardProfile').onchange=()=>{getCfg().uploadBoard=$('boardProfile').value;syncBoard();};syncBoard();
- function buttons(){ $('flashUno').disabled=!supported||busy||!!monitorPort;$('openMonitor').disabled=!supported||busy||!!monitorPort;$('closeMonitor').disabled=!monitorPort;$('cancelFlash').disabled=!busy;$('downloadHex').disabled=busy;$('boardProfile').disabled=busy||!!monitorPort;$('manualReset').disabled=busy||!!monitorPort;$('applyServoDirection').disabled=!monitorPort||busy||!$('servoDetached').checked;
-  $('portStatus').textContent=monitorPort?'COM-порт подключён · 115200 бод':'COM-порт отключён';
-  for(const button of pane.querySelectorAll('[data-command],[data-real-command],[data-real-jog],#calButtons button,#serialForm button'))button.disabled=!monitorPort||busy;
-  for(const id of ['servoBack','servoForward','servoPreview','captureLow','captureHigh','saveServoLimits'])$(id).disabled=!monitorPort||busy||!telemetry;
+ function buttons(){
+  const connected=!!monitor&&!monitor.closing;
+  const locked=busy||openingMonitor||!!monitor;
+  $('flashUno').disabled=$('openMonitor').disabled=!supported||locked;
+  $('closeMonitor').disabled=!connected;
+  $('cancelFlash').disabled=!controller;
+  $('downloadHex').disabled=busy;
+  $('boardProfile').disabled=$('manualReset').disabled=locked;
+  $('applyServoDirection').disabled=!connected||!$('servoDetached').checked;
+  $('portStatus').textContent=connected?'COM-порт подключён · 115200 бод':'COM-порт отключён';
+  for(const button of pane.querySelectorAll('[data-command],[data-real-command],[data-real-jog],#calButtons button,#serialForm button'))button.disabled=!connected;
+  for(const id of ['servoBack','servoForward','servoPreview','captureLow','captureHigh','saveServoLimits'])$(id).disabled=!connected||!telemetry;
  }
  function image(){if(configError())throw Error('Сначала исправьте настройки программы');return AmurFlash.patch(base,AmurFlash.boardMeta(meta,getCfg().uploadBoard||'uno'),getCfg());}
  $('downloadHex').onclick=()=>{try{download((getCfg().uploadBoard||'uno').startsWith('nano')?'Pogruzchik_NANO.hex':'Pogruzchik_UNO.hex',AmurFlash.hex(image()));log('HEX сформирован с текущими настройками.');}catch(e){log(e.message);}};
- $('flashUno').onclick=async()=>{if(busy)return;try{const firmware=image(),key=getCfg().uploadBoard||'uno',port=await navigator.serial.requestPort();busy=true;controller=new AbortController();buttons();await AmurFlash.uploadBoard(port,firmware,meta,key,(p,s)=>{$('flashProgress').value=p;log(s);},controller.signal,$('manualReset').checked);}catch(e){log(e.name==='NotFoundError'?'Порт не выбран. В окне браузера нажмите на свою плату / COM-порт, затем «Подключить».':e.name==='NetworkError'?'Не удалось открыть порт. Закройте Arduino IDE и другие вкладки с подключением к плате.':'Загрузка: '+e.message);}finally{busy=false;controller=null;buttons();}};
+ $('flashUno').onclick=async()=>{if(busy||openingMonitor||monitor)return;busy=true;buttons();try{const firmware=image(),key=getCfg().uploadBoard||'uno',port=await navigator.serial.requestPort();controller=new AbortController();buttons();await AmurFlash.uploadBoard(port,firmware,meta,key,(p,s)=>{$('flashProgress').value=p;log(s);},controller.signal,$('manualReset').checked);}catch(e){log(e.name==='NotFoundError'?'Порт не выбран. В окне браузера нажмите на свою плату / COM-порт, затем «Подключить».':e.name==='NetworkError'?'Не удалось открыть порт. Закройте Arduino IDE и другие вкладки с подключением к плате.':'Загрузка: '+e.message);}finally{busy=false;controller=null;buttons();}};
  $('cancelFlash').onclick=()=>controller?.abort();
- $('openMonitor').onclick=async()=>{try{const p=await navigator.serial.requestPort();await p.open({baudRate:115200});telemetry=null;limitsLoaded=false;monitorPort=p;reader=p.readable.getReader();writer=p.writable.getWriter();const decoder=new TextDecoder();pump=(async()=>{let incoming='';try{while(true){const {value,done}=await reader.read();if(done)break;incoming+=decoder.decode(value,{stream:true});let at;while((at=incoming.indexOf('\n'))>=0){log(incoming.slice(0,at).replace(/\r$/,''));incoming=incoming.slice(at+1);}if(incoming.length>2048){log(incoming);incoming='';}}}catch(e){log('Порт: '+e.message);}})();buttons();log('Монитор подключён, 115200 бод.');}catch(e){log('Подключение: '+e.message);}};
- $('closeMonitor').onclick=async()=>{const p=monitorPort;if(!p)return;try{await reader.cancel();await pump;reader.releaseLock();writer.releaseLock();await p.close();}catch(e){log(e.message);}finally{reader=writer=monitorPort=null;telemetry=null;limitsLoaded=false;buttons();}};
- async function send(command){if(!writer){log('Сначала подключите монитор порта.');return;}if(command.length>70||/[\r\n]/.test(command)){log('Недопустимая команда');return;}await writer.write(new TextEncoder().encode(command+'\n'));log('> '+command);}
- $('servoDetached').onchange=buttons;$('applyServoDirection').onclick=()=>{if(!monitorPort||!$('servoDetached').checked)return;const mode=$('servoDirection').value;if(!['normal','reverse'].includes(mode))return;send('servo '+mode+' detached').catch(e=>log(e.message));$('servoDetached').checked=false;buttons();};
+ function clearTelemetry(){
+  telemetry=null;limitsLoaded=false;
+  for(const [id,message] of Object.entries(telemetryPlaceholders))$(id).textContent=message;
+  for(const id of ['servoLow','servoHigh','servoTarget'])$(id).value='';
+  $('calibrationFeedback').textContent='';
+  $('servoDetached').checked=false;
+  $('servoDirection').value='normal';
+ }
+ async function releaseMonitor(session){
+  session.closing=true;clearTelemetry();buttons();
+  session.reader?.releaseLock();
+  session.writer?.releaseLock();
+  try{await session.port.close();}
+  catch(e){log('Порт: '+e.message);}
+  finally{monitor=null;buttons();}
+ }
+ async function readMonitor(session){
+  const decoder=new TextDecoder();
+  let incoming='';
+  try{
+   while(!session.closing){
+    const {value,done}=await session.reader.read();
+    if(done||session.closing)break;
+    incoming+=decoder.decode(value,{stream:true});
+    let at;
+    while((at=incoming.indexOf('\n'))>=0){
+     log(incoming.slice(0,at).replace(/\r$/,''));
+     incoming=incoming.slice(at+1);
+    }
+    if(incoming.length>2048){log(incoming);incoming='';}
+   }
+  }catch(e){if(!session.closing)log('Порт: '+e.message);}
+  finally{await releaseMonitor(session);}
+ }
+ $('openMonitor').onclick=async()=>{
+  if(busy||openingMonitor||monitor)return;
+  openingMonitor=true;buttons();
+  try{
+   const port=await navigator.serial.requestPort();
+   await port.open({baudRate:115200});
+   const session={port,closing:false};
+   monitor=session;
+   try{
+    session.reader=port.readable.getReader();
+    session.writer=port.writable.getWriter();
+   }catch(e){await releaseMonitor(session);throw e;}
+   session.pump=readMonitor(session);
+   log('Монитор подключён, 115200 бод.');
+  }catch(e){log('Подключение: '+e.message);}
+  finally{openingMonitor=false;buttons();}
+ };
+ $('closeMonitor').onclick=async()=>{
+  const session=monitor;
+  if(!session||session.closing)return;
+  session.closing=true;clearTelemetry();buttons();
+  try{await session.reader.cancel();}
+  catch(e){log('Порт: '+e.message);}
+  await session.pump;
+ };
+ async function send(command){
+  if(!monitor?.writer||monitor.closing){log('Сначала подключите монитор порта.');return;}
+  if(command.length>70||/[\r\n]/.test(command)){log('Недопустимая команда');return;}
+  await monitor.writer.write(new TextEncoder().encode(command+'\n'));
+  log('> '+command);
+ }
+ $('servoDetached').onchange=buttons;$('applyServoDirection').onclick=()=>{if(!monitor||monitor.closing||!$('servoDetached').checked)return;const mode=$('servoDirection').value;if(!['normal','reverse'].includes(mode))return;send('servo '+mode+' detached').catch(e=>log(e.message));$('servoDetached').checked=false;buttons();};
  for(const [label,command]of [['Разрешить пробы','arm'],['↑ Поднять вилы','high'],['↓ Опустить вилы','low'],['Сброс','reset'],['■ Стоп','stop']]){const b=document.createElement('button');b.textContent=label;b.dataset.realCommand=command;b.onclick=()=>send(command).catch(e=>log(e.message));$('realControls').append(b);}
  for(const [label,l,r]of [['↑ Вперёд',1,1],['↓ Назад',-1,-1],['↶ Влево',-1,1],['↷ Вправо',1,-1]]){const b=document.createElement('button');b.textContent=label;b.dataset.realJog=l+','+r;b.onclick=()=>{const p=Number($('realPwm').value),t=Number($('realDuration').value);if(!Number.isInteger(p)||p<1||p>150||!Number.isInteger(t)||t<50||t>2000){log('PWM: 1–150; время: 50–2000 мс.');return;}send('jog '+l*p+' '+r*p+' '+t).catch(e=>log(e.message));};$('realControls').append(b);}
  const command=s=>{

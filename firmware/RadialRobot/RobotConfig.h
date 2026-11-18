@@ -88,10 +88,6 @@ inline void loadDefaultSettings(Settings &s){
  s.searchCount=7;for(uint8_t i=0;i<7;i++)s.search[i]=i+1;
 }
 
-
-
-
-
 // WEB_FLASH_CONFIG: fixed-size flash configuration patched by the offline page.
 #ifdef ARDUINO_ARCH_AVR
 #include <avr/pgmspace.h>
