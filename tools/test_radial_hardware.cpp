@@ -21,26 +21,32 @@ int main(){
  sample(h,"cal right",397);assert(h.calibrationReady());
  sample(h,"cal right",368);assert(h.calibrationReady());
  cmd(h,"save");RobotHardware restored;restored.init();assert(restored.calibrationReady());
- cmd(h,"arm");cmd(h,"jog 100 -100 100");assert(h.jogging);steps(h,5);assert(outputPins[5]>0&&outputPins[6]>0);steps(h,6);assert(!h.jogging&&outputPins[5]==0&&outputPins[6]==0);
+ cmd(h,"arm");cmd(h,"jog 100 -100 100");assert(h.jogging);steps(h,5);assert(outputPins[10]>0&&outputPins[11]>0);steps(h,6);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
  for(int duration : {1000, 20}){
   cmd(h,"arm");
   cmd(h,duration==20?"jog 100 100 20":"jog 100 100 1000");
   assert(h.jogging);
   steps(h,1);
   inputPins[h.v(P_START_PIN)]=LOW;steps(h,5);
-  assert(!h.jogging&&!h.armed&&outputPins[5]==0&&outputPins[6]==0);
+  assert(!h.jogging&&!h.armed&&outputPins[10]==0&&outputPins[11]==0);
   inputPins[h.v(P_START_PIN)]=HIGH;steps(h,5);
   assert(h.robot.state==IDLE&&!h.armed);
  }
  cmd(h,"arm");
  cmd(h,"high");steps(h,250);assert(h.robot.servoAngle==h.v(P_LIFT_HIGH));h.releaseButton(100,clockMs);assert(h.robot.state==IDLE);
  cmd(h,"low");steps(h,250);assert(h.robot.servoAngle==h.v(P_LIFT_LOW));h.releaseButton(100,clockMs);assert(h.robot.active());
- cmd(h,"jog 100 100 1000");assert(!h.jogging);const int angle=h.robot.servoAngle;cmd(h,"stop");steps(h,2);assert(h.robot.state==FAULT&&h.robot.fault==ABORTED&&outputPins[5]==0&&outputPins[6]==0&&h.robot.servoAngle==angle);
+ cmd(h,"jog 100 100 1000");assert(!h.jogging);const int angle=h.robot.servoAngle;cmd(h,"stop");steps(h,2);assert(h.robot.state==FAULT&&h.robot.fault==ABORTED&&outputPins[10]==0&&outputPins[11]==0&&h.robot.servoAngle==angle);
  cmd(h,"high");steps(h,250);cmd(h,"reset");assert(h.robot.state==FAULT);cmd(h,"low");steps(h,250);cmd(h,"reset");assert(h.robot.state==IDLE&&!h.armed);
  inputPins[h.v(P_CONTACT_PIN)]=LOW;cmd(h,"arm");h.releaseButton(100,clockMs);assert(h.robot.state==IDLE);inputPins[h.v(P_CONTACT_PIN)]=HIGH;
- h.releaseButton(100,clockMs);assert(h.robot.active());inputPins[h.v(P_START_PIN)]=LOW;steps(h,5);assert(h.robot.state==FAULT&&h.robot.fault==ABORTED&&outputPins[5]==0&&outputPins[6]==0);inputPins[h.v(P_START_PIN)]=HIGH;
+ h.releaseButton(100,clockMs);assert(h.robot.active());inputPins[h.v(P_START_PIN)]=LOW;steps(h,5);assert(h.robot.state==FAULT&&h.robot.fault==ABORTED&&outputPins[10]==0&&outputPins[11]==0);inputPins[h.v(P_START_PIN)]=HIGH;
  EEPROM.bytes[15]^=1;RobotHardware bad;bad.init();assert(!bad.calibrationReady());
- h.settings.v[P_DRIVER_MODE]=1;h.settings.v[P_LEFT_IN1]=3;h.settings.v[P_LEFT_IN2]=5;h.settings.v[P_RIGHT_IN1]=6;h.settings.v[P_RIGHT_IN2]=11;h.outputMotors(90,-80);assert(outputPins[3]==90&&outputPins[5]==0&&outputPins[6]==0&&outputPins[11]==80);
+ assert(h.v(P_DRIVER_MODE)==2&&h.v(P_CONTACT_PIN)==2&&h.v(P_LED_PIN)==255);
+ h.outputMotors(90,-80);
+ assert(outputPins[12]==HIGH&&outputPins[10]==90&&outputPins[13]==LOW&&outputPins[11]==80);
+ h.outputMotors(0,0);assert(outputPins[10]==0&&outputPins[11]==0);
+ Settings wrong=h.settings;wrong.v[P_SERVO_PIN]=10;assert(pinSettingsError(wrong)==305);
+ wrong=h.settings;wrong.v[P_CONTACT_PIN]=12;assert(pinSettingsError(wrong)!=0);
+ wrong=h.settings;wrong.v[P_START_PIN]=4;assert(pinSettingsError(wrong)==306);
  memset(EEPROM.bytes,0,sizeof(EEPROM.bytes));RobotHardware inv;inv.init();assert(!inv.servoReversed&&inv.lift.position==20);
  cmd(inv,"servo reverse");assert(!inv.servoReversed);
  cmd(inv,"servo reverse detached");assert(inv.servoReversed&&inv.lift.position==160&&!inv.armed);

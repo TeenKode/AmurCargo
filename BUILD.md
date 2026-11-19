@@ -6,7 +6,7 @@
 
 ## Arduino
 
-Откройте firmware/RadialRobot/RadialRobot.ino в Arduino IDE. Установите Arduino AVR Boards и Servo. UNO / Nano: ATmega328P, 16 МГц. Из симулятора можно выгрузить этот проект с выбранными параметрами; скачивание заменяет RobotConfig.h на текущую конфигурацию.
+Откройте firmware/RadialRobot/RadialRobot.ino в Arduino IDE. Установите Arduino AVR Boards. Для данной ветки RB L298P Shield не требуется стандартная Servo: SG90 использует `AmurServo.h` с прерываниями Timer0 (см. `hardware/L298P_SHIELD_RU.md`). UNO / Nano: ATmega328P, 16 МГц. Из симулятора можно выгрузить этот проект с выбранными параметрами; скачивание заменяет RobotConfig.h на текущую конфигурацию.
 
 Направление серво — калибровка конкретной платы. Оно хранится в отдельной записи EEPROM с адреса 1000 и сохраняется при стирании калибровки датчиков. `servo reverse detached` / `servo normal detached`: только на остановленной плате, в нижнем логическом положении, без груза и со снятой качалкой. Поля `angle` и `servo_output` в status показывают логический и физический угол. Это не настройка геометрии симулятора.
 
@@ -24,7 +24,7 @@ python tools/rebuild_site.py
 
 Единое место исходников прошивки — `firmware/RadialRobot/`: общий алгоритм `RadialCore.h`, аппаратный адаптер Arduino `RobotHardware.h`, WASM-обёртка `firmware/wasm/WebAssembly.cpp`. Компилированные образы и манифесты хранятся в `firmware/build/`. Автономный HTML содержит *сгенерированную*, а не редактируемую копию прошивки. Генератор схемы настроек: `tools/build_radial_settings.py`.
 
-Для компиляции нужны Arduino AVR Boards 1.8.6 и Servo 1.2.2. Укажите ARDUINO_DATA (каталог Arduino15) и, если библиотека установлена отдельно, ARDUINO_SERVO (путь к Servo). На Windows по умолчанию используется Arduino15 из LOCALAPPDATA.
+Для компиляции нужны Arduino AVR Boards 1.8.6 и каталог ARDUINO_DATA (Arduino15). На AVR нет зависимости от Servo.h: D10 остаётся аппаратным PWM мотора A, D11 — мотора B. На D5/D6 PWM не использовать. На Windows по умолчанию используется Arduino15 из LOCALAPPDATA.
 
 ```
 python tools/rebuild_site.py
