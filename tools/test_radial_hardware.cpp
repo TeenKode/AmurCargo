@@ -57,12 +57,24 @@ int main(){
  cmd(invBoot,"erase");RobotHardware erased;erased.init();assert(erased.servoReversed&&!erased.calibrationReady());
  EEPROM.bytes[15]^=1;RobotHardware damagedCal;damagedCal.init();assert(damagedCal.servoReversed&&damagedCal.lift.position==160);
  cmd(damagedCal,"servo normal detached");assert(!damagedCal.servoReversed&&damagedCal.lift.position==20);
- cmd(damagedCal,"angle 31");
+ // Preview an angle: saving limits before it arrives is rejected.
+ cmd(damagedCal,"angle 31");assert(damagedCal.manualServoPending);
  cmd(damagedCal,"limits 31 119");assert(damagedCal.v(P_LIFT_LOW)==20);
- steps(damagedCal,30);assert(damagedCal.lift.position==31);
+ steps(damagedCal,30);
+ assert(damagedCal.lift.position==31&&!damagedCal.manualServoPending);
+ // Small step adjustments also produce one arrival confirmation.
+ cmd(damagedCal,"angle 33");assert(damagedCal.manualServoPending);
+ steps(damagedCal,10);assert(damagedCal.robot.servoAngle==33&&!damagedCal.manualServoPending);
+ cmd(damagedCal,"angle 31");steps(damagedCal,10);
+ assert(damagedCal.robot.servoAngle==31&&!damagedCal.manualServoPending);
  cmd(damagedCal,"limits 119 31");assert(damagedCal.v(P_LIFT_LOW)==20);
- cmd(damagedCal,"limits 31 119");assert(damagedCal.v(P_LIFT_LOW)==31);
- RobotHardware calibrated;calibrated.init();assert(calibrated.lift.position==31);
+ cmd(damagedCal,"limits 31 119");assert(damagedCal.v(P_LIFT_LOW)==31&&damagedCal.v(P_LIFT_HIGH)==119);
+ cmd(damagedCal,"angle 119");steps(damagedCal,155);
+ assert(damagedCal.robot.servoAngle==119&&!damagedCal.manualServoPending);
+ cmd(damagedCal,"low");steps(damagedCal,155);
+ assert(damagedCal.robot.servoAngle==31&&!damagedCal.manualServoPending);
+ RobotHardware calibrated;calibrated.init();
+ assert(calibrated.v(P_LIFT_LOW)==31&&calibrated.v(P_LIFT_HIGH)==119&&calibrated.lift.position==31);
  cmd(calibrated,"high");steps(calibrated,250);assert(calibrated.lift.position==119);
  assert(calibrated.v(P_LIFT_HIGH)==119);
  cmd(calibrated,"stream on");assert(calibrated.stream);
