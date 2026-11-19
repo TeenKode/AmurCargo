@@ -18,7 +18,7 @@ inline uint16_t normalizeAdc(uint16_t raw,uint16_t white,uint16_t black){int32_t
 struct RobotHardware {
  Settings settings;RadialRobot robot;AmurServo lift;StoredCalibration cal;
  uint16_t raw[3];SensorInput input;
- bool armed,stream,calibrating,jogging,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed;
+ bool armed,stream,calibrating,jogging,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed,manualServoPending;
  uint8_t calKind,samples,lineLength;
  uint32_t sampleSum[3],lastRead,buttonChanged,buttonPressed,lastStream,jogStarted;
  uint8_t defaultServoLow,defaultServoHigh;
@@ -71,7 +71,7 @@ struct RobotHardware {
  void init(){
   Serial.begin(115200);loadUserSettings(settings);
   configError=settingsError(settings);if(!configError)configError=pinSettingsError(settings);
-  armed=stream=calibrating=jogging=skipButtonRelease=lineOverflow=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
+  armed=stream=calibrating=jogging=skipButtonRelease=lineOverflow=manualServoPending=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
   if(configError){Serial.print(F("CONFIG ERROR "));Serial.println(configError);return;}
   // Shield uses only four motor pins. D4 is an active buzzer on the shield.
   if(v(P_DRIVER_MODE)==2){const uint8_t pins[4]={12,13,10,11};for(uint8_t i=0;i<4;i++){pinMode(pins[i],OUTPUT);digitalWrite(pins[i],LOW);}pinMode(4,OUTPUT);digitalWrite(4,LOW);}
@@ -163,7 +163,7 @@ struct RobotHardware {
  bool number(char *s,long &n){if(!s)return false;char *end;n=strtol(s,&end,10);return *s&&!*end;}
  void handle(char *line,uint32_t now){
   char *cmd=strtok(line," \t");if(!cmd)return;
-  if(!strcmp(cmd,"stop")){jogging=false;robot.fail(ABORTED,now);armed=false;outputMotors(0,0);Serial.println(F("STOPPED. Servo holds current angle."));return;}
+  if(!strcmp(cmd,"stop")){manualServoPending=false;jogging=false;robot.fail(ABORTED,now);armed=false;outputMotors(0,0);Serial.println(F("STOPPED. Servo holds current angle."));return;}
   if(!strcmp(cmd,"status")){status();return;}
   if(!strcmp(cmd,"stream")){
    char *mode=strtok(0," \t");
@@ -176,8 +176,8 @@ struct RobotHardware {
   }
   if(robot.active()||jogging){Serial.println(F("BUSY: only status, stream, stop."));return;}
   if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; jog L R ms; status; stream; reset; erase; stop"));return;}
-  if(!strcmp(cmd,"low")||!strcmp(cmd,"high")){robot.servoGoal=!strcmp(cmd,"low")?v(P_LIFT_LOW):v(P_LIFT_HIGH);Serial.println(F("MANUAL SERVO: support any load."));return;}
-  if(!strcmp(cmd,"reset")){if(robot.servoAngle!=v(P_LIFT_LOW)||contact()){Serial.println(F("RESET REFUSED: lower forks and remove load."));return;}robot.init(settings,now);armed=false;return;}
+  if(!strcmp(cmd,"low")||!strcmp(cmd,"high")){robot.servoGoal=!strcmp(cmd,"low")?v(P_LIFT_LOW):v(P_LIFT_HIGH);manualServoPending=true;Serial.println(F("MANUAL SERVO: support any load."));status();return;}
+  if(!strcmp(cmd,"reset")){if(robot.servoAngle!=v(P_LIFT_LOW)||contact()){Serial.println(F("RESET REFUSED: lower forks and remove load."));return;}robot.init(settings,now);manualServoPending=false;armed=false;return;}
   if(robot.state!=IDLE){Serial.println(F("RESET REQUIRED"));return;}
   if(!strcmp(cmd,"angle")||!strcmp(cmd,"limits")){
    if(calibrating||contact()){
@@ -192,6 +192,7 @@ struct RobotHardware {
     if(second){Serial.println(F("Use angle N"));return;}
     armed=false;
     robot.servoGoal=(uint8_t)low;
+    manualServoPending=true;
    }else{
     if(!number(second,high)||high<=low||high>180||robot.servoAngle!=robot.servoGoal){
      Serial.println(F("SERVO REFUSED: wait for servo and set low < high <= 180"));return;
@@ -217,7 +218,7 @@ struct RobotHardware {
     settings.v[P_LIFT_HIGH]=defaultServoHigh;
     robot.servoAngle=robot.servoGoal=v(P_LIFT_LOW);
    }
-   servoReversed=reverse;StoredServoDirection direction={0x53525631UL,(uint8_t)servoReversed,(uint8_t)(servoReversed^255)};EEPROM.put(1000,direction);armed=false;lift.write(servoOutputAngle());Serial.print(F("SERVO SAVED reverse="));Serial.println(servoReversed?1:0);return;
+   manualServoPending=false;servoReversed=reverse;StoredServoDirection direction={0x53525631UL,(uint8_t)servoReversed,(uint8_t)(servoReversed^255)};EEPROM.put(1000,direction);armed=false;lift.write(servoOutputAngle());Serial.print(F("SERVO SAVED reverse="));Serial.println(servoReversed?1:0);return;
   }
   if(!strcmp(cmd,"arm")){armed=true;Serial.println(F("ARMED"));return;}
   if(!strcmp(cmd,"erase")){memset(&cal,0,sizeof(cal));cal.magic=0x52414431UL;cal.version=1;cal.pins[0]=v(P_LINE_LEFT);cal.pins[1]=v(P_LINE_CENTRE);cal.pins[2]=v(P_LINE_RIGHT);cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);armed=false;Serial.println(F("CAL ERASED. Servo direction retained."));return;}
@@ -245,6 +246,12 @@ struct RobotHardware {
   serial(now);readSensors(now);button(now);input.contact=contact();input.abort=false;
   if(jogging){if((uint32_t)(now-jogStarted)>=jogDuration){jogging=false;robot.stop();}else robot.drive(jogLeft,jogRight);robot.services(now);}else robot.tick(input,now);
   outputMotors(robot.left,robot.right);lift.write(servoOutputAngle());
+  // For USB angle tuning, publish an arrival status even with stream off.
+  // Otherwise the browser only sees the old angle sent before movement,
+  // and "capture current" never knows that SG90 has reached the target.
+  if(manualServoPending&&robot.servoAngle==robot.servoGoal){
+    manualServoPending=false;status();
+  }
   if(v(P_LED_PIN)!=255)digitalWrite(v(P_LED_PIN),robot.state==FAULT?((now/150)%2):robot.state==DONE?HIGH:armed?((now/700)%2):LOW);
   if(stream&&(uint32_t)(now-lastStream)>=150){lastStream=now;status();}
  }
