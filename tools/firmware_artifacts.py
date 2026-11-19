@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SIMULATOR = ROOT / 'simulator'
 SKETCH = ROOT / 'firmware/RadialRobot'
+FIRMWARE_BUILD = ROOT / 'firmware/build'
 
 
 def sha256(data):
@@ -14,7 +15,7 @@ def sha256(data):
 
 def source_digest(target):
     if target == 'wasm':
-        paths = [SIMULATOR / 'WebAssembly.cpp', SKETCH / 'RadialCore.h', SKETCH / 'Settings.h',
+        paths = [SKETCH / 'WebAssembly.cpp', SKETCH / 'RadialCore.h', SKETCH / 'Settings.h',
                  SKETCH / 'RobotConfig.h']
     else:
         paths = sorted(p for p in SKETCH.iterdir() if p.suffix in {'.h', '.ino'})

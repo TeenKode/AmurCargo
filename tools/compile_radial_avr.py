@@ -2,7 +2,7 @@ from pathlib import Path
 import subprocess,json,hashlib,sys,os
 board=sys.argv[1] if len(sys.argv)>1 else 'uno'
 assert board in ('uno','nano')
-R=Path(__file__).resolve().parents[1];OUT=R/'simulator';SK=R/'firmware/RadialRobot';BUILD=R/'tools/radial_avr_build';BUILD.mkdir(exist_ok=True)
+R=Path(__file__).resolve().parents[1];OUT=R/'firmware/build';OUT.mkdir(parents=True,exist_ok=True);SK=R/'firmware/RadialRobot';BUILD=R/'tools/radial_avr_build';BUILD.mkdir(exist_ok=True)
 SDK=Path(os.environ.get('ARDUINO_DATA',str(Path(os.environ.get('LOCALAPPDATA',str(Path.home()/'AppData/Local')))/'Arduino15')));TC=sorted((SDK/'packages/arduino/tools/avr-gcc').iterdir())[-1];CORE=sorted((SDK/'packages/arduino/hardware/avr').iterdir())[-1];SERVO=SDK/'libraries/Servo'
 if not SERVO.exists():SERVO=Path(os.environ.get('ARDUINO_SERVO',str(Path.home()/'Documents/Arduino/libraries/Servo')))
 # Use the native Arduino toolchain on Linux, macOS and Windows.
