@@ -18,21 +18,19 @@ Python 3.10+ и Node.js 20+. Все команды выполняются из �
 python tools/rebuild_site.py
 ```
 
-Правьте tools/radial_simulator.html, tools/radial_3d.js, tools/world_editor.js, tools/manual_panel.js, tools/serial_panel.js, tools/webserial_uploader.js и simulator/simulation.js. Three.js и OrbitControls локальные, в tools/vendor. Сборщик использует встроенный образ Arduino, когда локальных BIN-файлов нет. Он проверяет отпечатки исходников и контрольные суммы AVR и WASM перед сборкой HTML. После изменения прошивки сначала пересоберите соответствующие образы командами ниже.
+Правьте tools/radial_simulator.html, tools/radial_3d.js, tools/world_editor.js, tools/manual_panel.js, tools/serial_panel.js, tools/webserial_uploader.js и simulator/simulation.js. Three.js и OrbitControls локальные, в tools/vendor. Сборщик проверяет образы AVR и WASM в `firmware/build`, пересобирает устаревшие файлы и встраивает их в HTML. Копии в HTML нельзя редактировать отдельно от исходников.
 
 ## Прошивка и общий алгоритм
 
-Настройки/схема: tools/build_radial_settings.py. Движение: RadialCore.h. Оборудование: RobotHardware.h. Обёртка WASM: WebAssembly.cpp.
+Единое место исходников прошивки — `firmware/RadialRobot/`: общий алгоритм `RadialCore.h`, аппаратный адаптер Arduino `RobotHardware.h`, WASM-обёртка `WebAssembly.cpp`. Компилированные образы и манифесты хранятся в `firmware/build/`. Автономный HTML содержит *сгенерированную*, а не редактируемую копию прошивки. Генератор схемы настроек: `tools/build_radial_settings.py`.
 
 Для компиляции нужны Arduino AVR Boards 1.8.6 и Servo 1.2.2. Укажите ARDUINO_DATA (каталог Arduino15) и, если библиотека установлена отдельно, ARDUINO_SERVO (путь к Servo). На Windows по умолчанию используется Arduino15 из LOCALAPPDATA.
 
 ```
-python tools/build_flash_image.py
-python tools/build_nano_firmware.py
 python tools/rebuild_site.py
 ```
 
-Если меняли RadialCore.h, Settings.h, RobotConfig.h или WebAssembly.cpp, до пересборки HTML запустите также python tools/compile_radial_wasm.py (Zig 0.13.0). Нужен Zig в PATH или переменная ZIG. Макет настроек Web Serial фиксирован: 440 байт; при его изменении обновите упаковщик и тесты.
+`rebuild_site.py` автоматически проверяет отпечатки источников и при изменениях пересобирает UNO, Nano и WASM. Для WASM требуется Zig 0.13.0 в PATH или переменная ZIG. Исходники и параметры настройки находятся в одном месте, а `firmware/build` и HTML — только сборочные результаты. Нужен Zig в PATH или переменная ZIG. Макет настроек Web Serial фиксирован: 440 байт; при его изменении обновите упаковщик и тесты.
 
 ## CAD и печатные детали
 
@@ -83,3 +81,9 @@ python tools/test_removable_forks.py
 ## Калибровка реального подъёмника
 
 Вкладка «Робот · USB» → «Сервопривод». Команда `angle N` задаёт пробный логический угол. `limits LOW HIGH` записывает пару в EEPROM после остановки серво. Изменение направления сбрасывает пару к значениям прошивки. `status` показывает целевой и командный углы, границы и кнопки. `stream on` и `stream off` управляют телеметрией.
+
+## Надёжное движение по линии
+
+`RadialCore.h` применяет ограниченный по `LOST_MS` поиск линии в сторону последнего подтверждённого отклонения, замедление в зависимости от ошибки положения и фильтр производной PD-регулятора. При потере линии без известной стороны робот после краткого осторожного движения останавливается. Когда время поиска истекает, срабатывает `LINE_LOST`. В широкой отметке управляющая коррекция сбрасывается. Эти правила действуют и на Arduino, и в WASM.
+
+Для проверки используйте `npm test` и `g++ -std=c++17 -Ifirmware/RadialRobot tools/test_line_following.cpp -o /tmp/line-test && /tmp/line-test`. Параметры рассчитаны как стартовые; перед конкурсом проверьте реальные датчики, освещение и нагрузку.
