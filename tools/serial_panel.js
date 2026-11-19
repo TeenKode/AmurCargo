@@ -51,11 +51,26 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
    <p class="hint" id="servoLimitsStatus">Для калибровки нужна обновлённая прошивка. Сохранённые углы действуют и в автоматическом заезде.</p>
  `;
  const terminal=document.createElement('div');
+ const diagnosticsNote=document.createElement('p');
+ diagnosticsNote.className='hint';
+ diagnosticsNote.textContent='Для реальной калибровки включите «Телеметрия вкл.», проведите короткую безопасную пробу и сохраните журнал. В нём есть значения трёх LDR, PWM колёс, ошибка линии и длительность её потери.';
+ terminal.append(diagnosticsNote);
  terminal.append($('serialLog'),$('serialForm'));
  const clearLog=document.createElement('button');
  clearLog.textContent='Очистить журнал';
  clearLog.onclick=()=>$('serialLog').textContent='';
  terminal.append(clearLog);
+ const saveLog=document.createElement('button');
+ saveLog.id='saveHardwareLog';saveLog.textContent='↓ Скачать журнал диагностики';
+ saveLog.onclick=()=>{
+  const content=$('serialLog').textContent.trim();
+  if(!content){log('Журнал пуст. Сначала включите телеметрию.');return;}
+  const name='AmurCargo_Diagnostics_'+new Date().toISOString().replace(/[:.]/g,'-')+'.txt';
+  const url=URL.createObjectURL(new Blob([content+'\n'],{type:'text/plain;charset=utf-8'}));
+  const a=document.createElement('a');a.href=url;a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+ };
+ terminal.append(saveLog);
  const directionSection=section('Направление SG90',direction);
  limits.append(directionSection);
  const heading=document.createElement('h2');
@@ -74,7 +89,9 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  if(status){
   const [angle,physical,goal,low,high,start,raw,contact]=status.slice(1);
   telemetry={angle:Number(angle),goal:Number(goal)};
-  $('liveHardware').textContent=`Серво ${angle}° → ${goal}° · выход ${physical}° · датчики ${raw.trim()} · старт ${start==='1'?'нажата':'отпущена'} · груз ${contact==='1'?'есть':'нет'}`;
+  const diag=String(s).match(/pwm=(-?\d+)\s+(-?\d+)\s+target=(-?\d+)\s+(-?\d+)\s+err=(-?\d+)\s+corr=(-?\d+)\s+dfilter=(-?\d+)\s+lost_ms=(\d+)\s+cal=(\d+)/);
+  const navigation=diag?` · PWM ${diag[1]}/${diag[2]} (цель ${diag[3]}/${diag[4]}) · ошибка ${diag[5]} · коррекция ${diag[6]} · потеря ${diag[8]} мс · калибровка ${diag[9]==='0'?'готова':diag[9]==='1'?'неполная':'круги неразличимы'}`:'';
+  $('liveHardware').textContent=`Серво ${angle}° → ${goal}° · выход ${physical}° · датчики ${raw.trim()} · старт ${start==='1'?'нажата':'отпущена'} · груз ${contact==='1'?'есть':'нет'}${navigation}`;
   $('servoLimitsStatus').textContent=`В Arduino сохранены рабочие положения ${low}° и ${high}°.`;
   if(!limitsLoaded||String(s).includes('SERVO LIMITS SAVED')){
    $('servoLow').value=low;$('servoHigh').value=high;$('servoTarget').value=goal;

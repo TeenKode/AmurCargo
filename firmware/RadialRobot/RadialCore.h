@@ -140,11 +140,37 @@ struct RadialRobot {
     if(turnSteps<0)duration=duration*v(P_TURN_RIGHT_SCALE)/1000UL;
     if(e>=duration){heading=ray;enter(HUB_EXIT,now);}else drive(turnSteps>0?-turn:turn,turnSteps>0?turn:-turn);break;
    }
-   case HUB_EXIT:drive(cruise,cruise);if(e>=v(P_HUB_EXIT_MS))enter(ACQUIRE,now);break;
+   case HUB_EXIT:{
+    // The turn angle is predicted from time, but steer by a confirmed ray as soon
+    // as the robot's forward sensor has cleared the hub. Keep the original exit
+    // distance budget so station/bridge timing remains comparable.
+    if(e>=v(P_HUB_EXIT_MS)){enter(ACQUIRE,now);break;}
+    if(e>=v(P_HUB_EXIT_MS)/2&&narrow(s)&&!s.hub[hub])follow(s,cruise,now);
+    else drive(cruise,cruise);
+    break;
+   }
    case ACQUIRE:{
+    // A timed hub turn is not evidence that the correct ray was reached.
+    // Only a narrow line, continuously observed for TURN_LINE_MS, confirms it.
     bool line=narrow(s)&&!s.hub[hub];
     if(lineTimer.test(line,now,v(P_TURN_LINE_MS))){crosses=(uint8_t)v(P_BRIDGE_CROSSES);wideArmed=true;enter(purpose==SEARCH_LEG?SEARCH_OUT:purpose==BRIDGE_LEG?BRIDGE:DELIVERY_OUT,now);}
-    else if(e>v(P_ACQUIRE_MS))fail(EXIT_TIMEOUT,now);else if(line)follow(s,cruise,now);else drive(cruise,cruise);break;
+    else if(e>v(P_ACQUIRE_MS))fail(EXIT_TIMEOUT,now);
+    else if(line)follow(s,cruise,now);
+    else {
+     // Never continue at full cruise into an unobserved ray. A brief forward
+     // creep lets the sensor clear the hub, then a bounded two-sided scan.
+     // TURN_STEPS biases the first scan toward the last predicted turn.
+     int16_t scan=(int16_t)v(P_APPROACH_PWM);
+     if(scan>cruise)scan=cruise;
+     if(e<120)drive(scan,scan);
+     else {
+      bool first=e<(uint32_t)v(P_ACQUIRE_MS)/2;
+      int8_t side=turnSteps<0?-1:1;
+      if(!first)side=-side;
+      drive(side>0?-scan:scan,side>0?scan:-scan);
+     }
+    }
+    break;
    }
    case SEARCH_OUT:case DELIVERY_OUT:{
     if(state==SEARCH_OUT&&e>=z(Z_OUT_MIN_MS)&&contact){pickup(now,0);break;}
