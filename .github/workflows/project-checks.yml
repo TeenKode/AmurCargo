@@ -51,6 +51,7 @@ jobs:
         run: |
           node tools/test_serial_reconnect.cjs
           node tools/test_manual_usb.cjs
+          node tools/test_servo_manual_usb.cjs
           node tools/test_manual_panel.cjs
           node tools/test_illustrated_guide.cjs
           python tools/test_reverse_nut.py
