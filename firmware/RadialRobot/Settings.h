@@ -93,12 +93,12 @@ inline int settingsError(const Settings &s){
  if(s.v[2]<0 || s.v[2]>7)return 3;
  if(s.v[3]<0 || s.v[3]>1)return 4;
  if(s.v[4]<0 || s.v[4]>4)return 5;
- if(s.v[5]<0 || s.v[5]>1)return 6;
+ if(s.v[5]<2 || s.v[5]>2)return 6;
  if(s.v[6]<2 || s.v[6]>19)return 7;
- if(s.v[7]<2 || s.v[7]>19)return 8;
+ if(s.v[7]<2 || s.v[7]>255)return 8;
  if(s.v[8]<2 || s.v[8]>255)return 9;
  if(s.v[9]<2 || s.v[9]>19)return 10;
- if(s.v[10]<2 || s.v[10]>19)return 11;
+ if(s.v[10]<2 || s.v[10]>255)return 11;
  if(s.v[11]<2 || s.v[11]>255)return 12;
  if(s.v[12]<2 || s.v[12]>255)return 13;
  if(s.v[13]<2 || s.v[13]>19)return 14;
@@ -181,8 +181,12 @@ inline int settingsError(const Settings &s){
  return 0; }
 inline bool usableMotorPwm(uint16_t p){return p==3||p==5||p==6||p==11;}
 inline int pinSettingsError(const Settings &s){
- uint8_t pins[16],n=0;pins[n++]=s.v[P_LEFT_IN1];pins[n++]=s.v[P_LEFT_IN2];pins[n++]=s.v[P_RIGHT_IN1];pins[n++]=s.v[P_RIGHT_IN2];
- if(s.v[P_DRIVER_MODE]==0){if(!usableMotorPwm(s.v[P_LEFT_EN])||!usableMotorPwm(s.v[P_RIGHT_EN]))return 301;pins[n++]=s.v[P_LEFT_EN];pins[n++]=s.v[P_RIGHT_EN];}else{for(uint8_t i=0;i<4;i++)if(!usableMotorPwm(pins[i]))return 302;}
+ uint8_t pins[16],n=0;
+ // RB L298P: fixed DIR A=12 PWM A=10 DIR B=13 PWM B=11.
+ // D13 is unavailable for the status LED; D9 reserved for SG90.
+ if(s.v[P_DRIVER_MODE]!=2 || s.v[P_LEFT_IN1]!=12 || s.v[P_RIGHT_IN1]!=13 || s.v[P_LEFT_EN]!=10 || s.v[P_RIGHT_EN]!=11 || s.v[P_LEFT_IN2]!=255 || s.v[P_RIGHT_IN2]!=255 || s.v[P_SERVO_PIN]!=9 || s.v[P_LED_PIN]!=255)return 305;
+ pins[n++]=12;pins[n++]=13;pins[n++]=10;pins[n++]=11;
+ if(s.v[P_START_PIN]==4 || s.v[P_CONTACT_PIN]==4)return 306; // D4 active buzzer
  pins[n++]=s.v[P_SERVO_PIN];pins[n++]=s.v[P_START_PIN];pins[n++]=s.v[P_CONTACT_PIN];pins[n++]=s.v[P_LINE_LEFT];pins[n++]=s.v[P_LINE_CENTRE];pins[n++]=s.v[P_LINE_RIGHT];
  if(s.v[P_LED_PIN]!=255)pins[n++]=s.v[P_LED_PIN];if(s.v[P_STANDBY_PIN]!=255)pins[n++]=s.v[P_STANDBY_PIN];
  for(uint8_t i=0;i<n;i++){if(pins[i]<2||pins[i]>19)return 303;for(uint8_t j=0;j<i;j++)if(pins[i]==pins[j])return 304;}return 0;}

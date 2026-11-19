@@ -6,7 +6,7 @@ def p(key,label,default,lo,hi,group,unit=''):params.append(dict(key=key,label=la
 for row in [
  ('START_HUB','Начальный круг: 0 левый, 1 правый',0,0,1),('START_HEADING','Начальное направление: 0=В, 1=СВ…7=ЮВ',0,0,7),('DROP_RAY','Луч разгрузки в другом круге',0,0,7),('HUB_MODE','Круг: 0 по отражению, 1 по времени',0,0,1),('BRIDGE_CROSSES','Перекрёстков на перемычке',1,0,4)]:p(*row,'Маршрут')
 for row in [
- ('DRIVER_MODE','Драйвер: 0 IN/IN/EN, 1 два PWM-входа',0,0,1),('LEFT_IN1','Левый IN1 / PWM A',2,2,19),('LEFT_IN2','Левый IN2 / PWM B',4,2,19),('LEFT_EN','Левый EN (255 — не используется)',5,2,255),('RIGHT_IN1','Правый IN1 / PWM A',7,2,19),('RIGHT_IN2','Правый IN2 / PWM B',8,2,19),('RIGHT_EN','Правый EN (255 — не используется)',6,2,255),('STANDBY_PIN','STBY: 255 — отсутствует',255,2,255),('SERVO_PIN','SG90',9,2,19),('START_PIN','Кнопка пуска: A3 = 17',17,2,19),('CONTACT_PIN','Кнопка груза',12,2,19),('LINE_LEFT','Левый датчик: A0 = 14',14,14,19),('LINE_CENTRE','Средний датчик: A1 = 15',15,14,19),('LINE_RIGHT','Правый датчик: A2 = 16',16,14,19),('LED_PIN','Индикатор: 255 — отсутствует',13,2,255),('LEFT_REVERSE','Инвертировать левый мотор',0,0,1),('RIGHT_REVERSE','Инвертировать правый мотор',0,0,1),('CONTACT_LOW','Груз: 1 активный LOW, 0 HIGH',1,0,1)]:p(*row,'Подключение')
+ ('DRIVER_MODE','L298P RB: D10/11 PWM и D12/13 DIR',2,2,2),('LEFT_IN1','Motor A DIR: D12',12,2,19),('LEFT_IN2','Motor A IN2 не используется: 255',255,2,255),('LEFT_EN','Motor A PWM: D10',10,2,255),('RIGHT_IN1','Motor B DIR: D13',13,2,19),('RIGHT_IN2','Motor B IN2 не используется: 255',255,2,255),('RIGHT_EN','Motor B PWM: D11',11,2,255),('STANDBY_PIN','STBY: 255 — отсутствует',255,2,255),('SERVO_PIN','SG90',9,2,19),('START_PIN','Кнопка пуска: A3 = 17',17,2,19),('CONTACT_PIN','HW-511: сигнальный D2',2,2,19),('LINE_LEFT','Левый датчик: A0 = 14',14,14,19),('LINE_CENTRE','Средний датчик: A1 = 15',15,14,19),('LINE_RIGHT','Правый датчик: A2 = 16',16,14,19),('LED_PIN','Индикатор отключён: D13 Motor B',255,2,255),('LEFT_REVERSE','Инвертировать левый мотор',0,0,1),('RIGHT_REVERSE','Инвертировать правый мотор',0,0,1),('CONTACT_LOW','Груз: 1 активный LOW, 0 HIGH',1,0,1)]:p(*row,'Подключение')
 for row in [
  ('DRIVE_PWM','Движение по лучу',85,20,220),('LOADED_PWM','Движение с грузом',75,20,220),('APPROACH_PWM','Поиск у зоны / отход',55,15,180),('CENTRE_PWM','Подъезд к центру круга',80,15,180),('TURN_PWM','Поворот без груза',85,20,200),('TURN_LOADED_PWM','Поворот с грузом',75,20,200),('LEFT_TRIM','Левый мотор: 1000 = 100%',1000,500,1500),('RIGHT_TRIM','Правый мотор: 1000 = 100%',1000,500,1500),('RAMP_STEP','Изменение PWM за один шаг',8,1,255),('RAMP_MS','Период плавного изменения',10,1,100)]:p(*row,'Движение','мс' if row[0].endswith('MS') else '')
 for row in [
@@ -24,8 +24,12 @@ for i,x in enumerate(zones):s.append(f' if(s.zone[h][r][{i}]<{x["min"]} || s.zon
 s+=[' if(s.zone[h][r][Z_OUT_MIN_MS]>=s.zone[h][r][Z_OUT_MAX_MS] || s.zone[h][r][Z_RETURN_MIN_MS]>=s.zone[h][r][Z_RETURN_MAX_MS])return 230;',' }',' if(s.v[P_LIFT_LOW]>=s.v[P_LIFT_HIGH])return 231;',' return 0; }',
  'inline bool usableMotorPwm(uint16_t p){return p==3||p==5||p==6||p==11;}',
  'inline int pinSettingsError(const Settings &s){',
- ' uint8_t pins[16],n=0;pins[n++]=s.v[P_LEFT_IN1];pins[n++]=s.v[P_LEFT_IN2];pins[n++]=s.v[P_RIGHT_IN1];pins[n++]=s.v[P_RIGHT_IN2];',
- ' if(s.v[P_DRIVER_MODE]==0){if(!usableMotorPwm(s.v[P_LEFT_EN])||!usableMotorPwm(s.v[P_RIGHT_EN]))return 301;pins[n++]=s.v[P_LEFT_EN];pins[n++]=s.v[P_RIGHT_EN];}else{for(uint8_t i=0;i<4;i++)if(!usableMotorPwm(pins[i]))return 302;}',
+ ' uint8_t pins[16],n=0;',
+ ' // RB L298P: fixed DIR A=12 PWM A=10 DIR B=13 PWM B=11.',
+ ' // D13 is unavailable for the status LED; D9 reserved for SG90.',
+ ' if(s.v[P_DRIVER_MODE]!=2 || s.v[P_LEFT_IN1]!=12 || s.v[P_RIGHT_IN1]!=13 || s.v[P_LEFT_EN]!=10 || s.v[P_RIGHT_EN]!=11 || s.v[P_LEFT_IN2]!=255 || s.v[P_RIGHT_IN2]!=255 || s.v[P_SERVO_PIN]!=9 || s.v[P_LED_PIN]!=255)return 305;',
+ ' pins[n++]=12;pins[n++]=13;pins[n++]=10;pins[n++]=11;',
+ ' if(s.v[P_START_PIN]==4 || s.v[P_CONTACT_PIN]==4)return 306; // D4 active buzzer',
  ' pins[n++]=s.v[P_SERVO_PIN];pins[n++]=s.v[P_START_PIN];pins[n++]=s.v[P_CONTACT_PIN];pins[n++]=s.v[P_LINE_LEFT];pins[n++]=s.v[P_LINE_CENTRE];pins[n++]=s.v[P_LINE_RIGHT];',
  ' if(s.v[P_LED_PIN]!=255)pins[n++]=s.v[P_LED_PIN];if(s.v[P_STANDBY_PIN]!=255)pins[n++]=s.v[P_STANDBY_PIN];',
  ' for(uint8_t i=0;i<n;i++){if(pins[i]<2||pins[i]>19)return 303;for(uint8_t j=0;j<i;j++)if(pins[i]==pins[j])return 304;}return 0;}',]

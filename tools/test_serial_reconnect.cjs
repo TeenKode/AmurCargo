@@ -33,7 +33,7 @@ const {chromium,browserExecutable}=require('./runtime_paths.cjs');
   for(const ending of ['eof','error','manual']){
    await page.locator('#openMonitor').click();
    await page.evaluate(()=>{
-    const status='angle=20 servo_reverse=0 servo_output=20 servo_goal=20 servo_low=20 servo_high=140 start_button=0 raw=500 500 500 line=0 0 0 contact=0\n';
+    const status='angle=20 servo_reverse=0 servo_output=20 servo_goal=20 servo_low=20 servo_high=140 servo_settled=1 start_button=0 raw=500 500 500 line=0 0 0 contact=0\n';
     ports.at(-1).input.enqueue(new TextEncoder().encode(status));
    });
    await page.waitForFunction(()=>!document.querySelector('#captureLow').disabled);

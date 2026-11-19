@@ -7,8 +7,15 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded runs, while separating PR validation from branch publishing.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   verify:
+    # Full browser/CAD tests must not delay a new validated offline HTML.
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -31,7 +38,6 @@ jobs:
           python -m pip install -r requirements.txt ziglang==0.13.0
           arduino-cli core update-index
           arduino-cli core install arduino:avr@1.8.6
-          arduino-cli lib install Servo@1.2.2
       - name: Verify committed firmware and rebuild from source
         env:
           ARDUINO_DATA: /home/runner/.arduino15
@@ -46,10 +52,13 @@ jobs:
           "$RUNNER_TEMP/amur-hardware-test"
           g++ -std=c++17 -Ifirmware/RadialRobot tools/test_line_following.cpp -o "$RUNNER_TEMP/amur-line-test"
           "$RUNNER_TEMP/amur-line-test"
+          g++ -std=c++17 -Itools/kit_host -Ifirmware/RadialRobot tools/test_l298p_servo_timing.cpp -o "$RUNNER_TEMP/amur-timer-test"
+          "$RUNNER_TEMP/amur-timer-test"
       - name: Test browser and CAD
         run: |
           node tools/test_serial_reconnect.cjs
           node tools/test_manual_usb.cjs
+          node tools/test_servo_manual_usb.cjs
           node tools/test_manual_panel.cjs
           node tools/test_illustrated_guide.cjs
           python tools/test_reverse_nut.py
@@ -65,8 +74,34 @@ jobs:
           path: outputs/Pogruzchik_Ready_R4_STL_HTML.zip
           if-no-files-found: error
 
-      - name: Verify published images are embedded in the offline simulator
-        run: python tools/verify_firmware_publication.py
+  build_site:
+    name: Build and validate current offline HTML
+    # Every source push refreshes HTML, even while slow PR/CAD tests run.
+    # Never publish if the firmware build or consistency checks fail.
+    if: github.event_name == 'push' && github.ref_type == 'branch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: arduino/setup-arduino-cli@v2
+        with:
+          version: '1.3.1'
+      - name: Install firmware toolchains
+        run: |
+          python -m pip install ziglang==0.13.0
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr@1.8.6
+      - name: Rebuild firmware and offline HTML
+        env:
+          ARDUINO_DATA: /home/runner/.arduino15
+        run: |
+          export ZIG="$(python -c 'import pathlib, ziglang; print(pathlib.Path(ziglang.__file__).with_name("zig"))')"
+          python tools/rebuild_site.py
+          python tools/verify_firmware_publication.py
       - uses: actions/upload-artifact@v4
         with:
           name: amurcargo-firmware-and-site
@@ -85,7 +120,7 @@ jobs:
 
   publish:
     name: Publish verified firmware and simulator to the branch
-    needs: verify
+    needs: build_site
     # A PR may execute untrusted code; only trusted pushes can write back artifacts.
     if: github.event_name == 'push' && github.ref_type == 'branch'
     runs-on: ubuntu-24.04
