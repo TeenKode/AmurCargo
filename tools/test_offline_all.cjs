@@ -14,7 +14,7 @@ const {chromium,browserExecutable}=require('./runtime_paths.cjs');
     assert(await page.locator('#home').isVisible());
     await page.locator('nav [data-section=quick]').click();
     const quick=page.frameLocator('iframe[title="Как начать"]');
-    assert((await quick.locator('body').textContent()).includes('Задай'));
+    assert((await quick.locator('body').textContent()).includes('Открой симулятор'));
     await page.locator('nav [data-section=calibration]').click();
     assert.equal(await page.frameLocator('iframe[title="Калибровка"]').locator('h2').count(),8);
     await page.locator('nav [data-section=purchase]').click();
