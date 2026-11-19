@@ -22,7 +22,7 @@ python tools/rebuild_site.py
 
 ## Прошивка и общий алгоритм
 
-Единое место исходников прошивки — `firmware/RadialRobot/`: общий алгоритм `RadialCore.h`, аппаратный адаптер Arduino `RobotHardware.h`, WASM-обёртка `WebAssembly.cpp`. Компилированные образы и манифесты хранятся в `firmware/build/`. Автономный HTML содержит *сгенерированную*, а не редактируемую копию прошивки. Генератор схемы настроек: `tools/build_radial_settings.py`.
+Единое место исходников прошивки — `firmware/RadialRobot/`: общий алгоритм `RadialCore.h`, аппаратный адаптер Arduino `RobotHardware.h`, WASM-обёртка `firmware/wasm/WebAssembly.cpp`. Компилированные образы и манифесты хранятся в `firmware/build/`. Автономный HTML содержит *сгенерированную*, а не редактируемую копию прошивки. Генератор схемы настроек: `tools/build_radial_settings.py`.
 
 Для компиляции нужны Arduino AVR Boards 1.8.6 и Servo 1.2.2. Укажите ARDUINO_DATA (каталог Arduino15) и, если библиотека установлена отдельно, ARDUINO_SERVO (путь к Servo). На Windows по умолчанию используется Arduino15 из LOCALAPPDATA.
 

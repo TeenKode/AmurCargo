@@ -15,7 +15,7 @@ def sha256(data):
 
 def source_digest(target):
     if target == 'wasm':
-        paths = [SKETCH / 'WebAssembly.cpp', SKETCH / 'RadialCore.h', SKETCH / 'Settings.h',
+        paths = [ROOT / 'firmware/wasm/WebAssembly.cpp', SKETCH / 'RadialCore.h', SKETCH / 'Settings.h',
                  SKETCH / 'RobotConfig.h']
     else:
         paths = sorted(p for p in SKETCH.iterdir() if p.suffix in {'.h', '.ino'})
