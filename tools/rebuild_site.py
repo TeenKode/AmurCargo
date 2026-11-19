@@ -28,6 +28,6 @@ if not current_artifacts():
     if not current_artifacts():
         raise SystemExit('Generated firmware failed source and checksum verification')
 
-for script in ('build_radial_page.py','build_radial_3d.py','finalize_portable_page.py'):
+for script in ('build_quick_guide.py','build_calibration_guide.py','build_radial_page.py','build_radial_3d.py','finalize_portable_page.py','build_illustrated_assembly.py','build_purchase_list.py','build_offline_all.py'):
     run(script)
-print('Rebuilt self-contained 3D simulator from canonical firmware sources')
+print('Rebuilt self-contained 3D simulator and unified offline HTML from canonical sources')
