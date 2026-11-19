@@ -69,9 +69,9 @@ int main(){
  assert(damagedCal.robot.servoAngle==31&&!damagedCal.manualServoPending);
  cmd(damagedCal,"limits 119 31");assert(damagedCal.v(P_LIFT_LOW)==20);
  cmd(damagedCal,"limits 31 119");assert(damagedCal.v(P_LIFT_LOW)==31&&damagedCal.v(P_LIFT_HIGH)==119);
- cmd(damagedCal,"angle 119");steps(damagedCal,155);
+ cmd(damagedCal,"angle 119");steps(damagedCal,220);
  assert(damagedCal.robot.servoAngle==119&&!damagedCal.manualServoPending);
- cmd(damagedCal,"low");steps(damagedCal,155);
+ cmd(damagedCal,"low");steps(damagedCal,220);
  assert(damagedCal.robot.servoAngle==31&&!damagedCal.manualServoPending);
  RobotHardware calibrated;calibrated.init();
  assert(calibrated.v(P_LIFT_LOW)==31&&calibrated.v(P_LIFT_HIGH)==119&&calibrated.lift.position==31);
