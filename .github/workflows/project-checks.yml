@@ -61,6 +61,7 @@ jobs:
           node tools/test_servo_manual_usb.cjs
           node tools/test_manual_panel.cjs
           node tools/test_illustrated_guide.cjs
+          node tools/test_offline_all.cjs
           python tools/test_reverse_nut.py
           python tools/test_removable_forks.py
           python tools/audit_current_simulator_model.py
@@ -102,11 +103,13 @@ jobs:
           export ZIG="$(python -c 'import pathlib, ziglang; print(pathlib.Path(ziglang.__file__).with_name("zig"))')"
           python tools/rebuild_site.py
           python tools/verify_firmware_publication.py
+          python tools/test_offline_all.py
       - uses: actions/upload-artifact@v4
         with:
           name: amurcargo-firmware-and-site
           path: |
             simulator/Open_Simulation_3D.html
+            OFFLINE.html
             firmware/build/RadialRobot_UNO.hex
             firmware/build/RadialRobot_NANO.hex
             firmware/build/Firmware_Uno.bin
@@ -132,8 +135,10 @@ jobs:
         with:
           name: amurcargo-firmware-and-site
           path: .
-      - name: Check firmware integrity and the embedded simulator images
-        run: python tools/verify_firmware_publication.py
+      - name: Check firmware integrity and offline bundle contents
+        run: |
+          python tools/verify_firmware_publication.py
+          python tools/test_offline_all.py
       - name: Commit generated files only when the verified branch is unchanged
         shell: bash
         run: |
@@ -146,6 +151,7 @@ jobs:
           git add -- firmware/RadialRobot/RobotConfig.h
           git add -f -- \
             simulator/Open_Simulation_3D.html \
+            OFFLINE.html \
             firmware/build/RadialRobot_UNO.hex \
             firmware/build/RadialRobot_NANO.hex \
             firmware/build/Firmware_Uno.bin \
