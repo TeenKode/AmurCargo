@@ -15,11 +15,11 @@ s=s.replace('<button id="wideView">','<button id="savePortableTop">↓ HTML</but
 s=s.replace('let cfg=defaults(schema),sim','let world=null;let cfg=window.AMUR_SAVED_CONFIG||defaults(schema),sim',1)
 s=s.replace('viewer.setClick((x,y)=>{for(', 'viewer.setClick((x,y)=>{if(world?.click(x,y))return;for(',1)
 s=s.replace('sim=new Simulation(w,schema,cfg);updateUi(true);draw();','sim=new Simulation(w,schema,cfg);world?.labels();updateUi(true);draw();',1)
-meta=(O/'Flash_Image.json').read_text(encoding='utf-8');binary=base64.b64encode((O/'Firmware_Uno.bin').read_bytes()).decode()
-if (O/'Firmware_Nano.bin').exists():assert (O/'Firmware_Nano.bin').read_bytes()==(O/'Firmware_Uno.bin').read_bytes(), 'Nano image differs; embed a separate target image before publishing'
+meta=(R/'firmware/build/Flash_Image.json').read_text(encoding='utf-8');binary=base64.b64encode((R/'firmware/build/Firmware_Uno.bin').read_bytes()).decode()
+if (R/'firmware/build/Firmware_Nano.bin').exists():assert (R/'firmware/build/Firmware_Nano.bin').read_bytes()==(R/'firmware/build/Firmware_Uno.bin').read_bytes(), 'Nano image differs; embed a separate target image before publishing'
 else:
  import hashlib
- assert json.loads((O/'Flash_Image_Nano.json').read_text(encoding='utf-8'))['sha256']==hashlib.sha256((O/'Firmware_Uno.bin').read_bytes()).hexdigest()
+ assert json.loads((R/'firmware/build/Flash_Image_Nano.json').read_text(encoding='utf-8'))['sha256']==hashlib.sha256((R/'firmware/build/Firmware_Uno.bin').read_bytes()).hexdigest()
 setup=" world=createWorldEditor({board,viewer,getCfg:()=>cfg,getSim:()=>sim,reset,toast,refresh:forms});\n const serialPanel=setupAmurSerial({getCfg:()=>cfg,configError:()=>sim?.configError,base:Uint8Array.from(atob('"+binary+"'),c=>c.charCodeAt(0)),meta:"+meta+",download});\n"
 s=s.replace(' function download(name',setup+' function download(name',1)
 s=s.replace('function updateUi(force=false){', 'function updateUi(force=false){serialPanel.syncBoard();',1)
