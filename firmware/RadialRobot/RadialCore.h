@@ -21,7 +21,8 @@ struct RadialRobot {
  uint8_t hub,heading,ray,searchPos,expectedHub,crosses;
  bool loaded,wideArmed;
  int8_t turnSteps;
- int16_t left,right,wantLeft,wantRight,correction,previousError;
+ int16_t left,right,wantLeft,wantRight,correction,previousError,filteredDerivative;
+ int8_t lineDirection;bool resetDerivative;
  uint8_t servoAngle,servoGoal;
  uint32_t entered,started,lastMotor,lastServo,lastLine,approachUsed,retreatDuration;
  HoldTimer contactTimer,wideTimer,clearTimer,lineTimer,hubTimer,lostTimer,heldTimer,servoTimer;
@@ -31,14 +32,14 @@ struct RadialRobot {
  void stop(){left=right=wantLeft=wantRight=0;}
  void drive(int16_t l,int16_t r){wantLeft=clamp16(l,-255,255);wantRight=clamp16(r,-255,255);}
  void enter(RobotState next,uint32_t now){
-  stop();state=next;entered=now;correction=previousError=0;lastLine=now;
+  stop();state=next;entered=now;correction=previousError=filteredDerivative=0;lineDirection=0;resetDerivative=true;lastLine=now;
   wideTimer.clear();clearTimer.clear();lineTimer.clear();hubTimer.clear();lostTimer.clear();servoTimer.clear();
  }
  void fail(RobotFault why,uint32_t now){fault=why;servoGoal=servoAngle;enter(FAULT,now);}
  void init(const Settings &settings,uint32_t now=0){
   cfg=&settings;state=IDLE;fault=OK;purpose=SEARCH_LEG;hub=(uint8_t)v(P_START_HUB);heading=(uint8_t)v(P_START_HEADING);ray=searchPos=expectedHub=crosses=0;
   loaded=false;wideArmed=true;turnSteps=0;stop();correction=previousError=0;servoAngle=servoGoal=(uint8_t)v(P_LIFT_LOW);
-  entered=started=lastMotor=lastServo=lastLine=now;approachUsed=retreatDuration=0;
+  entered=started=lastMotor=lastServo=lastLine=now;approachUsed=retreatDuration=0;filteredDerivative=0;lineDirection=0;resetDerivative=true;
   contactTimer.clear();wideTimer.clear();clearTimer.clear();lineTimer.clear();hubTimer.clear();lostTimer.clear();heldTimer.clear();servoTimer.clear();
  }
  void plan(uint32_t now){
@@ -66,17 +67,51 @@ struct RadialRobot {
  }
  bool narrow(const SensorInput &s)const{return max3(s.line[0],s.line[1],s.line[2])>=v(P_LINE_THRESHOLD)&&!wide(s);}
  bool wide(const SensorInput &s)const{return s.line[0]>=v(P_WIDE_THRESHOLD)&&s.line[1]>=v(P_WIDE_THRESHOLD)&&s.line[2]>=v(P_WIDE_THRESHOLD);}
+ // Follow the line using a filtered PD term and a speed schedule that slows down when off-centre.
+ // The same controller runs on AVR hardware and in the WASM simulator.
  void follow(const SensorInput &s,int16_t pwm,uint32_t now){
-  if(max3(s.line[0],s.line[1],s.line[2])<v(P_LINE_THRESHOLD)){
-   drive(0,0);left=right=0;if(lostTimer.test(true,now,v(P_LOST_MS)))fail(LINE_LOST,now);return;
+  const bool onLine=max3(s.line[0],s.line[1],s.line[2])>=v(P_LINE_THRESHOLD);
+  if(!onLine){
+   resetDerivative=true;
+   // LOST_MS is a hard limit for a cautious search, not an invitation to drive blindly.
+   if(lostTimer.test(true,now,v(P_LOST_MS))){fail(LINE_LOST,now);return;}
+   uint32_t missing=(uint32_t)(now-lostTimer.since);
+   int16_t recovery=(int16_t)v(P_APPROACH_PWM);
+   if(recovery>pwm)recovery=pwm;
+   // Cross a tiny sensor dropout slowly; then arc toward the last confirmed side.
+   if(missing<30)drive(recovery,recovery);
+   else if(lineDirection>0)drive(recovery,0);
+   else if(lineDirection<0)drive(0,recovery);
+   else drive(0,0);
+   return;
   }
+  if(lostTimer.active)resetDerivative=true;
   lostTimer.clear();
   if((uint32_t)(now-lastLine)>=v(P_SENSOR_MS)){
-   lastLine=now;uint32_t sum=(uint32_t)s.line[0]+s.line[1]+s.line[2];
+   lastLine=now;
+   const bool marker=wide(s);
+   uint32_t sum=(uint32_t)s.line[0]+s.line[1]+s.line[2];
    int16_t error=sum?(int16_t)(((int32_t)s.line[2]-s.line[0])*1000L/(int32_t)sum):0;
-   correction=wide(s)?0:clamp16(((int32_t)v(P_KP)*error+(int32_t)v(P_KD)*(error-previousError))/1000L,-(int16_t)v(P_MAX_CORRECTION),(int16_t)v(P_MAX_CORRECTION));previousError=error;
+   if(marker){correction=0;filteredDerivative=0;lineDirection=0;}
+   else {
+    if(error>80)lineDirection=1;
+    else if(error< -80)lineDirection=-1;
+    // Filter derivative over four samples; discard the transient on reacquisition.
+    int16_t delta=resetDerivative?0:(int16_t)(error-previousError);
+    filteredDerivative=resetDerivative?0:(int16_t)(((int32_t)filteredDerivative*3+delta)/4);
+    correction=clamp16(((int32_t)v(P_KP)*error+(int32_t)v(P_KD)*filteredDerivative)/1000L,-(int16_t)v(P_MAX_CORRECTION),(int16_t)v(P_MAX_CORRECTION));
+   }
+   previousError=error;resetDerivative=false;
+   // Slow progressively as the line moves toward an outer sensor. Never speed up in a turn.
+   int16_t floor=(int16_t)v(P_APPROACH_PWM);
+   if(floor>pwm)floor=pwm;
+   int16_t magnitude=(int16_t)abs16(error);
+   if(magnitude>1000)magnitude=1000;
+   int16_t base=marker?pwm:(int16_t)(pwm-(int32_t)(pwm-floor)*magnitude/1000L);
+   drive(clamp16(base+correction,0,255),clamp16(base-correction,0,255));
+   return;
   }
-  drive(clamp16(pwm+correction,0,255),clamp16(pwm-correction,0,255));
+  // Reuse the last motor request between scheduled sensor updates.
  }
  void pickup(uint32_t now,uint32_t used){approachUsed=used;servoGoal=(uint8_t)v(P_LIFT_HIGH);enter(LIFT,now);}
  void beginRetreat(uint32_t now){retreatDuration=(uint32_t)z(Z_BACKOFF_MS)+approachUsed*v(P_REVERSE_RATIO)/1000UL;enter(RETREAT,now);}
