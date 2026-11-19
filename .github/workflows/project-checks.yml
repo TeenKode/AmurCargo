@@ -109,6 +109,10 @@ jobs:
           name: amurcargo-firmware-and-site
           path: |
             simulator/Open_Simulation_3D.html
+            simulator/Assembly_Guide_RU.html
+            simulator/Purchase_List_RU.html
+            tools/quick_guide_body.html
+            tools/calibration_guide_body.html
             OFFLINE.html
             firmware/build/RadialRobot_UNO.hex
             firmware/build/RadialRobot_NANO.hex
@@ -151,6 +155,10 @@ jobs:
           git add -- firmware/RadialRobot/RobotConfig.h
           git add -f -- \
             simulator/Open_Simulation_3D.html \
+            simulator/Assembly_Guide_RU.html \
+            simulator/Purchase_List_RU.html \
+            tools/quick_guide_body.html \
+            tools/calibration_guide_body.html \
             OFFLINE.html \
             firmware/build/RadialRobot_UNO.hex \
             firmware/build/RadialRobot_NANO.hex \
