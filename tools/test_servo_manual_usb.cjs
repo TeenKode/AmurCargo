@@ -16,6 +16,9 @@ const line=(angle,goal,low=20,high=140)=>`state=0 fault=0 armed=0 hub=0 ray=0 he
    Object.defineProperty(navigator,'serial',{configurable:true,value:{requestPort:async()=>port}});
   });
   await p.locator('[data-tab=arduino]').click();
+  // setContent() is not a secure origin; the hardware control is disabled by
+  // default. The test supplies a mocked Web Serial port, so explicitly enable it.
+  await p.evaluate(()=>document.getElementById('openMonitor').disabled=false);
   await p.locator('#openMonitor').click();
   await p.waitForFunction(()=>window.usbSent.length===1);
   assert.deepEqual(await p.evaluate(()=>window.usbSent),['status\n']);
