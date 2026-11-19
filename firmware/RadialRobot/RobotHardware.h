@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include <Servo.h>
+#include "AmurServo.h"
 #include <EEPROM.h>
 #include <string.h>
 #include <stdlib.h>
@@ -16,7 +16,7 @@ inline uint16_t calibrationCrc(const StoredCalibration &c){const uint8_t *p=(con
 inline uint16_t normalizeAdc(uint16_t raw,uint16_t white,uint16_t black){int32_t span=(int32_t)black-white;if(!span)return 0;return (uint16_t)clamp16(((int32_t)raw-white)*1000L/span,0,1000);}
 
 struct RobotHardware {
- Settings settings;RadialRobot robot;Servo lift;StoredCalibration cal;
+ Settings settings;RadialRobot robot;AmurServo lift;StoredCalibration cal;
  uint16_t raw[3];SensorInput input;
  bool armed,stream,calibrating,jogging,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed;
  uint8_t calKind,samples,lineLength;
@@ -53,11 +53,18 @@ struct RobotHardware {
   analogWrite(en,0);digitalWrite(a,value>0?HIGH:LOW);digitalWrite(b,value<0?HIGH:LOW);analogWrite(en,abs16(value));
  }
  void dualPwm(uint8_t a,uint8_t b,int16_t value){if(value>=0){analogWrite(b,0);analogWrite(a,value);}else{analogWrite(a,0);analogWrite(b,-value);}}
+ void shieldMotor(uint8_t direction,uint8_t speed,int16_t value){
+  // Disable the H-bridge before a direction change; do not brake a powered motor.
+  analogWrite(speed,0);
+  digitalWrite(direction,value>=0?HIGH:LOW);
+  analogWrite(speed,abs16(value));
+ }
  void outputMotors(int16_t l,int16_t r){
   if(configError)return;
   l=clamp16((int32_t)l*v(P_LEFT_TRIM)/1000L,-255,255);r=clamp16((int32_t)r*v(P_RIGHT_TRIM)/1000L,-255,255);
   if(v(P_LEFT_REVERSE))l=-l;if(v(P_RIGHT_REVERSE))r=-r;
-  if(v(P_DRIVER_MODE)==0){safeChannel(v(P_LEFT_IN1),v(P_LEFT_IN2),v(P_LEFT_EN),l);safeChannel(v(P_RIGHT_IN1),v(P_RIGHT_IN2),v(P_RIGHT_EN),r);}
+  if(v(P_DRIVER_MODE)==2){shieldMotor(v(P_LEFT_IN1),v(P_LEFT_EN),l);shieldMotor(v(P_RIGHT_IN1),v(P_RIGHT_EN),r);}
+  else if(v(P_DRIVER_MODE)==0){safeChannel(v(P_LEFT_IN1),v(P_LEFT_IN2),v(P_LEFT_EN),l);safeChannel(v(P_RIGHT_IN1),v(P_RIGHT_IN2),v(P_RIGHT_EN),r);}
   else{dualPwm(v(P_LEFT_IN1),v(P_LEFT_IN2),l);dualPwm(v(P_RIGHT_IN1),v(P_RIGHT_IN2),r);}
   if(v(P_STANDBY_PIN)!=255)digitalWrite(v(P_STANDBY_PIN),(l||r)?HIGH:LOW);
  }
@@ -66,8 +73,10 @@ struct RobotHardware {
   configError=settingsError(settings);if(!configError)configError=pinSettingsError(settings);
   armed=stream=calibrating=jogging=skipButtonRelease=lineOverflow=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
   if(configError){Serial.print(F("CONFIG ERROR "));Serial.println(configError);return;}
-  uint8_t outs[8]={(uint8_t)v(P_LEFT_IN1),(uint8_t)v(P_LEFT_IN2),(uint8_t)v(P_RIGHT_IN1),(uint8_t)v(P_RIGHT_IN2),(uint8_t)v(P_LEFT_EN),(uint8_t)v(P_RIGHT_EN),(uint8_t)v(P_LED_PIN),(uint8_t)v(P_STANDBY_PIN)};
-  for(uint8_t i=0;i<8;i++)if(outs[i]!=255&&(v(P_DRIVER_MODE)==0||i<4||i>5)){pinMode(outs[i],OUTPUT);digitalWrite(outs[i],LOW);}
+  // Shield uses only four motor pins. D4 is an active buzzer on the shield.
+  if(v(P_DRIVER_MODE)==2){const uint8_t pins[4]={12,13,10,11};for(uint8_t i=0;i<4;i++){pinMode(pins[i],OUTPUT);digitalWrite(pins[i],LOW);}pinMode(4,OUTPUT);digitalWrite(4,LOW);}
+  else{uint8_t outs[8]={(uint8_t)v(P_LEFT_IN1),(uint8_t)v(P_LEFT_IN2),(uint8_t)v(P_RIGHT_IN1),(uint8_t)v(P_RIGHT_IN2),(uint8_t)v(P_LEFT_EN),(uint8_t)v(P_RIGHT_EN),(uint8_t)v(P_LED_PIN),(uint8_t)v(P_STANDBY_PIN)};
+  for(uint8_t i=0;i<8;i++)if(outs[i]!=255&&(v(P_DRIVER_MODE)==0||i<4||i>5)){pinMode(outs[i],OUTPUT);digitalWrite(outs[i],LOW);}}
   pinMode(v(P_START_PIN),INPUT_PULLUP);pinMode(v(P_CONTACT_PIN),INPUT_PULLUP);outputMotors(0,0);
   rawButton=stableButton=digitalRead(v(P_START_PIN))==LOW;buttonPressed=millis();
   EEPROM.get(0,cal);bool valid=cal.magic==0x52414431UL&&cal.version==1&&cal.crc==calibrationCrc(cal);
