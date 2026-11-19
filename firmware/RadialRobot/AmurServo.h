@@ -8,6 +8,8 @@ static inline uint16_t amurServoAngleUs(int angle){
  return (uint16_t)(544UL+(uint32_t)angle*1856UL/180UL);
 }
 struct AmurServoEdge {uint8_t cycle,compare;};
+// A Compare-B match is allowed to end the pulse only on its target cycle.
+static inline bool amurServoShouldEndPulse(bool high,uint8_t phase,uint8_t fallCycle){return high&&phase==fallCycle;}
 static inline AmurServoEdge amurServoFallingEdge(uint16_t pulseUs){
  // Timer0 Fast PWM at 16MHz / 64: tick=4us, overflow=1024us.
  // Servo pulse starts at Timer0 OCR0A=4 (16us into cycle).
@@ -34,18 +36,24 @@ ISR(TIMER0_COMPA_vect){
  if(!connected)return;
  if(++phase>=20){
   phase=0; pulseHigh=true; PORTB|=_BV(PB1); // SG90 D9 signal HIGH
-  if(fallCycle==0)TIMSK0|=_BV(OCIE0B);
+  // Compare-B was armed on phase 19, before this rising edge.
   return;
  }
  if(phase==19){
   const AmurServoEdge e=amurServoFallingEdge(pulseUs);
   OCR0B=e.compare; // Fast PWM double-buffered; committed at Timer0 BOTTOM.
   fallCycle=e.cycle;
+  // Clear latched OCF0B before enabling OCIE0B; otherwise a stale match
+  // ends the servo pulse immediately on the next interrupt dispatch.
+  // Arming before the rising edge also handles falling edges near OCR0A.
+  TIFR0=_BV(OCF0B);
+  TIMSK0|=_BV(OCIE0B);
  }
- if(pulseHigh&&phase==fallCycle)TIMSK0|=_BV(OCIE0B);
 }
 ISR(TIMER0_COMPB_vect){
  using namespace AmurServoTimer;
+ // Ignore the pre-armed match in earlier cycles.
+ if(!amurServoShouldEndPulse(pulseHigh,phase,fallCycle))return;
  PORTB&=(uint8_t)~_BV(PB1);
  pulseHigh=false;
  TIMSK0&=(uint8_t)~_BV(OCIE0B);
@@ -60,6 +68,7 @@ public:
    AmurServoTimer::phase=0;AmurServoTimer::pulseHigh=false;
    OCR0A=4;
    TIMSK0&=(uint8_t)~_BV(OCIE0B);
+   TIFR0=_BV(OCF0B);
    TIMSK0|=_BV(OCIE0A);
    AmurServoTimer::connected=true;
   }
