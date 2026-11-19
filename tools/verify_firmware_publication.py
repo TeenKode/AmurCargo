@@ -30,8 +30,24 @@ def verify():
         raise AssertionError("UNO and Nano binaries must match until separate images are embedded")
 
     html = SITE.read_text(encoding="utf-8")
-    if "window.AMUR_PROJECT_SOURCES=" not in html:
-        raise AssertionError("Arduino source bundle is not embedded in the HTML")
+    source_dir = ROOT / "firmware/RadialRobot"
+    sources = {
+        f.name: f.read_text(encoding="utf-8")
+        for f in sorted(source_dir.iterdir())
+        if f.suffix in (".h", ".ino")
+    }
+    source_bundle = "window.AMUR_PROJECT_SOURCES=" + json.dumps(
+        sources, ensure_ascii=True
+    ).replace("<", "\\u003c") + ";"
+    if html.count(source_bundle) != 1:
+        raise AssertionError("HTML Arduino source bundle differs from current canonical sources")
+    for name in (
+        "radial_3d.js", "world_editor.js", "webserial_uploader.js",
+        "project_export.js", "serial_panel.js", "manual_panel.js",
+    ):
+        expected = "<script>" + (ROOT / "tools" / name).read_text(encoding="utf-8") + "</script>"
+        if html.count(expected) != 1:
+            raise AssertionError(f"HTML contains missing or outdated source: {name}")
     for filename in ("FirmwareCore.wasm", "Firmware_Uno.bin"):
         encoded = base64.b64encode((FIRMWARE_BUILD / filename).read_bytes()).decode("ascii")
         if html.count(encoded) != 1:
@@ -40,7 +56,7 @@ def verify():
     for board in ("UNO", "NANO"):
         if not (FIRMWARE_BUILD / f"RadialRobot_{board}.hex").is_file():
             raise AssertionError(f"Missing Arduino HEX for {board}")
-    print("PASS: firmware source digests, embedded WASM/UNO, Nano parity and HEX images")
+    print("PASS: firmware digests, exact Arduino/JS sources, embedded WASM/UNO, Nano parity and HEX images")
 
 
 if __name__ == "__main__":

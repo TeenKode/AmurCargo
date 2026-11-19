@@ -1,5 +1,5 @@
 const fs=require('fs'),assert=require('assert'),{chromium,browserExecutable}=require('./runtime_paths.cjs');
-const line=(angle,goal,low=20,high=140)=>`state=0 fault=0 armed=0 hub=0 ray=0 held=0 angle=${angle} servo_reverse=0 servo_output=${angle} servo_goal=${goal} servo_low=${low} servo_high=${high} start_button=0 raw=800 800 800 line=0 0 0 contact=0 pwm=0 0 target=0 0 err=0 corr=0 dfilter=0 lost_ms=0 cal=0\n`;
+const line=(angle,goal,low=20,high=140,settled=+(angle===goal))=>`state=0 fault=0 armed=0 hub=0 ray=0 held=0 angle=${angle} servo_reverse=0 servo_output=${angle} servo_goal=${goal} servo_low=${low} servo_high=${high} servo_settled=${settled} start_button=0 raw=800 800 800 line=0 0 0 contact=0 pwm=0 0 target=0 0 err=0 corr=0 dfilter=0 lost_ms=0 cal=0\n`;
 (async()=>{
  const browser=await chromium.launch({executablePath:browserExecutable,headless:true,args:['--enable-unsafe-swiftshader']});
  const p=await browser.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
@@ -29,14 +29,20 @@ const line=(angle,goal,low=20,high=140)=>`state=0 fault=0 armed=0 hub=0 ray=0 he
   await p.waitForFunction(()=>window.usbSent.includes('angle 31\n'));
   await sendLine(line(20,31));
   await p.waitForFunction(()=>document.getElementById('liveHardware').textContent.includes('20° → 31°'));
-  await sendLine(line(31,31));
+  await sendLine(line(31,31,20,140,0));
   await p.waitForFunction(()=>document.getElementById('liveHardware').textContent.includes('31° → 31°'));
+  assert(await p.locator('#captureLow').isDisabled(),'Wait for dwell even at the requested logical angle');
+  await sendLine(line(31,31,20,140,1));
+  await p.waitForFunction(()=>!document.getElementById('captureLow').disabled);
   await p.locator('#captureLow').click();
   assert.equal(await p.locator('#servoLow').inputValue(),'31');
   await p.locator('#servoTarget').fill('119');await p.locator('#servoPreview').click();
   await p.waitForFunction(()=>window.usbSent.includes('angle 119\n'));
-  await sendLine(line(31,119));await sendLine(line(119,119));
+  await sendLine(line(31,119));await sendLine(line(119,119,20,140,0));
+  await p.waitForFunction(()=>document.getElementById('captureHigh').disabled);
+  await sendLine(line(119,119,20,140,1));
   await p.waitForFunction(()=>document.getElementById('liveHardware').textContent.includes('119° → 119°'));
+  await p.waitForFunction(()=>!document.getElementById('captureHigh').disabled);
   await p.locator('#captureHigh').click();
   assert.equal(await p.locator('#servoHigh').inputValue(),'119');
   await p.locator('#saveServoLimits').click();

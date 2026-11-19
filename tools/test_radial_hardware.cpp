@@ -61,11 +61,22 @@ int main(){
  cmd(damagedCal,"angle 31");assert(damagedCal.manualServoPending);
  cmd(damagedCal,"limits 31 119");assert(damagedCal.v(P_LIFT_LOW)==20);
  steps(damagedCal,30);
- assert(damagedCal.lift.position==31&&!damagedCal.manualServoPending);
+ assert(damagedCal.lift.position==31&&damagedCal.manualServoPending);
+ assert(!damagedCal.servoSettled(clockMs));
+ cmd(damagedCal,"limits 31 119");assert(damagedCal.v(P_LIFT_LOW)==20);
+ steps(damagedCal,45);
+ assert(damagedCal.lift.position==31&&!damagedCal.manualServoPending&&damagedCal.servoSettled(clockMs));
  // Small step adjustments also produce one arrival confirmation.
  cmd(damagedCal,"angle 33");assert(damagedCal.manualServoPending);
- steps(damagedCal,10);assert(damagedCal.robot.servoAngle==33&&!damagedCal.manualServoPending);
- cmd(damagedCal,"angle 31");steps(damagedCal,10);
+ steps(damagedCal,10);assert(damagedCal.robot.servoAngle==33&&damagedCal.manualServoPending);
+ steps(damagedCal,45);assert(!damagedCal.manualServoPending);
+ cmd(damagedCal,"angle 31");steps(damagedCal,55);
+ assert(damagedCal.robot.servoAngle==31&&!damagedCal.manualServoPending);
+ cmd(damagedCal,"angle 180");steps(damagedCal,350);
+ assert(damagedCal.robot.servoAngle==180&&damagedCal.lift.position==180&&!damagedCal.manualServoPending);
+ cmd(damagedCal,"angle 0");steps(damagedCal,450);
+ assert(damagedCal.robot.servoAngle==0&&damagedCal.lift.position==0&&!damagedCal.manualServoPending);
+ cmd(damagedCal,"angle 31");steps(damagedCal,100);
  assert(damagedCal.robot.servoAngle==31&&!damagedCal.manualServoPending);
  cmd(damagedCal,"limits 119 31");assert(damagedCal.v(P_LIFT_LOW)==20);
  cmd(damagedCal,"limits 31 119");assert(damagedCal.v(P_LIFT_LOW)==31&&damagedCal.v(P_LIFT_HIGH)==119);

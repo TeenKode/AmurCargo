@@ -28,7 +28,7 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  const controls=document.createElement('div');
  controls.innerHTML=`
    <p>Сними груз. Подводи механизм к нужной высоте шагами по 1°.</p>
-   <p class="hint">Угол на экране — команда Arduino. Положение вил проверь на роботе.</p>
+   <p class="hint">Это заданный угол, не измеренное положение вала. 0–180° соответствуют импульсам 544–2400 мкс, но механический диапазон SG90 может быть уже. Крайние углы проверяй без качалки и груза.</p>
    <p id="liveHardware" aria-live="polite">Нажми «Статус» или включи телеметрию.</p>
    <div class="cal-buttons">
     <button data-command="status">Статус</button>
@@ -88,10 +88,11 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  const log=s=>{$('serialLog').textContent=($('serialLog').textContent+'\n'+s).slice(-10000);$('serialLog').scrollTop=$('serialLog').scrollHeight;const status=String(s).match(/angle=(\d+).*?servo_output=(\d+).*?servo_goal=(\d+).*?servo_low=(\d+).*?servo_high=(\d+).*?start_button=(\d).*?raw=([^=]+?) line=.*?contact=(\d)/);
  if(status){
   const [angle,physical,goal,low,high,start,raw,contact]=status.slice(1);
-  telemetry={angle:Number(angle),goal:Number(goal)};
+  const settled=String(s).match(/servo_settled=(0|1)/);
+  telemetry={angle:Number(angle),goal:Number(goal),settled:settled?.[1]==='1'};
   const diag=String(s).match(/pwm=(-?\d+)\s+(-?\d+)\s+target=(-?\d+)\s+(-?\d+)\s+err=(-?\d+)\s+corr=(-?\d+)\s+dfilter=(-?\d+)\s+lost_ms=(\d+)\s+cal=(\d+)/);
   const navigation=diag?` · PWM ${diag[1]}/${diag[2]} (цель ${diag[3]}/${diag[4]}) · ошибка ${diag[5]} · коррекция ${diag[6]} · потеря ${diag[8]} мс · калибровка ${diag[9]==='0'?'готова':diag[9]==='1'?'неполная':'круги неразличимы'}`:'';
-  $('liveHardware').textContent=`Серво ${angle}° → ${goal}° · выход ${physical}° · датчики ${raw.trim()} · старт ${start==='1'?'нажата':'отпущена'} · груз ${contact==='1'?'есть':'нет'}${navigation}`;
+  $('liveHardware').textContent=`Серво: команда ${angle}° → ${goal}° · выход D9: ${physical}° · ${telemetry.settled?'программная выдержка завершена':'перемещение / выдержка'} · датчики ${raw.trim()} · старт ${start==='1'?'нажата':'отпущена'} · груз ${contact==='1'?'есть':'нет'}${navigation}`;
   $('servoLimitsStatus').textContent=`В Arduino сохранены рабочие положения ${low}° и ${high}°.`;
   if(!limitsLoaded||String(s).includes('SERVO LIMITS SAVED')){
    $('servoLow').value=low;$('servoHigh').value=high;$('servoTarget').value=goal;
@@ -120,7 +121,8 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   $('applyServoDirection').disabled=!connected||!$('servoDetached').checked;
   $('portStatus').textContent=connected?'COM-порт подключён · 115200 бод':'COM-порт отключён';
   for(const button of pane.querySelectorAll('[data-command],[data-real-command],[data-real-jog],#calButtons button,#serialForm button'))button.disabled=!connected;
-  for(const id of ['servoBack','servoForward','servoPreview','captureLow','captureHigh','saveServoLimits'])$(id).disabled=!connected||!telemetry;
+  for(const id of ['servoBack','servoForward','servoPreview'])$(id).disabled=!connected||!telemetry;
+  for(const id of ['captureLow','captureHigh','saveServoLimits'])$(id).disabled=!connected||!telemetry?.settled;
  }
  function image(){if(configError())throw Error('Сначала исправьте настройки программы');return AmurFlash.patch(base,AmurFlash.boardMeta(meta,getCfg().uploadBoard||'uno'),getCfg());}
  $('downloadHex').onclick=()=>{try{download((getCfg().uploadBoard||'uno').startsWith('nano')?'Pogruzchik_NANO.hex':'Pogruzchik_UNO.hex',AmurFlash.hex(image()));log('HEX сформирован с текущими настройками.');}catch(e){log(e.message);}};
@@ -195,7 +197,7 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  for(const [label,command]of [['Разрешить пробы','arm'],['↑ Поднять вилы','high'],['↓ Опустить вилы','low'],['Сброс','reset'],['■ Стоп','stop']]){const b=document.createElement('button');b.textContent=label;b.dataset.realCommand=command;b.onclick=()=>send(command).catch(e=>log(e.message));$('realControls').append(b);}
  for(const [label,l,r]of [['↑ Вперёд',1,1],['↓ Назад',-1,-1],['↶ Влево',-1,1],['↷ Вправо',1,-1]]){const b=document.createElement('button');b.textContent=label;b.dataset.realJog=l+','+r;b.onclick=()=>{const p=Number($('realPwm').value),t=Number($('realDuration').value);if(!Number.isInteger(p)||p<1||p>150||!Number.isInteger(t)||t<50||t>2000){log('PWM: 1–150; время: 50–2000 мс.');return;}send('jog '+l*p+' '+r*p+' '+t).catch(e=>log(e.message));};$('realControls').append(b);}
  const command=s=>{
-  if(telemetry && /^(angle |low$|high$|stop$)/.test(s))telemetry.angle=null;
+  if(telemetry && /^(angle |low$|high$|stop$)/.test(s)){telemetry.angle=null;telemetry.settled=false;buttons();}
   send(s).catch(e=>log(e.message));
  };
  for(const button of pane.querySelectorAll('[data-command]'))button.onclick=()=>command(button.dataset.command);
@@ -209,7 +211,7 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  $('servoForward').onclick=()=>preview(telemetry.goal+1);
  for(const [button,input] of [['captureLow','servoLow'],['captureHigh','servoHigh']]){
   $(button).onclick=()=>{
-   if(telemetry.angle===null||telemetry.angle!==telemetry.goal){$('servoLimitsStatus').textContent='Дождись остановки и нажми «Статус» или включи телеметрию.';return;}
+   if(telemetry.angle===null||telemetry.angle!==telemetry.goal||!telemetry.settled){$('servoLimitsStatus').textContent='Дождись окончания программной выдержки и нажми «Статус» или включи телеметрию. Положение вала проверь визуально.';return;}
    $(input).value=telemetry.angle;
   };
  }

@@ -143,6 +143,7 @@ struct RobotHardware {
   Serial.print(F(" servo_goal="));Serial.print(robot.servoGoal);
   Serial.print(F(" servo_low="));Serial.print(v(P_LIFT_LOW));
   Serial.print(F(" servo_high="));Serial.print(v(P_LIFT_HIGH));
+  Serial.print(F(" servo_settled="));Serial.print(servoSettled(millis())?1:0);
   Serial.print(F(" start_button="));Serial.print(stableButton?1:0);
   Serial.print(F(" raw="));for(uint8_t i=0;i<3;i++){Serial.print(raw[i]);Serial.print(' ');}Serial.print(F(" line="));for(uint8_t i=0;i<3;i++){Serial.print(input.line[i]);Serial.print(' ');}
   Serial.print(F(" contact="));Serial.print(contact());
@@ -160,6 +161,11 @@ struct RobotHardware {
   return 0xA7 ^ limits.low ^ (uint8_t)(limits.high*3) ^ limits.reverse;
  }
  uint8_t servoOutputAngle()const{return servoReversed?180-robot.servoAngle:robot.servoAngle;}
+ // This is commanded-position dwell, not feedback from the physical SG90 shaft.
+ bool servoSettled(uint32_t now)const{
+  return robot.servoAngle==robot.servoGoal &&
+         (uint32_t)(now-robot.lastServo)>=v(P_SERVO_SETTLE_MS);
+ }
  bool number(char *s,long &n){if(!s)return false;char *end;n=strtol(s,&end,10);return *s&&!*end;}
  void handle(char *line,uint32_t now){
   char *cmd=strtok(line," \t");if(!cmd)return;
@@ -194,7 +200,7 @@ struct RobotHardware {
     robot.servoGoal=(uint8_t)low;
     manualServoPending=true;
    }else{
-    if(!number(second,high)||high<=low||high>180||robot.servoAngle!=robot.servoGoal){
+    if(!number(second,high)||high<=low||high>180||!servoSettled(now)){
      Serial.println(F("SERVO REFUSED: wait for servo and set low < high <= 180"));return;
     }
     StoredServoLimits limits={0x534C4D31UL,(uint8_t)low,(uint8_t)high,(uint8_t)servoReversed,0};
@@ -249,7 +255,7 @@ struct RobotHardware {
   // For USB angle tuning, publish an arrival status even with stream off.
   // Otherwise the browser only sees the old angle sent before movement,
   // and "capture current" never knows that SG90 has reached the target.
-  if(manualServoPending&&robot.servoAngle==robot.servoGoal){
+  if(manualServoPending&&servoSettled(now)){
     manualServoPending=false;status();
   }
   if(v(P_LED_PIN)!=255)digitalWrite(v(P_LED_PIN),robot.state==FAULT?((now/150)%2):robot.state==DONE?HIGH:armed?((now/700)%2):LOW);
