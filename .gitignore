@@ -22,3 +22,9 @@ tools/project_export_check/
 
 /simulator/RadialRobot_*.hex
 /tools/avr8js-*.tgz
+
+# Firmware build output (all binaries derive from firmware/RadialRobot)
+/firmware/build/*.bin
+/firmware/build/*.elf
+/firmware/build/*.hex
+/firmware/build/*_Checks.json
