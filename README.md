@@ -10,10 +10,10 @@
 - [Сборка и подключение с картинками](simulator/Assembly_Guide_RU.html) — 10 шагов, 7 видов текущей модели и 8 схем.
 - [Покупки и предоставленный набор](simulator/Purchase_List_RU.html).
 - [Короткий список покупок с количествами](Shopping_short.txt).
-- [Исходники Arduino](firmware/RadialRobot).
+- [Единственные исходники прошивки](firmware/RadialRobot) — Arduino и общий алгоритм; WASM-обёртка хранится в `firmware/wasm`. Сборочные образы формируются в `firmware/build`.
 - [Как пересобрать проект](BUILD.md).
 
-GitHub показывает исходный текст HTML. Для запуска откройте скачанный файл в Chrome или Edge. GitHub Pages отдельно не включён.
+GitHub показывает исходный текст HTML. Для запуска откройте скачанный файл в Chrome или Edge. GitHub Pages отдельно не включён. После успешных проверок GitHub Actions автоматически обновляет в ветке проверенные образы `firmware/build/` и `simulator/Open_Simulation_3D.html` из общих исходников. Для незавершённых PR используйте файлы соответствующей ветки, а не `main`.
 
 ## Возможности
 

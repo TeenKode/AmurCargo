@@ -1,8 +1,8 @@
 from pathlib import Path
 import json,struct,subprocess,hashlib,base64
 from firmware_artifacts import source_digest
-R=Path(__file__).resolve().parents[1];O=R/'simulator';H=R/'firmware/RadialRobot/RobotConfig.h'
-schema=json.loads((O/'settings_schema.json').read_text(encoding='utf-8'))
+R=Path(__file__).resolve().parents[1];O=R/'firmware/build';O.mkdir(parents=True,exist_ok=True);H=R/'firmware/RadialRobot/RobotConfig.h'
+schema=json.loads((R/'simulator/settings_schema.json').read_text(encoding='utf-8'))
 def crc(data):
  n=65535
  for b in data:

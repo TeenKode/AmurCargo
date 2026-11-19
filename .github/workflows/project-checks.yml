@@ -37,16 +37,15 @@ jobs:
           ARDUINO_DATA: /home/runner/.arduino15
           ARDUINO_SERVO: /home/runner/Arduino/libraries/Servo
         run: |
-          python tools/rebuild_site.py
-          python tools/build_flash_image.py
-          python tools/build_nano_firmware.py
-          ZIG="$(python -c 'import pathlib, ziglang; print(pathlib.Path(ziglang.__file__).with_name("zig"))')" python tools/compile_radial_wasm.py
+          export ZIG="$(python -c 'import pathlib, ziglang; print(pathlib.Path(ziglang.__file__).with_name("zig"))')"
           python tools/rebuild_site.py
       - name: Test firmware and simulated missions
         run: |
           npm test
           g++ -std=c++17 -Itools/kit_host -Ifirmware/RadialRobot tools/test_radial_hardware.cpp -o "$RUNNER_TEMP/amur-hardware-test"
           "$RUNNER_TEMP/amur-hardware-test"
+          g++ -std=c++17 -Ifirmware/RadialRobot tools/test_line_following.cpp -o "$RUNNER_TEMP/amur-line-test"
+          "$RUNNER_TEMP/amur-line-test"
       - name: Test browser and CAD
         run: |
           node tools/test_serial_reconnect.cjs
@@ -65,3 +64,66 @@ jobs:
           name: pogruzchik-ready
           path: outputs/Pogruzchik_Ready_R4_STL_HTML.zip
           if-no-files-found: error
+
+      - name: Verify published images are embedded in the offline simulator
+        run: python tools/verify_firmware_publication.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: amurcargo-firmware-and-site
+          path: |
+            simulator/Open_Simulation_3D.html
+            firmware/build/RadialRobot_UNO.hex
+            firmware/build/RadialRobot_NANO.hex
+            firmware/build/Firmware_Uno.bin
+            firmware/build/Firmware_Nano.bin
+            firmware/build/FirmwareCore.wasm
+            firmware/build/FirmwareCore.json
+            firmware/build/Flash_Image.json
+            firmware/build/Flash_Image_Nano.json
+            firmware/RadialRobot/RobotConfig.h
+          if-no-files-found: error
+
+  publish:
+    name: Publish verified firmware and simulator to the branch
+    needs: verify
+    # A PR may execute untrusted code; only trusted pushes can write back artifacts.
+    if: github.event_name == 'push' && github.ref_type == 'branch'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: amurcargo-firmware-and-site
+          path: .
+      - name: Check firmware integrity and the embedded simulator images
+        run: python tools/verify_firmware_publication.py
+      - name: Commit generated files only when the verified branch is unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "refs/heads/$GITHUB_REF_NAME"
+          if [ "$(git rev-parse FETCH_HEAD)" != "$GITHUB_SHA" ]; then
+            echo "::notice::A newer commit exists; skip stale publication."
+            exit 0
+          fi
+          git add -- firmware/RadialRobot/RobotConfig.h
+          git add -f -- \
+            simulator/Open_Simulation_3D.html \
+            firmware/build/RadialRobot_UNO.hex \
+            firmware/build/RadialRobot_NANO.hex \
+            firmware/build/Firmware_Uno.bin \
+            firmware/build/Firmware_Nano.bin \
+            firmware/build/FirmwareCore.wasm \
+            firmware/build/FirmwareCore.json \
+            firmware/build/Flash_Image.json \
+            firmware/build/Flash_Image_Nano.json
+          if git diff --cached --quiet; then
+            echo "Verified artifacts already match the branch."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "build: sync verified firmware and offline simulator [skip ci]"
+          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"

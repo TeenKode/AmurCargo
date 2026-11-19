@@ -1,0 +1,18 @@
+{
+  "board": "Arduino UNO / ATmega328P / Optiboot",
+  "baud": 115200,
+  "page_size": 128,
+  "flash_limit": 32256,
+  "configuration_offset": 135,
+  "configuration_size": 440,
+  "crc_offset": 575,
+  "bytes": 21370,
+  "sha256": "ef71d102a6cc86e628180363e21960f5aa1b5290cf40f4826cc3e9a9f7202afc",
+  "source_sha256": "e3cc6b72966253585fc1d7a3a72173e39241fb98bc55a9d732523f3d9bd881b0",
+  "signature": [
+    30,
+    149,
+    15
+  ],
+  "physical_upload_tested": false
+}

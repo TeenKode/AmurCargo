@@ -135,7 +135,17 @@ struct RobotHardware {
   Serial.print(F(" servo_low="));Serial.print(v(P_LIFT_LOW));
   Serial.print(F(" servo_high="));Serial.print(v(P_LIFT_HIGH));
   Serial.print(F(" start_button="));Serial.print(stableButton?1:0);
-  Serial.print(F(" raw="));for(uint8_t i=0;i<3;i++){Serial.print(raw[i]);Serial.print(' ');}Serial.print(F(" line="));for(uint8_t i=0;i<3;i++){Serial.print(input.line[i]);Serial.print(' ');}Serial.print(F(" contact="));Serial.println(contact());
+  Serial.print(F(" raw="));for(uint8_t i=0;i<3;i++){Serial.print(raw[i]);Serial.print(' ');}Serial.print(F(" line="));for(uint8_t i=0;i<3;i++){Serial.print(input.line[i]);Serial.print(' ');}
+  Serial.print(F(" contact="));Serial.print(contact());
+  // Diagnostic values make illumination problems and failed ray acquisition
+  // distinguishable from a motor or PID tuning problem in a saved serial log.
+  Serial.print(F(" pwm="));Serial.print(robot.left);Serial.print(' ');Serial.print(robot.right);
+  Serial.print(F(" target="));Serial.print(robot.wantLeft);Serial.print(' ');Serial.print(robot.wantRight);
+  Serial.print(F(" err="));Serial.print(robot.previousError);
+  Serial.print(F(" corr="));Serial.print(robot.correction);
+  Serial.print(F(" dfilter="));Serial.print(robot.filteredDerivative);
+  Serial.print(F(" lost_ms="));Serial.print(robot.lostTimer.active?(uint32_t)(millis()-robot.lostTimer.since):0UL);
+  Serial.print(F(" cal="));Serial.println((int)calibrationState());
  }
  static uint8_t servoLimitsCheck(const StoredServoLimits &limits){
   return 0xA7 ^ limits.low ^ (uint8_t)(limits.high*3) ^ limits.reverse;

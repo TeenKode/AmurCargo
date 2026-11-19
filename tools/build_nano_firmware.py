@@ -1,7 +1,7 @@
 from pathlib import Path
 import subprocess,sys,json,hashlib
 from firmware_artifacts import source_digest
-R=Path(__file__).resolve().parents[1];O=R/'simulator'
+R=Path(__file__).resolve().parents[1];O=R/'firmware/build';O.mkdir(parents=True,exist_ok=True)
 subprocess.run([sys.executable,str(R/'tools/compile_radial_avr.py'),'nano'],check=True)
 memory=bytearray([255]*32768);end=0
 for line in (O/'RadialRobot_NANO.hex').read_text().splitlines():
