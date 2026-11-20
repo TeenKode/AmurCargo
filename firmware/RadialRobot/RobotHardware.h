@@ -359,6 +359,22 @@ struct RobotHardware {
   char *cmd=strtok(line," \t");if(!cmd)return;
   if(!strcmp(cmd,"stop")){manualServoPending=false;jogging=false;robot.fail(ABORTED,now);armed=false;outputMotors(0,0);Serial.println(F("STOPPED. Servo holds current angle."));return;}
   if(!strcmp(cmd,"status")){status();return;}
+  // Buzzer on/off is always available, even in motion or after a fault.
+  if(!strcmp(cmd,"buzzer")){
+   char *mode=strtok(0," \t");
+   if(!mode||strtok(0," \t")){Serial.println(F("Use buzzer on|off|test|status"));return;}
+   if(!strcmp(mode,"status")){Serial.print(F("BUZZER "));Serial.println(buzzer.enabled?F("ON"):F("OFF"));return;}
+   if(!strcmp(mode,"on")||!strcmp(mode,"off")){
+    buzzer.setEnabled(!strcmp(mode,"on"));storeBuzzerMode();
+    Serial.println(buzzer.enabled?F("BUZZER ON (saved)"):F("BUZZER OFF (saved)"));
+    if(buzzer.enabled)buzzer.play(ShieldBuzzer::ACK,now);
+    return;
+   }
+   if(!strcmp(mode,"test")&&!robot.active()&&!jogging){
+    buzzer.play(ShieldBuzzer::TEST,now);Serial.println(F("BUZZER TEST"));return;
+   }
+   Serial.println(F("BUZZER REFUSED: test needs stopped robot, or use on|off|status"));return;
+  }
   if(!strcmp(cmd,"stream")){
    char *mode=strtok(0," \t");
    if(!mode)stream=!stream;
@@ -368,7 +384,7 @@ struct RobotHardware {
    if(stream)status();
    return;
   }
-  if(robot.active()||jogging){Serial.println(F("BUSY: only status, stream, stop."));return;}
+  if(robot.active()||jogging){Serial.println(F("BUSY: only status, stream, buzzer, stop."));buzzer.play(ShieldBuzzer::WARNING,now);return;}
    // Recover a sensor even in FAULT when a wrong contact level blocks RESET.
    if(!strcmp(cmd,"contact")){
     char *mode=strtok(0," \t"),*value=strtok(0," \t");
@@ -381,12 +397,12 @@ struct RobotHardware {
      contactPullup=!strcmp(value,"on");configureContactInput();
     }else{Serial.println(F("Use contact high|low or contact pullup on|off."));return;}
     armed=false;robot.contactTimer.clear();robot.heldTimer.clear();
-    saveContactMode();Serial.println(F("CONTACT CONFIG SAVED"));status();return;
+    saveContactMode();Serial.println(F("CONTACT CONFIG SAVED"));buzzer.play(ShieldBuzzer::ACK,now);status();return;
    }
-  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; contact high|low; contact pullup on|off; motor set [12 values]|dynamics KICK PWMMS CRAWL_LIMIT CRAWL_PWM PERIOD MINON|save|clear; jog L R ms (-255..255); status; stream; reset; erase; stop"));return;}
+  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; contact high|low; contact pullup on|off; buzzer on|off|test|status; motor set [12 values]|dynamics KICK PWMMS CRAWL_LIMIT CRAWL_PWM PERIOD MINON|save|clear; jog L R ms (-255..255); status; stream; reset; erase; stop"));return;}
   if(!strcmp(cmd,"low")||!strcmp(cmd,"high")){robot.servoGoal=!strcmp(cmd,"low")?v(P_LIFT_LOW):v(P_LIFT_HIGH);manualServoPending=true;Serial.println(F("MANUAL SERVO: support any load."));status();return;}
-  if(!strcmp(cmd,"reset")){if(robot.servoAngle!=v(P_LIFT_LOW)||contact()){Serial.println(F("RESET REFUSED: lower forks and remove load."));return;}robot.init(settings,now);manualServoPending=false;armed=false;return;}
-  if(robot.state!=IDLE){Serial.println(F("RESET REQUIRED"));return;}
+  if(!strcmp(cmd,"reset")){if(robot.servoAngle!=v(P_LIFT_LOW)||contact()){Serial.println(F("RESET REFUSED: lower forks and remove load."));buzzer.play(ShieldBuzzer::WARNING,now);return;}robot.init(settings,now);manualServoPending=false;armed=false;return;}
+  if(robot.state!=IDLE){Serial.println(F("RESET REQUIRED"));buzzer.play(ShieldBuzzer::WARNING,now);return;}
 
   if(!strcmp(cmd,"motor")){
    char *action=strtok(0," \t");
@@ -422,7 +438,7 @@ struct RobotHardware {
    if(action&&!strcmp(action,"save")&&!strtok(0," \t")){
     const StoredMotorTuning t=motorPreset();EEPROM.put(960,t);
     const StoredMotorDynamics extra=dynamicsPreset();EEPROM.put(980,extra);
-    Serial.println(F("MOTOR SAVED: EEPROM"));status();return;
+    Serial.println(F("MOTOR SAVED: EEPROM"));buzzer.play(ShieldBuzzer::ACK,now);status();return;
    }
    if(action&&!strcmp(action,"clear")&&!strtok(0," \t")){
     const uint32_t blank=0;EEPROM.put(960,blank);EEPROM.put(980,blank);armed=false;
@@ -454,7 +470,7 @@ struct RobotHardware {
     settings.v[P_LIFT_LOW]=limits.low;
     settings.v[P_LIFT_HIGH]=limits.high;
     armed=false;
-    Serial.println(F("SERVO LIMITS SAVED"));
+    Serial.println(F("SERVO LIMITS SAVED"));buzzer.play(ShieldBuzzer::ACK,now);
    }
    status();
    return;
@@ -471,23 +487,23 @@ struct RobotHardware {
    }
    manualServoPending=false;servoReversed=reverse;StoredServoDirection direction={0x53525631UL,(uint8_t)servoReversed,(uint8_t)(servoReversed^255)};EEPROM.put(1000,direction);armed=false;lift.write(servoOutputAngle());Serial.print(F("SERVO SAVED reverse="));Serial.println(servoReversed?1:0);return;
   }
-  if(!strcmp(cmd,"arm")){armed=true;Serial.println(F("ARMED"));return;}
+  if(!strcmp(cmd,"arm")){armed=true;Serial.println(F("ARMED"));buzzer.play(ShieldBuzzer::ARMED,now);return;}
   if(!strcmp(cmd,"erase")){memset(&cal,0,sizeof(cal));cal.magic=0x52414431UL;cal.version=1;cal.pins[0]=v(P_LINE_LEFT);cal.pins[1]=v(P_LINE_CENTRE);cal.pins[2]=v(P_LINE_RIGHT);cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);armed=false;Serial.println(F("CAL ERASED. Servo direction retained."));return;}
-  if(!strcmp(cmd,"save")){if(!requireCalibration()){buzzer.play(ShieldBuzzer::WARNING,now);return;}cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);Serial.println(F("EEPROM SAVED"));return;}
+  if(!strcmp(cmd,"save")){if(!requireCalibration()){buzzer.play(ShieldBuzzer::WARNING,now);return;}cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);Serial.println(F("EEPROM SAVED"));buzzer.play(ShieldBuzzer::ACK,now);return;}
   if(!strcmp(cmd,"cal")){
    char *kind=strtok(0," \t");int8_t k=kind&& !strcmp(kind,"white")?0:kind&&!strcmp(kind,"black")?1:kind&&!strcmp(kind,"left")?2:kind&&!strcmp(kind,"right")?3:-1;
    if(k<0||calibrating){Serial.println(F("CAL ARGUMENT ERROR"));return;}calKind=k;samples=0;for(uint8_t i=0;i<3;i++)sampleSum[i]=0;calibrating=true;armed=false;return;
   }
   if(!strcmp(cmd,"jog")){
    long l,r,t;char *a=strtok(0," \t"),*b=strtok(0," \t"),*c=strtok(0," \t");
-   if(!armed||calibrating||digitalRead(v(P_START_PIN))==LOW||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-255||l>255||r<-255||r>255||t<1||t>2000||(!l&&!r)){Serial.println(F("JOG REFUSED: arm, low, no load; nonzero PWM +/-255, 1..2000ms."));return;}
+   if(!armed||calibrating||digitalRead(v(P_START_PIN))==LOW||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-255||l>255||r<-255||r>255||t<1||t>2000||(!l&&!r)){Serial.println(F("JOG REFUSED: arm, low, no load; nonzero PWM +/-255, 1..2000ms."));buzzer.play(ShieldBuzzer::WARNING,now);return;}
    jogLeft=l;jogRight=r;jogDuration=t;jogStarted=now;jogging=true;
    Serial.print(F("JOG START left="));Serial.print(jogLeft);
    Serial.print(F(" right="));Serial.print(jogRight);
-   Serial.print(F(" duration_ms="));Serial.println(jogDuration);
+   Serial.print(F(" duration_ms="));Serial.println(jogDuration);buzzer.play(ShieldBuzzer::ACK,now);
    return;
   }
-  Serial.println(F("UNKNOWN COMMAND"));
+  Serial.println(F("UNKNOWN COMMAND"));buzzer.play(ShieldBuzzer::WARNING,now);
  }
  void serial(uint32_t now){
   while(Serial.available()){
