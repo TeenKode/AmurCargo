@@ -18,7 +18,9 @@ inline uint16_t normalizeAdc(uint16_t raw,uint16_t white,uint16_t black){int32_t
 
 struct RobotHardware {
  Settings settings;RadialRobot robot;AmurServo lift;StoredCalibration cal;
- uint16_t raw[3];SensorInput input;
+ uint16_t raw[3],lineHistory[3][3];SensorInput input;
+ uint8_t lineHistorySlot;bool lineHistoryReady;
+ int16_t appliedLeft,appliedRight;
  bool armed,stream,calibrating,jogging,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed,manualServoPending,contactPullup;
  uint8_t calKind,samples,lineLength;
  uint32_t sampleSum[3],lastRead,buttonChanged,buttonPressed,lastStream,jogStarted;
@@ -61,25 +63,30 @@ struct RobotHardware {
   analogWrite(en,0);digitalWrite(a,value>0?HIGH:LOW);digitalWrite(b,value<0?HIGH:LOW);analogWrite(en,abs16(value));
  }
  void dualPwm(uint8_t a,uint8_t b,int16_t value){if(value>=0){analogWrite(b,0);analogWrite(a,value);}else{analogWrite(a,0);analogWrite(b,-value);}}
- void shieldMotor(uint8_t direction,uint8_t speed,int16_t value){
-  // Disable the H-bridge before a direction change; do not brake a powered motor.
-  analogWrite(speed,0);
-  digitalWrite(direction,value>=0?HIGH:LOW);
+ void shieldMotor(uint8_t direction,uint8_t speed,int16_t value,int16_t previous){
+  if(value==previous)return; // No PWM teardown during steady-state tracking.
+  // Disable PWM before real direction changes, not for speed-only updates.
+  if(value!=0&&(previous==0||((value<0)!=(previous<0)))){
+   analogWrite(speed,0);
+   digitalWrite(direction,value>=0?HIGH:LOW);
+  }
   analogWrite(speed,abs16(value));
  }
  void outputMotors(int16_t l,int16_t r){
   if(configError)return;
   l=clamp16((int32_t)l*v(P_LEFT_TRIM)/1000L,-255,255);r=clamp16((int32_t)r*v(P_RIGHT_TRIM)/1000L,-255,255);
   if(v(P_LEFT_REVERSE))l=-l;if(v(P_RIGHT_REVERSE))r=-r;
-  if(v(P_DRIVER_MODE)==2){shieldMotor(v(P_LEFT_IN1),v(P_LEFT_EN),l);shieldMotor(v(P_RIGHT_IN1),v(P_RIGHT_EN),r);}
+  if(v(P_DRIVER_MODE)==2){shieldMotor(v(P_LEFT_IN1),v(P_LEFT_EN),l,appliedLeft);shieldMotor(v(P_RIGHT_IN1),v(P_RIGHT_EN),r,appliedRight);}
   else if(v(P_DRIVER_MODE)==0){safeChannel(v(P_LEFT_IN1),v(P_LEFT_IN2),v(P_LEFT_EN),l);safeChannel(v(P_RIGHT_IN1),v(P_RIGHT_IN2),v(P_RIGHT_EN),r);}
   else{dualPwm(v(P_LEFT_IN1),v(P_LEFT_IN2),l);dualPwm(v(P_RIGHT_IN1),v(P_RIGHT_IN2),r);}
   if(v(P_STANDBY_PIN)!=255)digitalWrite(v(P_STANDBY_PIN),(l||r)?HIGH:LOW);
+  appliedLeft=l;appliedRight=r;
  }
  void init(){
   Serial.begin(115200);loadUserSettings(settings);
   configError=settingsError(settings);if(!configError)configError=pinSettingsError(settings);
   armed=stream=calibrating=jogging=skipButtonRelease=lineOverflow=manualServoPending=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
+  lineHistorySlot=0;lineHistoryReady=false;appliedLeft=appliedRight=0;
   if(configError){Serial.print(F("CONFIG ERROR "));Serial.println(configError);return;}
   // Shield uses only four motor pins. D4 is an active buzzer on the shield.
   if(v(P_DRIVER_MODE)==2){const uint8_t pins[4]={12,13,10,11};for(uint8_t i=0;i<4;i++){pinMode(pins[i],OUTPUT);digitalWrite(pins[i],LOW);}pinMode(4,OUTPUT);digitalWrite(4,LOW);}
@@ -119,9 +126,18 @@ struct RobotHardware {
   for(uint8_t i=0;i<3;i++)raw[i]=analogRead(pins[i]);
   if(calibrating){for(uint8_t i=0;i<3;i++)sampleSum[i]+=raw[i];if(++samples>=32){
    for(uint8_t i=0;i<3;i++){uint16_t n=sampleSum[i]/32;if(calKind==0)cal.white[i]=n;else if(calKind==1)cal.black[i]=n;else cal.hub[calKind-2][i]=n;}
-   cal.mask|=1U<<calKind;cal.crc=calibrationCrc(cal);calibrating=false;Serial.println(F("CAL SAMPLE OK. save to EEPROM."));
+   cal.mask|=1U<<calKind;cal.crc=calibrationCrc(cal);calibrating=false;lineHistoryReady=false;Serial.println(F("CAL SAMPLE OK. save to EEPROM."));
   }}
-  bool basic=(cal.mask&3)==3;for(uint8_t i=0;i<3;i++)input.line[i]=basic?normalizeAdc(raw[i],cal.white[i],cal.black[i]):0;
+  const bool basic=(cal.mask&3)==3;
+  for(uint8_t i=0;i<3;i++){
+   const uint16_t level=basic?normalizeAdc(raw[i],cal.white[i],cal.black[i]):0;
+   if(!lineHistoryReady)for(uint8_t j=0;j<3;j++)lineHistory[i][j]=level;
+   else lineHistory[i][lineHistorySlot]=level;
+   const uint16_t a=lineHistory[i][0],b=lineHistory[i][1],c=lineHistory[i][2];
+   // Reject single ADC spikes near black/white edges with a median of three.
+   input.line[i]=(a>b)?(b>c?b:(a>c?c:a)):(a>c?a:(b>c?c:b));
+  }
+  lineHistoryReady=true;lineHistorySlot=(uint8_t)((lineHistorySlot+1)%3);
   for(uint8_t h=0;h<2;h++){input.hub[h]=basic&&(cal.mask&(1U<<(h+2)));for(uint8_t i=0;i<3;i++){uint16_t expected=normalizeAdc(cal.hub[h][i],cal.white[i],cal.black[i]);if(abs16((int16_t)input.line[i]-expected)>v(P_HUB_TOLERANCE))input.hub[h]=false;}}
  }
  void releaseButton(uint32_t held,uint32_t now){
