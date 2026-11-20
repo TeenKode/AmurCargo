@@ -15,16 +15,16 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   ['motorKickMs','Длительность толчка, мс',0,150,0],
   ['motorCrawlLimit','Ползучий режим ниже PWM (0 = выкл.)',0,150,0],
   ['motorCrawlPwm','PWM во время короткого импульса',40,255,110],
-  ['motorCrawlPeriod','Период импульсов, мс',60,255,160],
+  ['motorCrawlPeriod','Период импульсов, мс',30,255,160],
   ['motorCrawlMinOn','Минимальное включение, мс',5,254,16]
  ];
  const motor=document.createElement('div');
  motor.innerHTML='<h2>Скорости и пороги запуска</h2><p class="hint">Ненулевые команды ниже минимального PWM поднимаются до порога, а команда 0 всегда останавливает мотор. Баланс 1000 = 100%.</p>'+
   motorDefs.map(([id,label,min,max,value])=>'<div class="form-row"><label for="'+id+'">'+label+'</label><input id="'+id+'" type="number" min="'+min+'" max="'+max+'" step="1" value="'+value+'"></div>').join('')+
   '<div class="cal-buttons"><button id="motorApply">Применить в Arduino</button></div><h3>Пуск и сверхмедленное движение</h3>'+
-  '<p class="hint">Толчок применяется один раз при начале движения, затем мотор возвращается на заданную скорость. Ползучий режим ниже выбранного порога подаёт короткие импульсы вместо постоянно повышенного минимального PWM. Он может быть рывковым — тестируйте сначала с вывешенными колёсами. Обе функции выключены по умолчанию.</p>'+
+  '<p class="hint">Стартовый толчок действует один раз, затем возвращается обычная скорость. Ползучий режим с длинными паузами заметно дёргает колёса: при периоде 160 мс подача PWM 25 и импульсе 110 означает около 36 мс питания и 124 мс свободного хода. Для плавной езды сперва отключите ползучий режим (порог = 0) и подберите минимальный непрерывный PWM для каждого мотора. Можно экспериментально сократить период до 30–60 мс, но колёса могут перестать вращаться, а низкие скорости без энкодеров остаются нестабильными.</p>'+
   dynamicsDefs.map(([id,label,min,max,value])=>'<div class="form-row"><label for="'+id+'">'+label+'</label><input id="'+id+'" type="number" min="'+min+'" max="'+max+'" step="1" value="'+value+'"></div>').join('')+
-  '<div class="cal-buttons"><button id="motorDynamicsApply">Применить толчок и ползучий режим</button><button id="motorSave">Сохранить всё в EEPROM</button><button id="motorClear">Очистить EEPROM моторов</button></div><p class="hint" id="motorConfigStatus">Нужна обновлённая прошивка. Применить — временно; после проверки нажмите «Сохранить в EEPROM».</p>';
+  '<div class="cal-buttons"><button id="motorSmoothPreset">Плавно: без пауз</button><button id="motorPulsePreset">Частые импульсы (опытный режим)</button></div><p class="hint">Кнопки меняют только поля — для применения нажмите «Применить толчок и ползучий режим». «Плавно» не снижает минимальный PWM автоматически: подберите его под моторы в основном блоке.</p>'+'\n  '<div class="cal-buttons"><button id="motorDynamicsApply">Применить толчок и ползучий режим</button><button id="motorSave">Сохранить всё в EEPROM</button><button id="motorClear">Очистить EEPROM моторов</button></div><p class="hint" id="motorConfigStatus">Нужна обновлённая прошивка. Применить — временно; после проверки нажмите «Сохранить в EEPROM».</p>';
  const direction=document.createElement('div');direction.className='section';direction.innerHTML='<h2>Направление SG90</h2><p class="hint">Если настоящая качалка движется противоположно модели: сначала запишите обновлённую прошивку. Снимите качалку, подключите монитор, нажмите «Опустить» и дождитесь остановки. При ошибке состояния нажмите «Сброс».</p><div class="form-row"><label for="servoDirection">Направление настоящего серво</label><select id="servoDirection"><option value="normal">Обычное</option><option value="reverse">Обратное</option></select></div><label class="check"><input id="servoDetached" type="checkbox">Качалка снята, серво без нагрузки</label><button id="applyServoDirection" disabled>Сохранить направление в Arduino</button><p class="hint" id="servoDirectionStatus">Текущее направление: нажмите «Статус». servo_reverse=1 — обратное. После сохранения выключите питание и установите качалку в нижнее положение по рисунку. Настройка хранится в EEPROM платы, отдельно от HTML.</p>';
  real.append(direction);const powerNote=document.createElement('p');powerNote.className='hint';powerNote.textContent='Для USB-проб отсоедините внешний провод 5 В от Arduino: плата питается от USB, моторы и серво — от своих источников. Общий GND оставьте соединённым.';real.append(powerNote);pane.append(real);
  const projectButton=document.createElement('button');projectButton.id='downloadProject';projectButton.textContent='↓ Скачать проект Arduino (ZIP)';$('downloadHex').after(projectButton);
@@ -261,6 +261,17 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
    $('motorConfigStatus').textContent='Проверьте диапазоны и целые значения всех параметров.';return;
   }
   send('motor set '+values.join(' ')).catch(e=>log(e.message));
+ };
+ $('motorSmoothPreset').onclick=()=>{
+  $('motorCrawlLimit').value='0';
+  dynamicsDirty=true;
+  $('motorConfigStatus').textContent='Ползучий режим подготовлен к отключению. Нажмите «Применить толчок и ползучий режим»; минимальный PWM настраивается отдельно.';
+ };
+ $('motorPulsePreset').onclick=()=>{
+  $('motorCrawlPeriod').value='40';
+  $('motorCrawlMinOn').value='8';
+  dynamicsDirty=true;
+  $('motorConfigStatus').textContent='Частые импульсы подготовлены. Нажмите «Применить» и проверяйте сначала без нагрузки.';
  };
  $('motorDynamicsApply').onclick=()=>{
   const values=dynamicsDefs.map(([id])=>$(id).value===''?NaN:Number($(id).value));
