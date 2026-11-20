@@ -42,7 +42,7 @@ struct RadialRobot {
  }
  // Relative PWM is only an estimate of wheel speed, not encoder feedback.
  // Account for trim, motor minimum, and the average on-time of crawl pulses.
- uint16_t effectiveWheelPwm(uint16_t command,uint16_t trim,uint8_t minimum)const{
+ __attribute__((noinline)) uint16_t effectiveWheelPwm(uint16_t command,uint16_t trim,uint8_t minimum)const{
   if(!command)return 0;
   uint32_t power=(uint32_t)command*trim/1000UL;
   if(power>255)power=255;
@@ -54,14 +54,14 @@ struct RadialRobot {
   }
   return (uint16_t)(power<minimum?minimum:power);
  }
- uint16_t effectiveMotionPwm(uint16_t command)const{
+ __attribute__((noinline)) uint16_t effectiveMotionPwm(uint16_t command)const{
   uint16_t l=effectiveWheelPwm(command,v(P_LEFT_TRIM),minMotorLeft);
   uint16_t r=effectiveWheelPwm(command,v(P_RIGHT_TRIM),minMotorRight);
   return (uint16_t)((l+r)/2);
  }
  // Times in configuration describe travel at the original default PWM.
  // Keep sensor debounces/settle and the mission watchdog in wall-clock time.
- uint32_t motionMs(uint32_t calibratedMs,uint16_t command,uint16_t reference)const{
+ __attribute__((noinline)) uint32_t motionMs(uint32_t calibratedMs,uint16_t command,uint16_t reference)const{
   if(!calibratedMs)return 0;
   const uint16_t actual=effectiveMotionPwm(command),baseline=effectiveMotionPwm(reference);
   if(!actual||!baseline)return calibratedMs;
