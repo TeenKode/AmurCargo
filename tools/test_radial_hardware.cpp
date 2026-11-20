@@ -44,7 +44,16 @@ int main(){
  inputPins[17]=HIGH;steps(start,5);assert(start.robot.active());
  inputPins[17]=LOW;steps(start,5);assert(start.robot.state==FAULT&&start.robot.fault==ABORTED&&!start.armed);
  inputPins[17]=HIGH;steps(start,5);assert(start.robot.state==FAULT&&!start.armed);
- cmd(h,"arm");cmd(h,"jog 100 -100 100");assert(h.jogging);steps(h,5);assert(outputPins[10]>0&&outputPins[11]>0);steps(h,6);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
+ cmd(h,"arm");cmd(h,"jog 100 -100 100");assert(h.jogging);steps(h,5);assert(outputPins[10]==100&&outputPins[11]==100);steps(h,6);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
+ // A 50 ms diagnostic pulse must reach its requested PWM on the first tick,
+ // independently of the normal 5-per-10ms autonomous ramp and 70 minimum.
+ cmd(h,"arm");cmd(h,"jog 255 -200 50");assert(h.jogging);steps(h,1);
+ assert(outputPins[10]==255&&outputPins[11]==200&&outputPins[12]==HIGH&&outputPins[13]==LOW);
+ steps(h,5);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
+ cmd(h,"arm");cmd(h,"jog 15 0 50");assert(h.jogging);steps(h,1);
+ assert(outputPins[10]==15&&outputPins[11]==0);
+ steps(h,5);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
+ cmd(h,"arm");cmd(h,"jog 0 0 100");assert(!h.jogging);
  for(int duration : {1000, 20}){
   cmd(h,"arm");
   cmd(h,duration==20?"jog 100 100 20":"jog 100 100 1000");
@@ -80,11 +89,50 @@ int main(){
  cmd(tuned,"motor set 100 110 1200 900 130 120 95 100 135 125 8 12");
  assert(tuned.motorMinLeft==100&&tuned.motorMinRight==110&&tuned.v(P_DRIVE_PWM)==130);
  tuned.outputMotors(20,-30);assert(outputPins[10]==100&&outputPins[11]==110);
- tuned.outputMotors(0,0);assert(outputPins[10]==0&&outputPins[11]==0);
+ tuned.outputMotors(0,0);
+ // Motor trim/minimum affect driving, never the calibration probe.
+ cmd(tuned,"arm");cmd(tuned,"jog 40 -45 50");assert(tuned.jogging);steps(tuned,1);
+ assert(outputPins[10]==40&&outputPins[11]==45);
+ assert(outputPins[12]==HIGH&&outputPins[13]==LOW);
+ steps(tuned,5);assert(!tuned.jogging&&outputPins[10]==0&&outputPins[11]==0);assert(outputPins[10]==0&&outputPins[11]==0);
  tuned.outputMotors(-200,250);assert(outputPins[10]==240&&outputPins[11]==225);
  tuned.outputMotors(0,0);
  cmd(tuned,"motor set 5 5 1000 1000 0 120 95 100 135 125 8 12");assert(tuned.v(P_DRIVE_PWM)==130);
  cmd(tuned,"motor set 5 5 1000 1000 130 120 95 100 135 125 0 12");assert(tuned.motorMinLeft==100);
+ // Optional start kick is applied once per motion, not on every crawl pulse.
+ cmd(tuned,"motor dynamics 145 60 75 110 160 16");
+ assert(tuned.motorKickPwm==145&&tuned.motorCrawlLimit==75);
+ tuned.outputMotors(30,0);assert(outputPins[10]==145&&outputPins[11]==0);
+ const int kickWrites=pwmWrites[10];
+ tuned.outputMotors(30,0);assert(outputPins[10]==145&&pwmWrites[10]==kickWrites);
+ clockMs+=70;
+ tuned.outputMotors(30,0);
+ const int onMs=36*160/110; // 30 * left trim 1.2
+ assert(outputPins[10]==((clockMs%160)<(uint32_t)onMs?110:0));
+ clockMs+=160; // No further kick on a repeated request.
+ tuned.outputMotors(30,0);
+ assert(outputPins[10]==((clockMs%160)<(uint32_t)onMs?110:0));
+ tuned.outputMotors(0,0);assert(outputPins[10]==0);
+ tuned.outputMotors(-30,0);assert(outputPins[10]==145&&outputPins[12]==LOW);
+ tuned.outputMotors(30,0); // Direction reversal is not another kick.
+ assert(outputPins[10]!=145);
+ tuned.outputMotors(0,0);
+ cmd(tuned,"arm");cmd(tuned,"jog 15 0 50");steps(tuned,1);
+ assert(outputPins[10]==15);steps(tuned,5);assert(outputPins[10]==0);
+ cmd(tuned,"motor dynamics 145 151 75 110 160 16");assert(tuned.motorKickMs==60);
+ cmd(tuned,"motor dynamics 145 60 75 110 10 16");assert(tuned.motorCrawlPeriod==160);
+ cmd(tuned,"motor save");
+ RobotHardware dynamicsBoot;dynamicsBoot.init();
+ assert(dynamicsBoot.motorKickPwm==145&&dynamicsBoot.motorKickMs==60);
+ assert(dynamicsBoot.motorCrawlLimit==75&&dynamicsBoot.motorCrawlPeriod==160);
+ assert(dynamicsBoot.motorCrawlMinOn==16);
+ // The optional 980..989 record has its own CRC and must not affect
+ // existing motor trims (960..979) or servo limits (990..999).
+ EEPROM.bytes[985]^=1;
+ RobotHardware damagedDynamics;damagedDynamics.init();
+ assert(damagedDynamics.motorKickPwm==0&&damagedDynamics.motorCrawlLimit==0);
+ assert(damagedDynamics.motorMinLeft==100);
+ cmd(tuned,"motor save");
  cmd(tuned,"motor save");
  RobotHardware persistedMotors;persistedMotors.init();
  assert(persistedMotors.motorMinLeft==100&&persistedMotors.motorMinRight==110);
@@ -93,6 +141,7 @@ int main(){
  assert(corruptedMotors.motorMinLeft==70&&corruptedMotors.v(P_DRIVE_PWM)==85);
  cmd(tuned,"motor save");cmd(tuned,"motor clear");
  RobotHardware erasedMotors;erasedMotors.init();assert(erasedMotors.motorMinRight==70&&erasedMotors.v(P_DRIVE_PWM)==85);
+ assert(erasedMotors.motorKickPwm==0&&erasedMotors.motorCrawlLimit==0);
  Settings wrong=h.settings;wrong.v[P_SERVO_PIN]=10;assert(pinSettingsError(wrong)==305);
  wrong=h.settings;wrong.v[P_CONTACT_PIN]=12;assert(pinSettingsError(wrong)!=0);
  wrong=h.settings;wrong.v[P_START_PIN]=4;assert(pinSettingsError(wrong)==306);
