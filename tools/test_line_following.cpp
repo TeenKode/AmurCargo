@@ -48,6 +48,56 @@ int main(){
  robot.follow(sample(0,500,500),75,20);
  assert(robot.wantLeft+robot.wantRight<unloaded);
 
+ // A slow default turn timer used to force a full 360-degree revolution.
+ // Reacquire only after the old line has been absent and require a stable
+ // centre crossing after the short anti-false-positive guard period.
+ robot.init(settings,0);robot.enter(UTURN,0);
+ const uint32_t settle=settings.v[P_SETTLE_MS];
+ robot.tick(sample(0,1000,0),settle+10);
+ assert(robot.state==UTURN&&!robot.turnGapSeen);
+ robot.tick(sample(0,0,0),settle+50);
+ robot.tick(sample(0,0,0),settle+100);
+ assert(robot.turnGapSeen);
+ robot.tick(sample(0,1000,0),settle+300);
+ assert(robot.state==UTURN); // Too early, original line may still be visible.
+ robot.tick(sample(0,0,0),settle+350);
+ robot.tick(sample(0,1000,0),settle+900);
+ assert(robot.state==UTURN);
+ robot.tick(sample(0,1000,0),settle+935);
+ assert(robot.state==RETURN_HUB&&robot.wantLeft==0&&robot.wantRight==0);
+ assert(robot.left==0&&robot.right==0); // No coasting past 180 degrees.
+
+ // A false one-frame line sighting does not complete the U-turn.
+ robot.init(settings,0);robot.enter(UTURN,0);
+ robot.tick(sample(0,0,0),settle+10);
+ robot.tick(sample(0,0,0),settle+60);
+ robot.tick(sample(0,1000,0),settle+950);
+ robot.tick(sample(0,0,0),settle+960);
+ assert(robot.state==UTURN);
+ robot.tick(sample(0,1000,0),settle+1000);
+ robot.tick(sample(0,1000,0),settle+1040);
+ assert(robot.state==RETURN_HUB);
+
+ // A turn without line departure is NOT a confirmed 180, even if the
+ // timer has elapsed. Fail safely at the timeout rather than spin forever.
+ robot.init(settings,0);robot.enter(UTURN,0);
+ robot.tick(sample(0,1000,0),settle+1000);
+ assert(robot.state==UTURN&&!robot.turnGapSeen);
+ robot.tick(sample(0,1000,0),settle+settings.v[P_UTURN_MAX_MS]+1);
+ assert(robot.state==FAULT&&robot.fault==TURN_TIMEOUT);
+ robot.init(settings,0);robot.loaded=true;robot.enter(UTURN,0);
+ robot.tick(sample(0,0,0),settle+10);
+ robot.tick(sample(0,0,0),settle+60);
+ robot.tick(sample(0,1000,0),settle+settings.v[P_UTURN_LOADED_MIN_MS]+15);
+ robot.tick(sample(0,1000,0),settle+settings.v[P_UTURN_LOADED_MIN_MS]+55);
+ assert(robot.state==RETURN_HUB);
+
+ // Limit forward-wheel differential to avoid stalling the inner TT motor
+ // at an edge while preserving correct steering direction.
+ robot.init(settings,0);
+ robot.follow(sample(1000,0,0),85,10);
+ assert(robot.wantLeft>=settings.v[P_APPROACH_PWM]&&robot.wantRight>=settings.v[P_APPROACH_PWM]);
+
  // Sensor-guided exit from the hub, while retaining the calibrated exit timer.
  robot.init(settings,0);robot.enter(HUB_EXIT,0);
  robot.tick(sample(1000,0,0),455);
@@ -93,5 +143,5 @@ int main(){
  robot.follow(sample(0,0,0),85,100);
  robot.follow(sample(0,0,0),85,100+settings.v[P_LOST_MS]);
  assert(robot.state==FAULT&&robot.fault==LINE_LOST);
- std::puts("PASS: tracking, adaptive speed, filtered D, hub exit, timed ray acquisition, light fluctuations and sensor dropout");
+ std::puts("PASS: tracking, gentle steering, gap-confirmed 180 U-turn, filtered D, hub exit, timed ray acquisition, light fluctuations and sensor dropout");
 }

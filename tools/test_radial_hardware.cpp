@@ -24,6 +24,14 @@ int main(){
  sample(h,"cal right",397);assert(h.calibrationReady());
  sample(h,"cal right",368);assert(h.calibrationReady());
  cmd(h,"save");RobotHardware restored;restored.init();assert(restored.calibrationReady());
+ // A single ADC flicker must not swap black/white at the edge; a sustained
+ // transition must be visible after two consecutive samples.
+ for(int p=14;p<=16;p++)adcPins[p]=200;
+ steps(restored,4);assert(restored.input.line[0]==1000);
+ adcPins[14]=800;steps(restored,1);assert(restored.input.line[0]==1000);
+ adcPins[14]=200;steps(restored,1);assert(restored.input.line[0]==1000);
+ adcPins[14]=800;steps(restored,2);assert(restored.input.line[0]==0);
+ adcPins[14]=200;steps(restored,3);assert(restored.input.line[0]==1000);
  // START: reject bouncing, arm after a long press and release, launch after
  // a second short press and release, abort motion on a confirmed press.
  RobotHardware start;start.init();
@@ -58,6 +66,14 @@ int main(){
  assert(h.v(P_DRIVER_MODE)==2&&h.v(P_CONTACT_PIN)==2&&h.v(P_LED_PIN)==255);
  h.outputMotors(90,-80);
  assert(outputPins[12]==HIGH&&outputPins[10]==90&&outputPins[13]==LOW&&outputPins[11]==80);
+ // Reissuing the same request must not briefly zero the L298P PWM output.
+ const int writesBefore=pwmWrites[10],zerosBefore=pwmZeroWrites[10];
+ h.outputMotors(90,-80);
+ assert(pwmWrites[10]==writesBefore&&pwmZeroWrites[10]==zerosBefore);
+ h.outputMotors(100,-80);
+ assert(pwmWrites[10]==writesBefore+1&&pwmZeroWrites[10]==zerosBefore);
+ h.outputMotors(-100,-80); // A real direction change must still be safe.
+ assert(outputPins[12]==LOW&&outputPins[10]==100&&pwmZeroWrites[10]==zerosBefore+1);
  h.outputMotors(0,0);assert(outputPins[10]==0&&outputPins[11]==0);
  Settings wrong=h.settings;wrong.v[P_SERVO_PIN]=10;assert(pinSettingsError(wrong)==305);
  wrong=h.settings;wrong.v[P_CONTACT_PIN]=12;assert(pinSettingsError(wrong)!=0);
@@ -115,5 +131,5 @@ int main(){
  assert(contactBoot.v(P_CONTACT_LOW)==0&&!contactBoot.contactPullup&&!contactBoot.contact()&&pinModes[2]==INPUT);
  RobotHardware contactBoot2;contactBoot2.init();
  assert(contactBoot2.v(P_CONTACT_LOW)==0&&!contactBoot2.contactPullup&&pinModes[2]==INPUT);
- puts("PASS: hardware adapter including independent persistent servo inversion, startup output, high/low mapping, detached confirmation, raised-fork lock and sensor-calibration erase/CRC independence, HW-511 modes and START debounce/hold/abort");
+ puts("PASS: continuous motor PWM, median-filtered sensors, hardware adapter including independent persistent servo inversion, startup output, high/low mapping, detached confirmation, raised-fork lock and sensor-calibration erase/CRC independence, HW-511 modes and START debounce/hold/abort");
 }

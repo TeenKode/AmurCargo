@@ -1,0 +1,29 @@
+name: Firmware core smoke tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run line tracking and 180-degree turn tests
+        run: |
+          g++ -std=c++17 -Ifirmware/RadialRobot tools/test_line_following.cpp -o /tmp/amur-line-test
+          /tmp/amur-line-test
+      - name: Compile and run Arduino hardware adapter tests
+        run: |
+          g++ -std=c++17 -Itools/kit_host -Ifirmware/RadialRobot tools/test_radial_hardware.cpp -o /tmp/amur-hardware-test
+          /tmp/amur-hardware-test
+      - name: Exercise all simulated missions using the committed WASM firmware
+        run: node tools/test_radial_batch.cjs
+      - name: Verify servo timer integration
+        run: |
+          g++ -std=c++17 -Itools/kit_host -Ifirmware/RadialRobot tools/test_l298p_servo_timing.cpp -o /tmp/amur-servo-timing-test
+          /tmp/amur-servo-timing-test
