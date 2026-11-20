@@ -104,7 +104,7 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  pane.replaceChildren(heading,$('serialSupport'),connection,portStatus,controls,
   section('Сервопривод',limits,true),section('Датчики',sensors),
   section('Скорости моторов',motor,true),section('Проба моторов',real),section('Прошивка',flashing),section('Терминал COM',terminal));
- let telemetry=null,limitsLoaded=false,motorDirty=false;
+ let telemetry=null,limitsLoaded=false,motorDirty=false,dynamicsDirty=false;
  let busy=false,controller=null,monitor=null,openingMonitor=false;
  const telemetryPlaceholders=Object.fromEntries(
   ['liveHardware','servoLimitsStatus','servoDirectionStatus','motorConfigStatus'].map(id=>[id,$(id).textContent])
@@ -137,8 +137,8 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   $('motorConfigStatus').textContent='Настройки прочитаны с Arduino. После применения сохраните в EEPROM.';
  }
  const dynamics=String(s).match(/motor_dynamics=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)/);
- if(dynamics&&!motorDirty)dynamicsDefs.forEach(([id],i)=>{$(id).value=dynamics[i+1];});
- if(s.startsWith('MOTOR DYNAMICS UPDATED')){motorDirty=false;$('motorConfigStatus').textContent='Пуск и ползучий режим применены. Сохраните всё в EEPROM.';}
+ if(dynamics&&!dynamicsDirty)dynamicsDefs.forEach(([id],i)=>{$(id).value=dynamics[i+1];});
+ if(s.startsWith('MOTOR DYNAMICS UPDATED')){dynamicsDirty=false;$('motorConfigStatus').textContent='Пуск и ползучий режим применены. Сохраните всё в EEPROM.';}
  if(s.startsWith('MOTOR UPDATED')){motorDirty=false;$('motorConfigStatus').textContent='Применено в RAM; не сохранено в EEPROM.';}
  if(s.startsWith('MOTOR SAVED'))$('motorConfigStatus').textContent='Сохранено в EEPROM.';
  if(s.startsWith('MOTOR CLEARED'))$('motorConfigStatus').textContent='EEPROM очищена. Перезапустите плату для возврата к настройкам прошивки.';
@@ -188,7 +188,7 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  };
  $('cancelFlash').onclick=()=>controller?.abort();
  function clearTelemetry(){
-  telemetry=null;limitsLoaded=false;motorDirty=false;
+  telemetry=null;limitsLoaded=false;motorDirty=false;dynamicsDirty=false;
   for(const [id,message] of Object.entries(telemetryPlaceholders))$(id).textContent=message;
   for(const id of ['servoLow','servoHigh','servoTarget'])$(id).value='';
   $('calibrationFeedback').textContent='';
@@ -253,7 +253,8 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   log('> '+command);
  }
  
- [...motorDefs,...dynamicsDefs].forEach(([id])=>$(id).addEventListener('input',()=>{motorDirty=true;}));
+ motorDefs.forEach(([id])=>$(id).addEventListener('input',()=>{motorDirty=true;}));
+ dynamicsDefs.forEach(([id])=>$(id).addEventListener('input',()=>{dynamicsDirty=true;}));
  $('motorApply').onclick=()=>{
   const values=motorDefs.map(([id])=>$(id).value===''?NaN:Number($(id).value));
   if(values.some((v,i)=>!Number.isInteger(v)||v<motorDefs[i][2]||v>motorDefs[i][3])){
