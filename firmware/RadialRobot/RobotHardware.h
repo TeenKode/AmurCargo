@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include "AmurServo.h"
+#include "ShieldBuzzer.h"
 #include <EEPROM.h>
 #include <string.h>
 #include <stdlib.h>
@@ -12,6 +13,7 @@ struct StoredCalibration {uint32_t magic;uint8_t version,pins[3],mask;uint16_t w
 struct StoredServoLimits { uint32_t magic; uint8_t low, high, reverse, check; };
 struct StoredServoDirection {uint32_t magic;uint8_t reverse,check;};
 struct StoredContactMode {uint32_t magic;uint8_t activeLow,pullup,check;};
+struct StoredBuzzerMode {uint32_t magic;uint8_t enabled,check;}; // EEPROM 1013..1018
 // Dedicated 20-byte motor calibration record at EEPROM 960..979.
 struct StoredMotorTuning {uint32_t magic;uint8_t minLeft,minRight;uint16_t leftTrim,rightTrim;uint8_t drive,loaded,approach,centre,turn,turnLoaded,rampStep,rampMs;uint16_t check;};
 // Separate 10-byte optional record, 980..989: never overwrite servo EEPROM at 990.
@@ -19,11 +21,13 @@ struct StoredMotorDynamics {uint16_t magic;uint8_t kickPwm,kickMs,crawlLimit,cra
 #pragma pack(pop)
 static_assert(sizeof(StoredMotorTuning)==20,"Unexpected EEPROM motor layout");
 static_assert(sizeof(StoredMotorDynamics)==10,"Unexpected EEPROM dynamics layout");
+static_assert(sizeof(StoredBuzzerMode)==6,"Unexpected EEPROM buzzer layout");
 inline uint16_t calibrationCrc(const StoredCalibration &c){const uint8_t *p=(const uint8_t*)&c;uint16_t crc=0xA51D;for(uint8_t i=0;i<sizeof(c)-2;i++){crc^=(uint16_t)p[i]<<8;for(uint8_t b=0;b<8;b++)crc=crc&0x8000?(crc<<1)^0x1021:crc<<1;}return crc;}
 inline uint16_t normalizeAdc(uint16_t raw,uint16_t white,uint16_t black){int32_t span=(int32_t)black-white;if(!span)return 0;return (uint16_t)clamp16(((int32_t)raw-white)*1000L/span,0,1000);}
 
 struct RobotHardware {
- Settings settings;RadialRobot robot;AmurServo lift;StoredCalibration cal;
+ Settings settings;RadialRobot robot;AmurServo lift;ShieldBuzzer buzzer;StoredCalibration cal;
+ RobotState lastAudibleState;
  uint16_t raw[3],lineHistory[3][3];SensorInput input;
  uint8_t lineHistorySlot;bool lineHistoryReady;
  int16_t appliedLeft,appliedRight;
@@ -36,6 +40,26 @@ struct RobotHardware {
  uint8_t defaultServoLow,defaultServoHigh;
  uint16_t jogDuration;int16_t jogLeft,jogRight;int configError;char command[80];
  uint16_t v(Param p)const{return settings.v[p];}
+ void storeBuzzerMode(){
+  const StoredBuzzerMode m={0x42555A31UL,(uint8_t)buzzer.enabled,(uint8_t)(0xA6^(uint8_t)buzzer.enabled)};
+  EEPROM.put(1013,m);
+ }
+ // Only confirmed state changes cause sound; never raw LDR flicker.
+ void signalStateChange(RobotState previous,RobotState next,uint32_t now){
+  if(next==FAULT){buzzer.play(robot.fault==ABORTED?ShieldBuzzer::STOPPED:ShieldBuzzer::ERROR,now);return;}
+  if(next==DONE){buzzer.play(ShieldBuzzer::COMPLETE,now);return;}
+  if(next==IDLE){buzzer.play(ShieldBuzzer::READY,now);return;}
+  if(previous==IDLE){buzzer.play(ShieldBuzzer::START,now);return;}
+  switch(next){
+   case HUB_TURN: case SEARCH_OUT: case UTURN: case BRIDGE:buzzer.play(ShieldBuzzer::STEP,now);break;
+   case APPROACH: case DELIVERY_CREEP:buzzer.play(ShieldBuzzer::MARKER,now);break;
+   case RETREAT:buzzer.play(ShieldBuzzer::PICKED,now);break;
+   case RETURN_HUB:if(robot.loaded)buzzer.play(ShieldBuzzer::STEP,now);break;
+   case DELIVERY_OUT:buzzer.play(ShieldBuzzer::DELIVERY,now);break;
+   case DROP_BACK:buzzer.play(ShieldBuzzer::RELEASE,now);break;
+   default:break;
+  }
+ }
  bool contact()const{return digitalRead(v(P_CONTACT_PIN))==(v(P_CONTACT_LOW)?LOW:HIGH);}
   void configureContactInput(){pinMode(v(P_CONTACT_PIN),contactPullup?INPUT_PULLUP:INPUT);}
   static uint8_t contactModeCheck(uint8_t activeLow,uint8_t pullup){return (uint8_t)(0xC7^activeLow^(pullup*0x5B));}
@@ -176,10 +200,16 @@ struct RobotHardware {
  void init(){
   Serial.begin(115200);loadUserSettings(settings);
   configError=settingsError(settings);if(!configError)configError=pinSettingsError(settings);
+  buzzer.begin();
+  StoredBuzzerMode savedBuzzer;EEPROM.get(1013,savedBuzzer);
+  if(savedBuzzer.magic==0x42555A31UL&&savedBuzzer.enabled<=1&&
+     savedBuzzer.check==(uint8_t)(0xA6^savedBuzzer.enabled))
+   buzzer.setEnabled(savedBuzzer.enabled);
   armed=stream=calibrating=jogging=skipButtonRelease=lineOverflow=manualServoPending=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
   lineHistorySlot=0;lineHistoryReady=false;appliedLeft=appliedRight=0;
+  lastAudibleState=IDLE;
   lastRequestedSign[0]=lastRequestedSign[1]=0;kickStarted[0]=kickStarted[1]=0;
-  if(configError){Serial.print(F("CONFIG ERROR "));Serial.println(configError);return;}
+  if(configError){Serial.print(F("CONFIG ERROR "));Serial.println(configError);buzzer.play(ShieldBuzzer::ERROR,millis());return;}
   motorMinLeft=motorMinRight=70; // Starting estimate, not a measured motor threshold.
   StoredMotorTuning motorData;EEPROM.get(960,motorData);
   if(validMotor(motorData))applyMotor(motorData);
@@ -219,6 +249,7 @@ struct RobotHardware {
   if(!valid){memset(&cal,0,sizeof(cal));cal.magic=0x52414431UL;cal.version=1;for(uint8_t i=0;i<3;i++)cal.pins[i]=pins[i];}
   lift.attach(v(P_SERVO_PIN));lift.write(servoOutputAngle());
   memset(&input,0,sizeof(input));Serial.println(F("RADIAL READY. Hold START 2s to arm, release; short press to run. help"));
+  buzzer.play(ShieldBuzzer::READY,millis());
  }
  void readSensors(uint32_t now){
   if((uint32_t)(now-lastRead)<v(P_SENSOR_MS))return;lastRead=now;
@@ -226,7 +257,7 @@ struct RobotHardware {
   for(uint8_t i=0;i<3;i++)raw[i]=analogRead(pins[i]);
   if(calibrating){for(uint8_t i=0;i<3;i++)sampleSum[i]+=raw[i];if(++samples>=32){
    for(uint8_t i=0;i<3;i++){uint16_t n=sampleSum[i]/32;if(calKind==0)cal.white[i]=n;else if(calKind==1)cal.black[i]=n;else cal.hub[calKind-2][i]=n;}
-   cal.mask|=1U<<calKind;cal.crc=calibrationCrc(cal);calibrating=false;lineHistoryReady=false;Serial.println(F("CAL SAMPLE OK. save to EEPROM."));
+   cal.mask|=1U<<calKind;cal.crc=calibrationCrc(cal);calibrating=false;lineHistoryReady=false;Serial.println(F("CAL SAMPLE OK. save to EEPROM."));buzzer.play(ShieldBuzzer::ACK,now);
   }}
   const bool basic=(cal.mask&3)==3;
   for(uint8_t i=0;i<3;i++){
@@ -244,11 +275,11 @@ struct RobotHardware {
   if(robot.active()||jogging||calibrating)return;
   if(robot.state==DONE){robot.init(settings,now);armed=false;Serial.println(F("RESET: reposition at configured hub and heading."));return;}
   if(robot.state==FAULT){if(held>=v(P_ARM_HOLD_MS)&&robot.servoAngle==v(P_LIFT_LOW)&&!contact()){robot.init(settings,now);armed=false;Serial.println(F("FAULT RESET"));}return;}
-  if(held>=v(P_ARM_HOLD_MS)){armed=true;Serial.println(F("ARMED. Release, then short press START."));return;}
-  if(!armed){Serial.println(F("NOT ARMED: hold START or send arm."));return;}
-  if(!requireCalibration())return;
-  if(robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)){Serial.println(F("LOWER FORKS BEFORE START"));return;}
-  if(contact()){Serial.println(F("CONTACT ALREADY PRESSED"));return;}
+  if(held>=v(P_ARM_HOLD_MS)){armed=true;Serial.println(F("ARMED. Release, then short press START."));buzzer.play(ShieldBuzzer::ARMED,now);return;}
+  if(!armed){Serial.println(F("NOT ARMED: hold START or send arm."));buzzer.play(ShieldBuzzer::WARNING,now);return;}
+  if(!requireCalibration()){buzzer.play(ShieldBuzzer::WARNING,now);return;}
+  if(robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)){Serial.println(F("LOWER FORKS BEFORE START"));buzzer.play(ShieldBuzzer::WARNING,now);return;}
+  if(contact()){Serial.println(F("CONTACT ALREADY PRESSED"));buzzer.play(ShieldBuzzer::WARNING,now);return;}
   robot.start(now);
  }
  void button(uint32_t now){
@@ -264,7 +295,7 @@ struct RobotHardware {
   if(pressed){
    buttonPressed=now;
    if(robot.active()){robot.fail(ABORTED,now);armed=false;}
-   if(skipButtonRelease){jogging=false;armed=false;robot.stop();outputMotors(0,0);}
+   if(skipButtonRelease){jogging=false;armed=false;robot.stop();outputMotors(0,0);buzzer.play(ShieldBuzzer::STOPPED,now);}
   }else if(!skipButtonRelease){
    releaseButton(now-buttonPressed,now);
   }
@@ -311,7 +342,8 @@ struct RobotHardware {
   Serial.print(motorCrawlPwm);Serial.print(',');Serial.print(motorCrawlPeriod);Serial.print(',');
   Serial.print(motorCrawlMinOn);
   Serial.print(F(" motor_applied="));Serial.print(appliedLeft);Serial.print(',');Serial.print(appliedRight);
-  Serial.print(F(" motor_jog="));Serial.println(jogging?1:0);
+  Serial.print(F(" motor_jog="));Serial.print(jogging?1:0);
+  Serial.print(F(" buzzer="));Serial.println(buzzer.enabled?1:0);
  }
  static uint8_t servoLimitsCheck(const StoredServoLimits &limits){
   return 0xA7 ^ limits.low ^ (uint8_t)(limits.high*3) ^ limits.reverse;
@@ -441,7 +473,7 @@ struct RobotHardware {
   }
   if(!strcmp(cmd,"arm")){armed=true;Serial.println(F("ARMED"));return;}
   if(!strcmp(cmd,"erase")){memset(&cal,0,sizeof(cal));cal.magic=0x52414431UL;cal.version=1;cal.pins[0]=v(P_LINE_LEFT);cal.pins[1]=v(P_LINE_CENTRE);cal.pins[2]=v(P_LINE_RIGHT);cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);armed=false;Serial.println(F("CAL ERASED. Servo direction retained."));return;}
-  if(!strcmp(cmd,"save")){if(!requireCalibration())return;cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);Serial.println(F("EEPROM SAVED"));return;}
+  if(!strcmp(cmd,"save")){if(!requireCalibration()){buzzer.play(ShieldBuzzer::WARNING,now);return;}cal.crc=calibrationCrc(cal);EEPROM.put(0,cal);Serial.println(F("EEPROM SAVED"));return;}
   if(!strcmp(cmd,"cal")){
    char *kind=strtok(0," \t");int8_t k=kind&& !strcmp(kind,"white")?0:kind&&!strcmp(kind,"black")?1:kind&&!strcmp(kind,"left")?2:kind&&!strcmp(kind,"right")?3:-1;
    if(k<0||calibrating){Serial.println(F("CAL ARGUMENT ERROR"));return;}calKind=k;samples=0;for(uint8_t i=0;i<3;i++)sampleSum[i]=0;calibrating=true;armed=false;return;
@@ -465,7 +497,7 @@ struct RobotHardware {
   }
  }
  void tick(){
-  uint32_t now=millis();if(configError)return;
+  uint32_t now=millis();if(configError){buzzer.tick(now);return;}
   serial(now);readSensors(now);button(now);input.contact=contact();input.abort=false;
   const RobotState before=robot.state;
   if(jogging){if((uint32_t)(now-jogStarted)>=jogDuration){jogging=false;robot.stop();Serial.println(F("JOG DONE"));}else robot.drive(jogLeft,jogRight);robot.services(now);}else robot.tick(input,now);
@@ -473,6 +505,7 @@ struct RobotHardware {
   // actually accepted, rather than merely showing a brief black ADC reading.
   if(before==SEARCH_OUT&&robot.state==APPROACH)Serial.println(F("MARKER CONFIRMED: LOADING ZONE"));
   else if(before==DELIVERY_OUT&&robot.state==DELIVERY_CREEP)Serial.println(F("MARKER CONFIRMED: DELIVERY ZONE"));
+  if(robot.state!=lastAudibleState){signalStateChange(lastAudibleState,robot.state,now);lastAudibleState=robot.state;}
   // Apply the requested test PWM immediately; ramp() is for the mission only.
   // The next tick returns to zero as soon as the jog deadline expires.
   outputMotors(jogging?jogLeft:robot.left,jogging?jogRight:robot.right,jogging);
@@ -485,5 +518,6 @@ struct RobotHardware {
   }
   if(v(P_LED_PIN)!=255)digitalWrite(v(P_LED_PIN),robot.state==FAULT?((now/150)%2):robot.state==DONE?HIGH:armed?((now/700)%2):LOW);
   if(stream&&(uint32_t)(now-lastStream)>=150){lastStream=now;status();}
+  buzzer.tick(now);
  }
 };
