@@ -30,11 +30,11 @@ struct RobotHardware {
  uint8_t motorMinLeft,motorMinRight;
  uint8_t motorKickPwm,motorKickMs,motorCrawlLimit,motorCrawlPwm,motorCrawlPeriod,motorCrawlMinOn;
  int8_t lastRequestedSign[2];uint32_t kickStarted[2];
- bool armed,stream,calibrating,jogging,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed,manualServoPending,contactPullup;
+ bool armed,stream,calibrating,jogging,jogWithKick,jogHoldLogged,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed,manualServoPending,contactPullup;
  uint8_t calKind,samples,lineLength;
  uint32_t sampleSum[3],lastRead,buttonChanged,buttonPressed,lastStream,jogStarted;
  uint8_t defaultServoLow,defaultServoHigh;
- uint16_t jogDuration;int16_t jogLeft,jogRight;int configError;char command[80];
+ uint16_t jogDuration;int16_t jogLeft,jogRight;uint8_t jogProbeKickPwm,jogProbeKickMs;int configError;char command[80];
  uint16_t v(Param p)const{return settings.v[p];}
  bool contact()const{return digitalRead(v(P_CONTACT_PIN))==(v(P_CONTACT_LOW)?LOW:HIGH);}
   void configureContactInput(){pinMode(v(P_CONTACT_PIN),contactPullup?INPUT_PULLUP:INPUT);}
@@ -81,7 +81,7 @@ struct RobotHardware {
  static bool validDynamics(const StoredMotorDynamics &t){
   return t.magic==0x4B53&&t.check==dynamicsChecksum(t)&&
    t.kickMs<=150&&t.crawlLimit<=150&&
-   t.crawlPwm>=40&&t.crawlPeriod>=60&&t.crawlMinOn>=5&&
+   t.crawlPwm>=40&&t.crawlPeriod>=30&&t.crawlMinOn>=5&&
    t.crawlMinOn<t.crawlPeriod;
  }
  StoredMotorDynamics dynamicsPreset()const{
@@ -176,7 +176,7 @@ struct RobotHardware {
  void init(){
   Serial.begin(115200);loadUserSettings(settings);
   configError=settingsError(settings);if(!configError)configError=pinSettingsError(settings);
-  armed=stream=calibrating=jogging=skipButtonRelease=lineOverflow=manualServoPending=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
+  armed=stream=calibrating=jogging=jogWithKick=jogHoldLogged=skipButtonRelease=lineOverflow=manualServoPending=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
   lineHistorySlot=0;lineHistoryReady=false;appliedLeft=appliedRight=0;
   lastRequestedSign[0]=lastRequestedSign[1]=0;kickStarted[0]=kickStarted[1]=0;
   if(configError){Serial.print(F("CONFIG ERROR "));Serial.println(configError);return;}
@@ -311,7 +311,11 @@ struct RobotHardware {
   Serial.print(motorCrawlPwm);Serial.print(',');Serial.print(motorCrawlPeriod);Serial.print(',');
   Serial.print(motorCrawlMinOn);
   Serial.print(F(" motor_applied="));Serial.print(appliedLeft);Serial.print(',');Serial.print(appliedRight);
-  Serial.print(F(" motor_jog="));Serial.println(jogging?1:0);
+  Serial.print(F(" motor_jog="));Serial.print(jogging?1:0);
+  Serial.print(F(" motor_jog_stage="));
+  if(!jogging)Serial.println(F("idle"));
+  else if(!jogWithKick)Serial.println(F("direct"));
+  else Serial.println(jogHoldLogged?F("hold"):F("kick"));
  }
  static uint8_t servoLimitsCheck(const StoredServoLimits &limits){
   return 0xA7 ^ limits.low ^ (uint8_t)(limits.high*3) ^ limits.reverse;
@@ -351,7 +355,7 @@ struct RobotHardware {
     armed=false;robot.contactTimer.clear();robot.heldTimer.clear();
     saveContactMode();Serial.println(F("CONTACT CONFIG SAVED"));status();return;
    }
-  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; contact high|low; contact pullup on|off; motor set [12 values]|dynamics KICK PWMMS CRAWL_LIMIT CRAWL_PWM PERIOD MINON|save|clear; jog L R ms (-255..255); status; stream; reset; erase; stop"));return;}
+  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; contact high|low; contact pullup on|off; motor set [12 values]|dynamics KICK PWMMS CRAWL_LIMIT CRAWL_PWM PERIOD MINON|save|clear; jog L R ms; jogkick L R ms kickPWM kickMs; status; stream; reset; erase; stop"));return;}
   if(!strcmp(cmd,"low")||!strcmp(cmd,"high")){robot.servoGoal=!strcmp(cmd,"low")?v(P_LIFT_LOW):v(P_LIFT_HIGH);manualServoPending=true;Serial.println(F("MANUAL SERVO: support any load."));status();return;}
   if(!strcmp(cmd,"reset")){if(robot.servoAngle!=v(P_LIFT_LOW)||contact()){Serial.println(F("RESET REFUSED: lower forks and remove load."));return;}robot.init(settings,now);manualServoPending=false;armed=false;return;}
   if(robot.state!=IDLE){Serial.println(F("RESET REQUIRED"));return;}
@@ -446,16 +450,41 @@ struct RobotHardware {
    char *kind=strtok(0," \t");int8_t k=kind&& !strcmp(kind,"white")?0:kind&&!strcmp(kind,"black")?1:kind&&!strcmp(kind,"left")?2:kind&&!strcmp(kind,"right")?3:-1;
    if(k<0||calibrating){Serial.println(F("CAL ARGUMENT ERROR"));return;}calKind=k;samples=0;for(uint8_t i=0;i<3;i++)sampleSum[i]=0;calibrating=true;armed=false;return;
   }
-  if(!strcmp(cmd,"jog")){
-   long l,r,t;char *a=strtok(0," \t"),*b=strtok(0," \t"),*c=strtok(0," \t");
-   if(!armed||calibrating||digitalRead(v(P_START_PIN))==LOW||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-255||l>255||r<-255||r>255||t<1||t>2000||(!l&&!r)){Serial.println(F("JOG REFUSED: arm, low, no load; nonzero PWM +/-255, 1..2000ms."));return;}
-   jogLeft=l;jogRight=r;jogDuration=t;jogStarted=now;jogging=true;
-   Serial.print(F("JOG START left="));Serial.print(jogLeft);
-   Serial.print(F(" right="));Serial.print(jogRight);
-   Serial.print(F(" duration_ms="));Serial.println(jogDuration);
-   return;
-  }
-  Serial.println(F("UNKNOWN COMMAND"));
+  if(!strcmp(cmd,"jog")||!strcmp(cmd,"jogkick")){
+    // Explicit kick is independent of saved motor settings.
+    // Both stages bypass ramp, min PWM, trim and crawl pulses.
+    const bool withKick=!strcmp(cmd,"jogkick");
+    long l,r,t,kp=0,km=0;
+    char *a=strtok(0," \t"),*b=strtok(0," \t"),*c=strtok(0," \t");
+    char *d=withKick?strtok(0," \t"):nullptr,*e=withKick?strtok(0," \t"):nullptr;
+    const bool valid=armed&&!calibrating&&digitalRead(v(P_START_PIN))!=LOW&&
+     robot.servoAngle==v(P_LIFT_LOW)&&robot.servoGoal==v(P_LIFT_LOW)&&!contact()&&
+     number(a,l)&&number(b,r)&&number(c,t)&&
+     (!withKick||(number(d,kp)&&number(e,km)))&&!strtok(0," \t")&&
+     l>=-255&&l<=255&&r>=-255&&r<=255&&t>=1&&t<=2000&&(l||r)&&
+     (!withKick||(kp>=1&&kp<=255&&km>=1&&km<=150&&km<t));
+    if(!valid){
+     Serial.println(F("JOG REFUSED: arm, low, no load; nonzero L/R +/-255, 1..2000ms; jogkick L R ms kickPWM kickMs (1..150ms, shorter than test)."));
+     return;
+    }
+    jogLeft=l;jogRight=r;jogDuration=t;jogStarted=now;
+    jogWithKick=withKick;jogHoldLogged=!withKick;
+    jogProbeKickPwm=(uint8_t)kp;jogProbeKickMs=(uint8_t)km;
+    jogging=true;
+    if(withKick){
+     Serial.print(F("JOG KICK START left="));Serial.print(jogLeft);
+     Serial.print(F(" right="));Serial.print(jogRight);
+     Serial.print(F(" kick_pwm="));Serial.print(jogProbeKickPwm);
+     Serial.print(F(" kick_ms="));Serial.print(jogProbeKickMs);
+     Serial.print(F(" hold_ms="));Serial.println(jogDuration-jogProbeKickMs);
+    }else{
+     Serial.print(F("JOG START left="));Serial.print(jogLeft);
+     Serial.print(F(" right="));Serial.print(jogRight);
+     Serial.print(F(" duration_ms="));Serial.println(jogDuration);
+    }
+    return;
+   }
+   Serial.println(F("UNKNOWN COMMAND"));
  }
  void serial(uint32_t now){
   while(Serial.available()){
@@ -468,14 +497,32 @@ struct RobotHardware {
   uint32_t now=millis();if(configError)return;
   serial(now);readSensors(now);button(now);input.contact=contact();input.abort=false;
   const RobotState before=robot.state;
-  if(jogging){if((uint32_t)(now-jogStarted)>=jogDuration){jogging=false;robot.stop();Serial.println(F("JOG DONE"));}else robot.drive(jogLeft,jogRight);robot.services(now);}else robot.tick(input,now);
+  if(jogging){
+   if((uint32_t)(now-jogStarted)>=jogDuration){
+    jogging=false;jogWithKick=false;robot.stop();Serial.println(F("JOG DONE"));
+   }else{
+    robot.drive(jogLeft,jogRight);
+    if(jogWithKick&&!jogHoldLogged&&(uint32_t)(now-jogStarted)>=jogProbeKickMs){
+     jogHoldLogged=true;
+     Serial.print(F("JOG HOLD left="));Serial.print(jogLeft);
+     Serial.print(F(" right="));Serial.println(jogRight);
+    }
+   }
+   robot.services(now);
+  }else robot.tick(input,now);
   // Clear, timestampable serial diagnostics when a loading/drop-off stripe is
   // actually accepted, rather than merely showing a brief black ADC reading.
   if(before==SEARCH_OUT&&robot.state==APPROACH)Serial.println(F("MARKER CONFIRMED: LOADING ZONE"));
   else if(before==DELIVERY_OUT&&robot.state==DELIVERY_CREEP)Serial.println(F("MARKER CONFIRMED: DELIVERY ZONE"));
   // Apply the requested test PWM immediately; ramp() is for the mission only.
   // The next tick returns to zero as soon as the jog deadline expires.
-  outputMotors(jogging?jogLeft:robot.left,jogging?jogRight:robot.right,jogging);
+  int16_t testLeft=jogging?jogLeft:0,testRight=jogging?jogRight:0;
+  if(jogging&&jogWithKick&&!jogHoldLogged){
+   // Never reduce a requested high PWM during the kick stage.
+   if(testLeft)testLeft=(testLeft<0?-1:1)*(int16_t)(abs16(testLeft)>jogProbeKickPwm?abs16(testLeft):jogProbeKickPwm);
+   if(testRight)testRight=(testRight<0?-1:1)*(int16_t)(abs16(testRight)>jogProbeKickPwm?abs16(testRight):jogProbeKickPwm);
+  }
+  outputMotors(jogging?testLeft:robot.left,jogging?testRight:robot.right,jogging);
   lift.write(servoOutputAngle());
   // For USB angle tuning, publish an arrival status even with stream off.
   // Otherwise the browser only sees the old angle sent before movement,
