@@ -104,7 +104,7 @@ struct RobotHardware {
   if(!sign)return 0;
   const uint16_t power=(uint16_t)clamp16((int32_t)abs16(requested)*trim/1000L,0,255);
   if(!before)kickStarted[channel]=now;
-  if(motorKickPwm&&motorKickMs&&!before){/* kickStarted recorded above */}
+  else if(before!=sign)kickStarted[channel]=now-(uint32_t)motorKickMs; // never kick on reversal
   if(motorKickPwm&&motorKickMs&&(uint32_t)(now-kickStarted[channel])<motorKickMs &&
      power<motorKickPwm)return sign*(int16_t)motorKickPwm;
   if(motorCrawlLimit&&power<motorCrawlLimit){
