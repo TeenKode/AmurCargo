@@ -90,9 +90,22 @@ const {chromium,browserExecutable}=require('./runtime_paths.cjs');
   await page.evaluate(()=>ports.at(-1).input.enqueue(new TextEncoder().encode('stage=18 fault=0 held=0\n')));
   await page.waitForFunction(()=>document.getElementById('robotStage').textContent==='По линии до груза');
   assert(await page.locator('#robotMode').isDisabled());
-  await page.evaluate(()=>ports.at(-1).input.enqueue(new TextEncoder().encode('motion=18,0,800,200,800,74,87,20,0,0,-50,1\n')));
-  await page.waitForFunction(()=>document.getElementById('robotWheels').textContent==='74 / 87');
+  await page.evaluate(()=>{
+   const encoder=new TextEncoder(),input=ports.at(-1).input;
+   input.enqueue(encoder.encode('m=18,0,42,200,800,74,87,20,0,0,-50,1,35,50\n'));
+   for(let i=0;i<300;i++)input.enqueue(encoder.encode('m=18,0,800,200,800,74,87,20,0,0,-50,1,35,50\n'));
+  });
+  await page.evaluate(()=>ports.at(-1).input.enqueue(new TextEncoder().encode('motion=18,0,801,200,800,74,87,20,0,0,-50,1\n')));
+  await page.waitForFunction(()=>document.getElementById('liveHardware').textContent.includes('801 / 200'));
   assert.match(await page.locator('#liveHardware').textContent(),/ошибка линии -50/);
+  await page.getByRole('button',{name:'Открыть раздел «Терминал COM»'}).click();
+  const [csv]=await Promise.all([page.waitForEvent('download'),page.locator('#saveHardwareLog').click()]);
+  const rows=require('node:fs').readFileSync(await csv.path(),'utf8').trim().split('\r\n');
+  assert.equal(rows.filter(row=>row.endsWith(',35,50')).length,301);
+  assert.equal(rows[0].split(',').length,17);
+  assert(rows.some(row=>row.includes(',sample,18,0,42,200,800,74,87,20,0,0,-50,1,35,50')));
+  assert(!((await page.locator('#serialLog').textContent()).includes('m=18,0,42,')));
+
   assert(await page.locator('.robot-connection [data-command=stop]').isEnabled());
   await page.evaluate(()=>ports.at(-1).input.enqueue(new TextEncoder().encode('stage=16 fault=0 held=1\n')));
   await page.waitForFunction(()=>document.getElementById('robotCargo').textContent==='Поднят');

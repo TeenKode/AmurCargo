@@ -21,7 +21,7 @@ struct RadialRobot {
  uint8_t hub,heading,ray,searchPos,expectedHub,crosses;
  bool loaded,wideArmed,lineOnly;
  // Estimates actual wheel drive for timed manoeuvres. Updated from EEPROM motor tuning.
- uint8_t minMotorLeft=70,minMotorRight=70,crawlLimit=0,crawlPwm=110,crawlPeriod=160,crawlMinOn=16;
+ uint8_t minMotorLeft=70,minMotorRight=70;
  int8_t turnSteps;
  int16_t left,right,wantLeft,wantRight,correction,previousError,filteredDerivative;
  int8_t lineDirection;bool resetDerivative;
@@ -36,24 +36,17 @@ struct RadialRobot {
  bool markerBaseReady,markerCandidateNow;
  uint16_t v(Param p)const{return cfg->v[p];}
  uint16_t z(ZoneParam p)const{return cfg->zone[hub][ray][p];}
- void configureMotion(uint8_t leftMinimum,uint8_t rightMinimum,uint8_t limit,uint8_t pulsePwm,uint8_t period,uint8_t minOn){
+ void configureMotion(uint8_t leftMinimum,uint8_t rightMinimum){
   minMotorLeft=leftMinimum;minMotorRight=rightMinimum;
-  crawlLimit=limit;crawlPwm=pulsePwm;crawlPeriod=period;crawlMinOn=minOn;
  }
- // The driver and travel timers use the same trim, dead zone and pulse duty.
+ // The driver and travel timers use the same trim and dead zone.
  static uint8_t trimmedPwm(uint16_t command,uint16_t trim){
   const uint16_t power=(uint32_t)command*trim/1000UL;
   return power>255?255:power;
  }
- uint8_t crawlOn(uint8_t power)const{
-  if(power>=crawlLimit||power>=crawlPwm)return 0;
-  const uint16_t on=(uint16_t)power*crawlPeriod/crawlPwm;
-  return on<crawlMinOn?crawlMinOn:on;
- }
  uint16_t effectiveWheelPwm(uint16_t command,uint16_t trim,uint8_t minimum)const{
   if(!command)return 0;
-  const uint8_t power=trimmedPwm(command,trim),on=crawlOn(power);
-  if(on)return ((uint16_t)crawlPwm*on+crawlPeriod/2)/crawlPeriod;
+  const uint8_t power=trimmedPwm(command,trim);
   return power<minimum?minimum:power;
  }
  __attribute__((noinline)) uint16_t effectiveMotionPwm(uint16_t command)const{
@@ -74,7 +67,13 @@ struct RadialRobot {
  __attribute__((noinline)) uint32_t cruiseMs(uint32_t calibratedMs)const{
   return motionMs(calibratedMs,loaded?v(P_LOADED_PWM):v(P_DRIVE_PWM),loaded?75:85);
  }
- __attribute__((noinline)) uint32_t slowMs(uint32_t calibratedMs)const{return motionMs(calibratedMs,v(P_APPROACH_PWM),55);}
+ int16_t approachPwm(bool withLoad)const{
+  const int16_t slow=v(P_APPROACH_PWM),cruise=v(withLoad?P_LOADED_PWM:P_DRIVE_PWM);
+  return slow<cruise?slow:cruise;
+ }
+ __attribute__((noinline)) uint32_t approachMs(uint32_t calibratedMs,int16_t pwm)const{
+  return motionMs(calibratedMs,pwm,55);
+ }
  __attribute__((noinline)) uint32_t centreMs(uint32_t calibratedMs)const{return motionMs(calibratedMs,v(P_CENTRE_PWM),80);}
  __attribute__((noinline)) uint32_t pivotMs(uint32_t calibratedMs)const{
   return motionMs(calibratedMs,loaded?v(P_TURN_LOADED_PWM):v(P_TURN_PWM),loaded?75:85);
@@ -214,7 +213,7 @@ struct RadialRobot {
    int16_t steerLimit=base-floor;
    int16_t steer=clamp16(correction,-steerLimit,steerLimit);
    int16_t l=base+steer,r=base-steer;
-   if(steer&&!crawlLimit){
+   if(steer){
     // If the outside wheel also lands on its minimum, both wheels can get
     // the same effective drive in spite of different controller requests.
     int16_t &outer=steer>0?l:r,&inner=steer>0?r:l;
@@ -234,7 +233,7 @@ struct RadialRobot {
   // Reuse the last motor request between scheduled sensor updates.
  }
  void pickup(uint32_t now,uint32_t used){approachUsed=used;servoGoal=(uint8_t)v(P_LIFT_HIGH);enter(LIFT,now);}
- void beginRetreat(uint32_t now){retreatDuration=slowMs(z(Z_BACKOFF_MS))+approachUsed*v(P_REVERSE_RATIO)/1000UL;enter(RETREAT,now);}
+ void beginRetreat(uint32_t now){retreatDuration=approachMs(z(Z_BACKOFF_MS),approachPwm(false))+approachUsed*v(P_REVERSE_RATIO)/1000UL;enter(RETREAT,now);}
  bool servoDone(uint32_t now){return servoTimer.test(servoAngle==servoGoal,now,v(P_SERVO_SETTLE_MS));}
  void tick(const SensorInput &s,uint32_t now){
   bool contact=contactTimer.test(s.contact,now,v(P_CONTACT_MS));
@@ -277,19 +276,22 @@ struct RadialRobot {
    case ACQUIRE:{
     // A timed hub turn is not evidence that the correct ray was reached.
     // Only a narrow line, continuously observed for TURN_LINE_MS, confirms it.
+    const int16_t scan=approachPwm(loaded);
+    const uint32_t budget=approachMs(v(P_ACQUIRE_MS),scan);
+    const uint32_t advance=budget/3<120?budget/3:120;
     bool line=narrow(s)&&!s.hub[hub];
     if(lineTimer.test(line&&s.line[1]>=v(P_LINE_THRESHOLD),now,v(P_TURN_LINE_MS))){crosses=(uint8_t)v(P_BRIDGE_CROSSES);wideArmed=true;enter(purpose==SEARCH_LEG?SEARCH_OUT:purpose==BRIDGE_LEG?BRIDGE:DELIVERY_OUT,now);}
-    else if(e>slowMs(v(P_ACQUIRE_MS)))fail(EXIT_TIMEOUT,now);
+    else if(e>=budget)fail(EXIT_TIMEOUT,now);
     else if(line)follow(s,cruise,now);
     else {
      // Never continue at full cruise into an unobserved ray. A brief forward
      // creep lets the sensor clear the hub, then a bounded two-sided scan.
      // TURN_STEPS biases the first scan toward the last predicted turn.
-     int16_t scan=(int16_t)v(P_APPROACH_PWM);
-     if(scan>cruise)scan=cruise;
-     if(e<120)drive(scan,scan);
+     if(e<advance)drive(scan,scan);
      else {
-      bool first=e<slowMs(v(P_ACQUIRE_MS))/2;
+      // The second sweep first crosses the original heading, then searches
+      // the same angular extent on the opposite side at the same PWM.
+      const bool first=e-advance<(budget-advance)/3;
       int8_t side=turnSteps<0?-1:1;
       if(!first)side=-side;
       drive(side>0?-scan:scan,side>0?scan:-scan);
@@ -305,15 +307,23 @@ struct RadialRobot {
     }
     if(e>cruiseMs(z(Z_OUT_MAX_MS))){fail(STATION_TIMEOUT,now);break;}
     // Reduce speed while confirming the bar, so a short mark isn't missed.
-    if(marker&&e>=cruiseMs(z(Z_OUT_MIN_MS)))drive(slow<cruise?slow:cruise,slow<cruise?slow:cruise);
+    if(marker&&e>=cruiseMs(z(Z_OUT_MIN_MS)))drive(approachPwm(loaded),approachPwm(loaded));
     else follow(s,cruise,now);
     break;
    }
-   case APPROACH:
+   case APPROACH:{
+    const int16_t pwm=approachPwm(false);
     if(contact){pickup(now,e);break;}
-    if(e>=slowMs(z(Z_SEARCH_MS))){approachUsed=e;beginRetreat(now);}else drive(slow,slow);break;
-   case RETREAT:
-    if(e>=retreatDuration)enter(UTURN,now);else drive(-slow,-slow);break;
+    if(e>=approachMs(z(Z_SEARCH_MS),pwm)){approachUsed=e;beginRetreat(now);}
+    else drive(pwm,pwm);
+    break;
+   }
+   case RETREAT:{
+    // Match the forward approach profile even if pickup changed the load state.
+    const int16_t pwm=approachPwm(false);
+    if(e>=retreatDuration)enter(UTURN,now);else drive(-pwm,-pwm);
+    break;
+   }
    case UTURN:{
     const uint32_t minMs=pivotMs(loaded?v(P_UTURN_LOADED_MIN_MS):v(P_UTURN_MIN_MS));
     const uint32_t maxMs=pivotMs(loaded?v(P_UTURN_LOADED_MAX_MS):v(P_UTURN_MAX_MS));
@@ -348,10 +358,18 @@ struct RadialRobot {
     if(hubTimer.test(candidate,now,v(P_HUB_CONFIRM_MS))){expectedHub=1-hub;enter(HUB_CENTRE,now);}
     else if(e>cruiseMs(v(P_BRIDGE_MAX_MS)))fail(HUB_TIMEOUT,now);else if(candidate)drive(v(P_CENTRE_PWM),v(P_CENTRE_PWM));else follow(s,cruise,now);break;
    }
-   case DELIVERY_CREEP:
-    if(e>=slowMs(z(Z_DROP_ADVANCE_MS))){servoGoal=(uint8_t)v(P_LIFT_LOW);enter(LOWER,now);}else drive(slow,slow);break;
-   case DROP_BACK:
-    if(e>=slowMs(z(Z_DROP_BACK_MS))){if(s.contact)fail(CARGO_STUCK,now);else enter(DONE,now);}else drive(-slow,-slow);break;
+   case DELIVERY_CREEP:{
+    const int16_t pwm=approachPwm(true);
+    if(e>=approachMs(z(Z_DROP_ADVANCE_MS),pwm)){servoGoal=(uint8_t)v(P_LIFT_LOW);enter(LOWER,now);}
+    else drive(pwm,pwm);
+    break;
+   }
+   case DROP_BACK:{
+    const int16_t pwm=approachPwm(true);
+    if(e>=approachMs(z(Z_DROP_BACK_MS),pwm)){if(s.contact)fail(CARGO_STUCK,now);else enter(DONE,now);}
+    else drive(-pwm,-pwm);
+    break;
+   }
    default:fail(BAD_SETTINGS,now);break;
   }
   services(now);

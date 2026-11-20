@@ -1,6 +1,6 @@
 window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectConfig,schema}){
  const $=id=>document.getElementById(id),pane=$('pane-arduino');pane.innerHTML='<h2>Arduino UNO / Nano</h2><div class="form-row"><label for="boardProfile">Какая плата?</label><select id="boardProfile"><option value="uno">UNO · Optiboot</option><option value="uno-auto">UNO · не знаю загрузчик</option><option value="uno-old">UNO · 57600</option><option value="nano-auto">Nano · не знаю загрузчик</option><option value="nano-old">Nano · старый, 57600</option><option value="nano-new">Nano · новый, 115200</option></select></div><p class="hint" id="boardHelp"></p><label class="hint"><input type="checkbox" id="manualReset"> Сброс кнопкой RESET</label><p class="hint">Если плата не отвечает: закройте монитор порта и Arduino IDE, отключите всё от D0/RX и D1/TX. Включите сброс кнопкой и нажмите RESET, когда появится подсказка. Если COM-порта нет — проверьте USB-кабель и драйвер USB-чипа вашей платы.</p><p class="hint">В плату попадёт программа с вашими настройками. На роботе проверьте датчики и время движений.</p><p class="hint">Перед записью отключите моторы. Поддерживаются UNO и классическая Nano на ATmega328P, 16 МГц.</p><div class="export-buttons"><button id="flashUno" class="primary">Записать программу по USB</button><button id="cancelFlash" disabled>Остановить запись</button><button id="downloadHex">↓ HEX с текущими настройками</button></div><progress id="flashProgress" max="100" value="0" style="width:100%;margin-top:14px"></progress><p class="hint" id="serialSupport"></p><pre id="serialLog" class="serial-log"></pre><div class="section"><h2>Настроить датчики</h2><div class="inline"><button id="openMonitor">Подключить</button><button id="closeMonitor" disabled>Отключить</button></div><div class="cal-buttons" id="calButtons"></div><form id="serialForm" class="inline" style="margin-top:10px"><input id="serialCommand" aria-label="Команда Arduino" placeholder="status" style="min-width:0;width:100%"><button>Отправить</button></form><p class="hint">Все три датчика — над одним покрытием. Нажмите его название. Дождитесь CAL SAMPLE OK. Повторите для остальных покрытий, затем «Сохранить».</p></div>';
- const real=document.createElement('div');real.className='section';real.innerHTML='<h2>Проверка настоящего робота по USB</h2><p class="hint">Ниже команды для подключённой платы. Моторные пробы: вилы внизу, груз снят. Сначала «Подключить», затем «Разрешить пробы». После «Стоп» — опустите вилы, «Сброс», снова разрешите пробы.</p><div class="form-row"><label for="realLeftPwm">Левый PWM · 0–255</label><input id="realLeftPwm" type="number" min="0" max="255" value="85"></div><div class="form-row"><label for="realRightPwm">Правый PWM · 0–255</label><input id="realRightPwm" type="number" min="0" max="255" value="85"></div><p class="hint">Проба подаёт указанный PWM сразу, без разгона, минимума и баланса. Это позволяет измерить реальный порог запуска каждого колеса. Если даже PWM 255 не вращает вывешенное колесо, проверьте отдельное питание моторов и клеммы шилда.</p><div class="form-row"><label for="realDuration">Время пробы · 50–2000 мс</label><input id="realDuration" type="number" min="50" max="2000" step="10" value="1000"></div><label class="check"><input id="realUseKick" type="checkbox"> Сначала пусковой толчок, затем удержание заданного PWM</label><div class="form-row"><label for="realKickPwm">PWM толчка · 1–255</label><input id="realKickPwm" type="number" min="1" max="255" value="145"></div><div class="form-row"><label for="realKickMs">Длительность толчка · 1–150 мс</label><input id="realKickMs" type="number" min="1" max="150" value="60"></div><p class="hint">Сначала PWM толчка, затем указанный слева/справа PWM непрерывно до конца пробы. Параметры этой пробы не меняют EEPROM и не включают ползучий режим. Уменьшайте рабочий PWM по 5–10 и смотрите, продолжает ли колесо вращаться без остановки.</p><p class="hint" id="realProbeStatus">Пробы без толчка измеряют стартовый порог; с толчком — минимальный удерживаемый PWM.</p><div id="realControls" class="cal-buttons"></div>';
+ const real=document.createElement('div');real.className='section';real.innerHTML='<h2>Проверка настоящего робота по USB</h2><p class="hint">Ниже команды для подключённой платы. Моторные пробы: вилы внизу, груз снят. Сначала «Подключить», затем «Разрешить пробы». После «Стоп» — опустите вилы, «Сброс», снова разрешите пробы.</p><div class="form-row"><label for="realLeftPwm">Левый PWM · 0–255</label><input id="realLeftPwm" type="number" min="0" max="255" value="85"></div><div class="form-row"><label for="realRightPwm">Правый PWM · 0–255</label><input id="realRightPwm" type="number" min="0" max="255" value="85"></div><p class="hint">Проба подаёт указанный PWM сразу, без разгона, минимума и баланса. Это позволяет измерить реальный порог запуска каждого колеса. Если даже PWM 255 не вращает вывешенное колесо, проверьте отдельное питание моторов и клеммы шилда.</p><div class="form-row"><label for="realDuration">Время пробы · 50–2000 мс</label><input id="realDuration" type="number" min="50" max="2000" step="10" value="1000"></div><label class="check"><input id="realUseKick" type="checkbox"> Сначала пусковой толчок, затем удержание заданного PWM</label><div class="form-row"><label for="realKickPwm">PWM толчка · 1–255</label><input id="realKickPwm" type="number" min="1" max="255" value="145"></div><div class="form-row"><label for="realKickMs">Длительность толчка · 1–150 мс</label><input id="realKickMs" type="number" min="1" max="150" value="60"></div><p class="hint">Сначала PWM толчка, затем указанный слева/справа PWM непрерывно до конца пробы. Параметры этой пробы не меняют EEPROM. Уменьшайте рабочий PWM по 5–10 и смотрите, продолжает ли колесо вращаться без остановки.</p><p class="hint" id="realProbeStatus">Пробы без толчка измеряют стартовый порог; с толчком — минимальный удерживаемый PWM.</p><div id="realControls" class="cal-buttons"></div>';
  
  const motorDefs=[
   ['motorMinLeft','Левый: минимальный PWM',0,255,70],['motorMinRight','Правый: минимальный PWM',0,255,70],
@@ -12,19 +12,15 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  ];
  const dynamicsDefs=[
   ['motorKickPwm','Стартовый толчок: PWM (0 = выкл.)',0,255,0],
-  ['motorKickMs','Длительность толчка, мс',0,150,0],
-  ['motorCrawlLimit','Ползучий режим ниже PWM (0 = выкл.)',0,150,0],
-  ['motorCrawlPwm','PWM во время короткого импульса',40,255,110],
-  ['motorCrawlPeriod','Период импульсов, мс',30,255,160],
-  ['motorCrawlMinOn','Минимальное включение, мс',5,254,16]
+  ['motorKickMs','Длительность толчка, мс',0,150,0]
  ];
  const motor=document.createElement('div');
  motor.innerHTML='<h2>Скорости и пороги запуска</h2><p class="hint">Ненулевые команды ниже минимального PWM поднимаются до порога, а команда 0 всегда останавливает мотор. Баланс 1000 = 100%.</p>'+
   motorDefs.map(([id,label,min,max,value])=>'<div class="form-row"><label for="'+id+'">'+label+'</label><input id="'+id+'" type="number" min="'+min+'" max="'+max+'" step="1" value="'+value+'"></div>').join('')+
-  '<div class="cal-buttons"><button id="motorApply">Применить в Arduino</button></div><h3>Пуск и сверхмедленное движение</h3>'+
-  '<p class="hint">Стартовый толчок действует один раз, затем возвращается обычная скорость. Ползучий режим с длинными паузами заметно дёргает колёса: при периоде 160 мс подача PWM 25 и импульсе 110 означает около 36 мс питания и 124 мс свободного хода. Для плавной езды сперва отключите ползучий режим (порог = 0) и подберите минимальный непрерывный PWM для каждого мотора. Можно экспериментально сократить период до 30–60 мс, но колёса могут перестать вращаться, а низкие скорости без энкодеров остаются нестабильными.</p>'+
+  '<div class="cal-buttons"><button id="motorApply">Применить в Arduino</button></div><h3>Пусковой толчок</h3>'+
+  '<p class="hint">После стартового толчка колёса работают с непрерывным PWM. Минимальный рабочий PWM настраивается отдельно для каждого колеса.</p>'+
   dynamicsDefs.map(([id,label,min,max,value])=>'<div class="form-row"><label for="'+id+'">'+label+'</label><input id="'+id+'" type="number" min="'+min+'" max="'+max+'" step="1" value="'+value+'"></div>').join('')+
-  '<div class="cal-buttons"><button id="motorSmoothPreset">Плавно: без пауз</button><button id="motorPulsePreset">Частые импульсы (опытный режим)</button></div><p class="hint">Кнопки меняют только поля — для применения нажмите «Применить толчок и ползучий режим». «Плавно» не снижает минимальный PWM автоматически: подберите его под моторы в основном блоке.</p>'+ '<div class="cal-buttons"><button id="motorDynamicsApply">Применить толчок и ползучий режим</button><button id="motorSave">Сохранить всё в EEPROM</button><button id="motorClear">Очистить EEPROM моторов</button></div><p class="hint" id="motorConfigStatus">Нужна обновлённая прошивка. Применить — временно; после проверки нажмите «Сохранить в EEPROM».</p>';
+  '<div class="cal-buttons"><button id="motorDynamicsApply">Применить толчок</button><button id="motorSave">Сохранить всё в EEPROM</button><button id="motorClear">Очистить EEPROM моторов</button></div><p class="hint" id="motorConfigStatus">Нужна обновлённая прошивка. Применить — временно; после проверки нажмите «Сохранить в EEPROM».</p>';
  const direction=document.createElement('div');direction.className='section';direction.innerHTML='<h2>Направление SG90</h2><p class="hint">Если настоящая качалка движется противоположно модели: сначала запишите обновлённую прошивку. Снимите качалку, подключите монитор, нажмите «Опустить» и дождитесь остановки. При ошибке состояния нажмите «Сброс».</p><div class="form-row"><label for="servoDirection">Направление настоящего серво</label><select id="servoDirection"><option value="normal">Обычное</option><option value="reverse">Обратное</option></select></div><label class="check"><input id="servoDetached" type="checkbox">Качалка снята, серво без нагрузки</label><button id="applyServoDirection" disabled>Сохранить направление в Arduino</button><p class="hint" id="servoDirectionStatus">Текущее направление: нажмите «Статус». servo_reverse=1 — обратное. После сохранения выключите питание и установите качалку в нижнее положение по рисунку. Настройка хранится в EEPROM платы, отдельно от HTML.</p>';
  const powerNote=document.createElement('p');powerNote.className='hint';powerNote.textContent='Для USB-проб отсоедините внешний провод 5 В от Arduino: плата питается от USB, моторы и серво — от своих источников. Общий GND оставьте соединённым.';real.append(powerNote);pane.append(real);
  const projectButton=document.createElement('button');projectButton.id='downloadProject';projectButton.textContent='↓ Скачать проект Arduino (ZIP)';$('downloadHex').after(projectButton);
@@ -75,22 +71,33 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
    <p class="hint" id="servoLimitsStatus">Для калибровки нужна обновлённая прошивка. Сохранённые углы действуют и в автоматическом заезде.</p>
  `;
  const terminal=document.createElement('div');
+ const diagnosticRows=[];
+ let diagnosticStart=null;
+ const diagnosticColumns='received_at_utc,elapsed_ms,event,state,fault,ldr_left,ldr_centre,ldr_right,applied_pwm_left,applied_pwm_right,servo_angle,contact,held,line_error,marker,target_pwm_left,target_pwm_right';
+ function recordDiagnostic(event,values){
+  const received=performance.now();
+  diagnosticStart??=received;
+  diagnosticRows.push([new Date().toISOString(),Math.round(received-diagnosticStart),event,...values].join(','));
+ }
  const diagnosticsNote=document.createElement('p');
  diagnosticsNote.className='hint';
- diagnosticsNote.textContent='Для реальной калибровки включите «Телеметрия вкл.», проведите короткую безопасную пробу и сохраните журнал. В потоке видны три LDR, фактические команды PWM на драйвер и ошибка слежения. Полный отчёт доступен кнопкой «Статус» после остановки.';
+ diagnosticsNote.textContent='Перед заездом нажмите «Очистить журнал» и «Телеметрия вкл.». В CSV попадут все полученные показания и переходы между этапами. Полный отчёт доступен кнопкой «Статус» после остановки.';
  terminal.append(diagnosticsNote);
  terminal.append($('serialLog'),$('serialForm'));
  const clearLog=document.createElement('button');
  clearLog.textContent='Очистить журнал';
- clearLog.onclick=()=>$('serialLog').textContent='';
+ clearLog.onclick=()=>{
+  $('serialLog').textContent='';
+  diagnosticRows.length=0;
+  diagnosticStart=null;
+ };
  terminal.append(clearLog);
  const saveLog=document.createElement('button');
  saveLog.id='saveHardwareLog';saveLog.textContent='↓ Скачать журнал диагностики';
  saveLog.onclick=()=>{
-  const content=$('serialLog').textContent.trim();
-  if(!content){log('Журнал пуст. Сначала включите телеметрию.');return;}
-  const name='AmurCargo_Diagnostics_'+new Date().toISOString().replace(/[:.]/g,'-')+'.txt';
-  const url=URL.createObjectURL(new Blob([content+'\n'],{type:'text/plain;charset=utf-8'}));
+  if(!diagnosticRows.length){log('Журнал пуст. Сначала включите телеметрию.');return;}
+  const name='AmurCargo_Diagnostics_'+new Date().toISOString().replace(/[:.]/g,'-')+'.csv';
+  const url=URL.createObjectURL(new Blob([diagnosticColumns+'\r\n',diagnosticRows.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'}));
   const a=document.createElement('a');a.href=url;a.download=name;a.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
  };
@@ -249,9 +256,11 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   if(values?.length===lineFields.length&&!lineDirty)lineFields.forEach(({key},i)=>{$('live-'+key).value=values[i];});
   buttons();
  }
- if(s.startsWith('motion=')){
-  const values=s.slice(7).split(',').map(Number);
-  if(values.length===12&&values.every(Number.isInteger)){
+ if(s.startsWith('m=')||s.startsWith('motion=')){
+  const legacy=s.startsWith('motion=');
+  const values=s.slice(legacy?7:2).split(',').map(field=>field.trim()===''?NaN:Number(field));
+  if(values.length===(legacy?12:14)&&values.every(Number.isInteger)){
+   recordDiagnostic('sample',legacy?[...values,'','']:values);
    const [state,fault,left,centre,right,pwmL,pwmR,angle,contact,held,error,marker]=values;
    if(telemetry)telemetry.state=state;
    $('robotCargo').textContent=contact?'Обнаружен':'Нет';
@@ -264,6 +273,9 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  }
  const transition=s.match(/^stage=(\d+) fault=(\d+) held=(0|1)$/);
  if(transition){
+  const row=Array(14).fill('');
+  row[0]=transition[1];row[1]=transition[2];row[9]=transition[3];
+  recordDiagnostic('stage',row);
   const state=Number(transition[1]);
   if(telemetry){telemetry.state=state;telemetry.armed=false;}
   showStage(state,Number(transition[2]),transition[3]==='1');
@@ -301,9 +313,9 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  if(mt){
   if(!motorDirty)motorDefs.forEach(([id],i)=>{$(id).value=mt[i+1];});
  }
- const dynamics=String(s).match(/motor_dynamics=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)/);
+ const dynamics=String(s).match(/\bmotor_dynamics=(\d+),(\d+)/);
  if(dynamics&&!dynamicsDirty)dynamicsDefs.forEach(([id],i)=>{$(id).value=dynamics[i+1];});
- if(s.startsWith('MOTOR DYNAMICS UPDATED')){dynamicsDirty=false;$('motorConfigStatus').textContent='Пуск и ползучий режим применены. Сохраните всё в EEPROM.';}
+ if(s.startsWith('MOTOR DYNAMICS UPDATED')){dynamicsDirty=false;$('motorConfigStatus').textContent='Пусковой толчок применён. Сохраните всё в EEPROM.';}
  if(s.startsWith('MOTOR UPDATED')){motorDirty=false;$('motorConfigStatus').textContent='Применено в RAM; не сохранено в EEPROM.';}
  if(s.startsWith('MOTOR SAVED'))$('motorConfigStatus').textContent='Сохранено в EEPROM.';
  if(s.startsWith('MOTOR CLEARED'))$('motorConfigStatus').textContent='EEPROM очищена. Перезапустите плату для возврата к настройкам прошивки.';
@@ -453,23 +465,12 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   }
   send('motor set '+values.join(' ')).catch(e=>log(e.message));
  };
- $('motorSmoothPreset').onclick=()=>{
-  $('motorCrawlLimit').value='0';
-  dynamicsDirty=true;
-  $('motorConfigStatus').textContent='Ползучий режим подготовлен к отключению. Нажмите «Применить толчок и ползучий режим»; минимальный PWM настраивается отдельно.';
- };
- $('motorPulsePreset').onclick=()=>{
-  $('motorCrawlPeriod').value='40';
-  $('motorCrawlMinOn').value='8';
-  dynamicsDirty=true;
-  $('motorConfigStatus').textContent='Частые импульсы подготовлены. Нажмите «Применить» и проверяйте сначала без нагрузки.';
- };
  $('motorDynamicsApply').onclick=()=>{
   const values=dynamicsDefs.map(([id])=>$(id).value===''?NaN:Number($(id).value));
-  if(values.some((v,i)=>!Number.isInteger(v)||v<dynamicsDefs[i][2]||v>dynamicsDefs[i][3])||values[5]>=values[4]){
-   $('motorConfigStatus').textContent='Проверьте параметры: минимальное включение должно быть короче периода.';return;
+  if(values.some((v,i)=>!Number.isInteger(v)||v<dynamicsDefs[i][2]||v>dynamicsDefs[i][3])){
+   $('motorConfigStatus').textContent='Допустимы PWM 0–255 и длительность 0–150 мс.';return;
   }
-  send('motor dynamics '+values.join(' ')).catch(e=>log(e.message));
+  send('motor dynamics '+values.join(' ')+' 0 110 160 16').catch(e=>log(e.message));
  };
  for(const {key} of lineFields)$('live-'+key).addEventListener('input',()=>{lineDirty=true;buttons();});
  $('lineApply').onclick=()=>{

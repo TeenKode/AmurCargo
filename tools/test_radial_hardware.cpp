@@ -63,7 +63,7 @@ int main(){
  steps(h,5);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
  cmd(h,"arm");cmd(h,"jog 0 0 100");assert(!h.jogging);
  // A two-stage diagnostic proves whether low PWM continues after an initial kick.
- // It bypasses ALL autonomous limits, trims, ramp, and crawl periods.
+ // It bypasses ALL autonomous limits, trims, and ramp.
  cmd(h,"arm");cmd(h,"jogkick 20 -25 800 150 60");assert(h.jogging&&h.jogWithKick);
  steps(h,1);assert(outputPins[10]==150&&outputPins[11]==150);
  assert(outputPins[12]==HIGH&&outputPins[13]==LOW);
@@ -128,20 +128,18 @@ int main(){
  tuned.outputMotors(0,0);
  cmd(tuned,"motor set 5 5 1000 1000 0 120 95 100 135 125 8 12");assert(tuned.v(P_DRIVE_PWM)==130);
  cmd(tuned,"motor set 5 5 1000 1000 130 120 95 100 135 125 0 12");assert(tuned.motorMinLeft==100);
- // Optional start kick is applied once per motion, not on every crawl pulse.
+ // Legacy commands still configure the kick. The motor runs continuously
+ // at its calibrated minimum once the kick ends.
  cmd(tuned,"motor dynamics 145 60 75 110 160 16");
- assert(tuned.motorKickPwm==145&&tuned.motorCrawlLimit==75);
-  assert(tuned.robot.crawlLimit==75&&tuned.robot.crawlPwm==110);
+ assert(tuned.motorKickPwm==145&&tuned.motorKickMs==60);
  tuned.outputMotors(30,0);assert(outputPins[10]==145&&outputPins[11]==0);
  const int kickWrites=pwmWrites[10];
  tuned.outputMotors(30,0);assert(outputPins[10]==145&&pwmWrites[10]==kickWrites);
- clockMs+=70;
- tuned.outputMotors(30,0);
- const int onMs=36*160/110; // 30 * left trim 1.2
- assert(outputPins[10]==((clockMs%160)<(uint32_t)onMs?110:0));
- clockMs+=160; // No further kick on a repeated request.
- tuned.outputMotors(30,0);
- assert(outputPins[10]==((clockMs%160)<(uint32_t)onMs?110:0));
+ for(int i=1;i<=160;i++){
+  clockMs+=10;
+  tuned.outputMotors(30,0);
+  assert(outputPins[10]==(i<6?145:100));
+ }
  tuned.outputMotors(0,0);assert(outputPins[10]==0);
  tuned.outputMotors(-30,0);assert(outputPins[10]==145&&outputPins[12]==LOW);
  tuned.outputMotors(30,0); // Direction reversal is not another kick.
@@ -167,26 +165,24 @@ int main(){
  cmd(tuned,"motor dynamics 145 60 75 110 160 16");
  cmd(tuned,"arm");cmd(tuned,"jog 15 0 50");steps(tuned,1);
  assert(outputPins[10]==15);steps(tuned,5);assert(outputPins[10]==0);
- cmd(tuned,"motor dynamics 145 151 75 110 160 16");assert(tuned.motorKickMs==60);
- cmd(tuned,"motor dynamics 145 60 75 110 10 16");assert(tuned.motorCrawlPeriod==160);
- // Faster pulse schedules are accepted, with "on" still shorter than a cycle.
- cmd(tuned,"motor dynamics 145 60 75 110 40 8");
- assert(tuned.motorCrawlPeriod==40&&tuned.motorCrawlMinOn==8);
- cmd(tuned,"motor dynamics 145 60 75 110 30 30");
- assert(tuned.motorCrawlPeriod==40); // on duration must be < period
- cmd(tuned,"motor dynamics 145 60 75 110 160 16");
- assert(tuned.motorCrawlPeriod==160&&tuned.motorCrawlMinOn==16);
+ cmd(tuned,"motor dynamics 180 151");assert(tuned.motorKickPwm==145);
+ cmd(tuned,"motor dynamics 180 60 75 110 160 bad");assert(tuned.motorKickPwm==145);
  cmd(tuned,"motor save");
+ // Simulate a legacy EEPROM profile with the crawl mode enabled.
+ StoredMotorDynamics oldProfile={0x4B53,145,60,{75,110,160,16},0};
+ oldProfile.check=RobotHardware::dynamicsChecksum(oldProfile);
+ EEPROM.put(980,oldProfile);
  RobotHardware dynamicsBoot;dynamicsBoot.init();
  assert(dynamicsBoot.motorKickPwm==145&&dynamicsBoot.motorKickMs==60);
-  assert(dynamicsBoot.robot.minMotorLeft==100&&dynamicsBoot.robot.crawlLimit==75);
- assert(dynamicsBoot.motorCrawlLimit==75&&dynamicsBoot.motorCrawlPeriod==160);
- assert(dynamicsBoot.motorCrawlMinOn==16);
+ assert(dynamicsBoot.robot.minMotorLeft==100);
+ dynamicsBoot.outputMotors(30,0);assert(outputPins[10]==145);
+ clockMs+=60;
+ dynamicsBoot.outputMotors(30,0);assert(outputPins[10]==100);
  // The optional 980..989 record has its own CRC and must not affect
  // existing motor trims (960..979) or servo limits (990..999).
  EEPROM.bytes[985]^=1;
  RobotHardware damagedDynamics;damagedDynamics.init();
- assert(damagedDynamics.motorKickPwm==0&&damagedDynamics.motorCrawlLimit==0);
+ assert(damagedDynamics.motorKickPwm==0);
  assert(damagedDynamics.motorMinLeft==100);
  cmd(tuned,"motor save");
  cmd(tuned,"motor save");
@@ -197,7 +193,7 @@ int main(){
  assert(corruptedMotors.motorMinLeft==70&&corruptedMotors.v(P_DRIVE_PWM)==85);
  cmd(tuned,"motor save");cmd(tuned,"motor clear");
  RobotHardware erasedMotors;erasedMotors.init();assert(erasedMotors.motorMinRight==70&&erasedMotors.v(P_DRIVE_PWM)==85);
- assert(erasedMotors.motorKickPwm==0&&erasedMotors.motorCrawlLimit==0);
+ assert(erasedMotors.motorKickPwm==0);
  Settings wrong=h.settings;wrong.v[P_SERVO_PIN]=10;assert(pinSettingsError(wrong)==305);
  wrong=h.settings;wrong.v[P_CONTACT_PIN]=12;assert(pinSettingsError(wrong)!=0);
  wrong=h.settings;wrong.v[P_START_PIN]=4;assert(pinSettingsError(wrong)==306);

@@ -2,6 +2,7 @@
 #include "RadialCore.h"
 #include <cassert>
 #include <cstdio>
+#include <initializer_list>
 
 // Deterministic host tests: real AVR and WASM both compile this same controller.
 static SensorInput sample(uint16_t l,uint16_t c,uint16_t r){
@@ -26,11 +27,11 @@ int main(){
  assert(timed.state==HUB_EXIT);
  // At the same effective motor drive, lowering the requested PWM must not
  // double the time. Higher or asymmetric minimums are also respected.
- timed.configureMotion(100,110,0,110,160,16);
+ timed.configureMotion(100,110);
  assert(timed.pivotMs(510)==510);
- timed.configureMotion(0,0,0,110,160,16);
+ timed.configureMotion(0,0);
  assert(timed.pivotMs(510)>1000);
- timed.configureMotion(70,70,0,110,160,16);
+ timed.configureMotion(70,70);
  timing.v[P_TURN_PWM]=40;
  timed.init(timing,0);timed.enter(UTURN,0);
  const uint32_t slowMin=timed.pivotMs(timing.v[P_UTURN_MIN_MS]);
@@ -44,20 +45,6 @@ int main(){
  assert(timed.state==UTURN);
  timed.tick(sample(0,1000,0),settleSlow+slowMin+50);
  assert(timed.state==RETURN_HUB);
- // Crawl pulses are estimated by their on-time, never treated as continuous
- // high-PWM travel; the independent timeout still remains finite.
- timed.configureMotion(0,0,90,110,160,16);
- assert(timed.motionMs(1000,40,85)>1000);
- assert(timed.motionMs(0,40,85)==0);
-
- // Quantized pulse on-time feeds both the driver and estimated travel.
- timed.configureMotion(70,70,90,110,160,16);
- assert(timed.crawlOn(1)==16);
- assert(timed.effectiveWheelPwm(1,1000,70)==11);
- assert(timed.crawlOn(40)==58);
- timed.configureMotion(70,70,150,110,160,16);
- assert(timed.crawlOn(115)==0&&timed.effectiveWheelPwm(115,1000,70)==115);
-
  // Delayed loop iterations do not stretch the configured PWM ramp or
  // skip the zero crossing when either wheel reverses.
  timed.init(timing,0);timed.drive(85,85);
@@ -234,16 +221,42 @@ int main(){
  assert(robot.state==HUB_EXIT&&robot.wantLeft<robot.wantRight);
  robot.tick(sample(0,1000,0),settings.v[P_SETTLE_MS]+settings.v[P_HUB_EXIT_MS]);
  assert(robot.state==ACQUIRE&&robot.wantLeft==0&&robot.wantRight==0);
- // An uncertain turn must never cause prolonged full-speed blind driving.
- robot.init(settings,0);robot.enter(ACQUIRE,0);
- robot.tick(sample(0,0,0),settings.v[P_SETTLE_MS]+5);
- assert(robot.wantLeft==55&&robot.wantRight==55);
- robot.tick(sample(0,0,0),settings.v[P_SETTLE_MS]+135);
- assert(robot.wantLeft==-55&&robot.wantRight==55);
- robot.tick(sample(0,0,0),settings.v[P_SETTLE_MS]+settings.v[P_ACQUIRE_MS]/2+10);
- assert(robot.wantLeft==55&&robot.wantRight==-55);
- robot.tick(sample(0,0,0),settings.v[P_SETTLE_MS]+settings.v[P_ACQUIRE_MS]+1);
- assert(robot.state==FAULT&&robot.fault==EXIT_TIMEOUT&&robot.wantLeft==0&&robot.wantRight==0);
+ // Sweep equal distances around the starting heading within one search budget.
+ for(const int direction:{-1,1}){
+  robot.init(settings,0);robot.enter(ACQUIRE,0);robot.turnSteps=direction;
+  const uint32_t settle=settings.v[P_SETTLE_MS],budget=settings.v[P_ACQUIRE_MS];
+  int first=0,sweepBack=0;
+  for(uint32_t t=0;t<budget;t++){
+   robot.tick(sample(0,0,0),settle+t);
+   if(t<120)assert(robot.wantLeft==55&&robot.wantRight==55);
+   else if(robot.wantLeft==-55*direction)first++;
+   else if(robot.wantLeft==55*direction)sweepBack++;
+  }
+  assert(first==(budget-120)/3);
+  assert(sweepBack-first>=first&&sweepBack-first<=first+2);
+  robot.tick(sample(0,0,0),settle+budget);
+  assert(robot.state==FAULT&&robot.fault==EXIT_TIMEOUT&&robot.wantLeft==0&&robot.wantRight==0);
+ }
+ // Approach and retreat keep a matched profile even after picking up cargo.
+ Settings lowSpeed;loadDefaultSettings(lowSpeed);
+ lowSpeed.v[P_DRIVE_PWM]=35;lowSpeed.v[P_LOADED_PWM]=30;
+ RadialRobot slowRobot;slowRobot.init(lowSpeed,0);slowRobot.configureMotion(0,0);
+ const uint32_t settleLow=lowSpeed.v[P_SETTLE_MS];
+ slowRobot.enter(APPROACH,0);
+ uint32_t search=slowRobot.approachMs(slowRobot.z(Z_SEARCH_MS),35);
+ slowRobot.tick(sample(0,1000,0),settleLow+search-1);
+ assert(slowRobot.state==APPROACH&&slowRobot.wantLeft==35&&slowRobot.wantRight==35);
+ slowRobot.tick(sample(0,1000,0),settleLow+search);
+ assert(slowRobot.state==RETREAT);
+ slowRobot.loaded=true;
+ const uint32_t retreat=slowRobot.entered;
+ slowRobot.tick(sample(0,1000,0),retreat+settleLow+slowRobot.retreatDuration-1);
+ assert(slowRobot.state==RETREAT&&slowRobot.wantLeft==-35&&slowRobot.wantRight==-35);
+ slowRobot.tick(sample(0,1000,0),retreat+settleLow+slowRobot.retreatDuration);
+ assert(slowRobot.state==UTURN);
+ slowRobot.init(lowSpeed,0);slowRobot.enter(DROP_BACK,0);
+ slowRobot.tick(sample(0,1000,0),settleLow+20);
+ assert(slowRobot.wantLeft==-30&&slowRobot.wantRight==-30);
  // Ignore a single-line spike and the hub's own optical signature.
  robot.init(settings,0);robot.enter(ACQUIRE,0);
  SensorInput hub=sample(500,500,500);hub.hub[0]=true;

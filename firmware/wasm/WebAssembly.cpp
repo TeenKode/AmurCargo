@@ -15,7 +15,7 @@ void search_count(int count){settings.searchCount=(uint8_t)count;}
 int config_error(){int e=settingsError(settings);return e?e:pinSettingsError(settings);}
 void reset_robot(){
  // The simulator uses linear wheel output without the physical TT PWM floor.
- robot.configureMotion(0,0,0,110,160,16);
+ robot.configureMotion(0,0);
  robot.init(settings,0);
 }
 int start_robot(int now){return robot.start((uint32_t)now);}
