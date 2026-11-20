@@ -373,7 +373,7 @@
     {
       "key": "MARKER_MS",
       "label": "Подтверждение Т-отметки",
-      "default": 35,
+      "default": 20,
       "min": 5,
       "max": 300,
       "group": "Датчики",
