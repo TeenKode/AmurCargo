@@ -244,6 +244,7 @@ struct RobotHardware {
    settings.v[P_LIFT_HIGH]=limits.high;
   }
   robot.init(settings,millis());
+  robot.configureMotion(motorMinLeft,motorMinRight,motorCrawlLimit,motorCrawlPwm,motorCrawlPeriod,motorCrawlMinOn);
   const uint8_t pins[3]={(uint8_t)v(P_LINE_LEFT),(uint8_t)v(P_LINE_CENTRE),(uint8_t)v(P_LINE_RIGHT)};
   for(uint8_t i=0;i<3;i++)if(cal.pins[i]!=pins[i])valid=false;
   if(!valid){memset(&cal,0,sizeof(cal));cal.magic=0x52414431UL;cal.version=1;for(uint8_t i=0;i<3;i++)cal.pins[i]=pins[i];}
@@ -419,7 +420,7 @@ struct RobotHardware {
      (uint8_t)a[3],(uint8_t)a[4],(uint8_t)a[5],0};
     t.check=dynamicsChecksum(t);
     if(!validDynamics(t)){Serial.println(F("MOTOR REFUSED: invalid kick/crawl settings"));return;}
-    applyDynamics(t);armed=false;
+    applyDynamics(t);robot.configureMotion(motorMinLeft,motorMinRight,motorCrawlLimit,motorCrawlPwm,motorCrawlPeriod,motorCrawlMinOn);armed=false;
     Serial.println(F("MOTOR DYNAMICS UPDATED: RAM only; use motor save"));status();return;
    }
    if(action&&!strcmp(action,"set")){
@@ -437,7 +438,7 @@ struct RobotHardware {
     t.turn=(uint8_t)a[8];t.turnLoaded=(uint8_t)a[9];t.rampStep=(uint8_t)a[10];t.rampMs=(uint8_t)a[11];
     t.check=motorChecksum(t);
     if(!validMotor(t)){Serial.println(F("MOTOR REFUSED: values out of range"));return;}
-    applyMotor(t);armed=false;Serial.println(F("MOTOR UPDATED: RAM only; use motor save"));status();return;
+    applyMotor(t);robot.configureMotion(motorMinLeft,motorMinRight,motorCrawlLimit,motorCrawlPwm,motorCrawlPeriod,motorCrawlMinOn);armed=false;Serial.println(F("MOTOR UPDATED: RAM only; use motor save"));status();return;
    }
    if(action&&!strcmp(action,"save")&&!strtok(0," \t")){
     const StoredMotorTuning t=motorPreset();EEPROM.put(960,t);
