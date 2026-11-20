@@ -204,6 +204,9 @@ struct RadialRobot {
     }
     if(turnGapSeen && lineTimer.test(e>=minMs&&onCentre&&narrow(s),now,v(P_TURN_LINE_MS))){
      heading=(uint8_t)((ray+4)%8);enter(RETURN_HUB,now);
+     // The confirmed line crossing is the stop point: don't coast through it
+     // while the normal motor PWM ramp winds down.
+     left=right=0;
     }else if(e>maxMs)fail(TURN_TIMEOUT,now);
     else drive(-turn,turn);
     break;
