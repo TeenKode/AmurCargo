@@ -103,9 +103,11 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   const [angle,physical,goal,low,high,start,raw,contact]=status.slice(1);
   const settled=String(s).match(/servo_settled=(0|1)/);
   telemetry={angle:Number(angle),goal:Number(goal),settled:settled?.[1]==='1'};
-  const diag=String(s).match(/pwm=(-?\d+)\s+(-?\d+)\s+target=(-?\d+)\s+(-?\d+)\s+err=(-?\d+)\s+corr=(-?\d+)\s+dfilter=(-?\d+)\s+lost_ms=(\d+)\s+cal=(\d+)/);
+  const diag=String(s).match(/pwm=(-?\d+)\s+(-?\d+)\s+target=(-?\d+)\s+(-?\d+)\s+err=(-?\d+)\s+corr=(-?\d+)\s+dfilter=(-?\d+)\s+lost_ms=(\d+).*?\bcal=(\d+)/);
+  const applied=String(s).match(/motor_applied=(-?\d+),(-?\d+)\s+motor_jog=(0|1)/);
+  const motorFeedback=applied?` · на драйвере ${applied[1]}/${applied[2]}${applied[3]==='1'?' (проба)':''}`:'';
   const navigation=diag?` · PWM ${diag[1]}/${diag[2]} (цель ${diag[3]}/${diag[4]}) · ошибка ${diag[5]} · коррекция ${diag[6]} · потеря ${diag[8]} мс · калибровка ${diag[9]==='0'?'готова':diag[9]==='1'?'неполная':'круги неразличимы'}`:'';
-  $('liveHardware').textContent=`Серво: команда ${angle}° → ${goal}° · выход D9: ${physical}° · ${telemetry.settled?'программная выдержка завершена':'перемещение / выдержка'} · датчики ${raw.trim()} · старт ${start==='1'?'нажата':'отпущена'} · груз ${contact==='1'?'есть':'нет'}${navigation}`;
+  $('liveHardware').textContent=`Серво: команда ${angle}° → ${goal}° · выход D9: ${physical}° · ${telemetry.settled?'программная выдержка завершена':'перемещение / выдержка'} · датчики ${raw.trim()} · старт ${start==='1'?'нажата':'отпущена'} · груз ${contact==='1'?'есть':'нет'}${navigation}${motorFeedback}`;
   $('servoLimitsStatus').textContent=`В Arduino сохранены рабочие положения ${low}° и ${high}°.`;
   if(!limitsLoaded||String(s).includes('SERVO LIMITS SAVED')){
    $('servoLow').value=low;$('servoHigh').value=high;$('servoTarget').value=goal;
