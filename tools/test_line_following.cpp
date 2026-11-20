@@ -8,6 +8,48 @@ static SensorInput sample(uint16_t l,uint16_t c,uint16_t r){
  SensorInput s={{l,c,r},{false,false},false,false};return s;
 }
 int main(){
+ // Configured distances are calibrated at stock PWM, not absolute wall time.
+ // The effective speed model includes EEPROM minimum PWM and both motor trims.
+ Settings timing;loadDefaultSettings(timing);
+ RadialRobot timed;timed.init(timing,0);
+ assert(timed.motionMs(510,85,85)==510);
+ assert(timed.motionMs(800,55,55)==800);
+ timing.v[P_TURN_PWM]=40;
+ const uint32_t slow45=timed.pivotMs(timing.v[P_TURN45_MS]);
+ assert(slow45>timing.v[P_TURN45_MS]);
+ assert(slow45>=617&&slow45<=620); // Floor 70, not 40; Q8 precision.
+ timed.enter(HUB_TURN,0);timed.turnSteps=1;
+ const uint32_t turnDeadline=timing.v[P_SETTLE_MS]+timing.v[P_TURN_START_MS]+slow45;
+ timed.tick(sample(0,0,0),turnDeadline-1);
+ assert(timed.state==HUB_TURN);
+ timed.tick(sample(0,0,0),turnDeadline);
+ assert(timed.state==HUB_EXIT);
+ // At the same effective motor drive, lowering the requested PWM must not
+ // double the time. Higher or asymmetric minimums are also respected.
+ timed.configureMotion(100,110,0,110,160,16);
+ assert(timed.pivotMs(510)==510);
+ timed.configureMotion(0,0,0,110,160,16);
+ assert(timed.pivotMs(510)>1000);
+ timed.configureMotion(70,70,0,110,160,16);
+ timing.v[P_TURN_PWM]=40;
+ timed.init(timing,0);timed.enter(UTURN,0);
+ const uint32_t slowMin=timed.pivotMs(timing.v[P_UTURN_MIN_MS]);
+ const uint32_t slowMax=timed.pivotMs(timing.v[P_UTURN_MAX_MS]);
+ assert(slowMin>500&&slowMax>2800);
+ const uint32_t settleSlow=timing.v[P_SETTLE_MS];
+ timed.tick(sample(0,0,0),settleSlow+5);
+ timed.tick(sample(0,0,0),settleSlow+55);
+ assert(timed.turnGapSeen);
+ timed.tick(sample(0,1000,0),settleSlow+slowMin+10);
+ assert(timed.state==UTURN);
+ timed.tick(sample(0,1000,0),settleSlow+slowMin+50);
+ assert(timed.state==RETURN_HUB);
+ // Crawl pulses are estimated by their on-time, never treated as continuous
+ // high-PWM travel; the independent timeout still remains finite.
+ timed.configureMotion(0,0,90,110,160,16);
+ assert(timed.motionMs(1000,40,85)>1000);
+ assert(timed.motionMs(0,40,85)==0);
+
  Settings settings;loadDefaultSettings(settings);
  RadialRobot robot;robot.init(settings,0);
  robot.follow(sample(0,1000,0),85,10);
