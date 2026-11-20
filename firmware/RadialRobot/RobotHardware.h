@@ -516,7 +516,7 @@ struct RobotHardware {
   else if(before==DELIVERY_OUT&&robot.state==DELIVERY_CREEP)Serial.println(F("MARKER CONFIRMED: DELIVERY ZONE"));
   // Apply the requested test PWM immediately; ramp() is for the mission only.
   // The next tick returns to zero as soon as the jog deadline expires.
-  int16_t testLeft=jogLeft,testRight=jogRight;
+  int16_t testLeft=jogging?jogLeft:0,testRight=jogging?jogRight:0;
   if(jogging&&jogWithKick&&!jogHoldLogged){
    // Never reduce a requested high PWM during the kick stage.
    if(testLeft)testLeft=(testLeft<0?-1:1)*(int16_t)(abs16(testLeft)>jogProbeKickPwm?abs16(testLeft):jogProbeKickPwm);
