@@ -81,7 +81,7 @@ struct RobotHardware {
  static bool validDynamics(const StoredMotorDynamics &t){
   return t.magic==0x4B53&&t.check==dynamicsChecksum(t)&&
    t.kickMs<=150&&t.crawlLimit<=150&&
-   t.crawlPwm>=40&&t.crawlPeriod>=60&&t.crawlMinOn>=5&&
+   t.crawlPwm>=40&&t.crawlPeriod>=30&&t.crawlMinOn>=5&&
    t.crawlMinOn<t.crawlPeriod;
  }
  StoredMotorDynamics dynamicsPreset()const{
