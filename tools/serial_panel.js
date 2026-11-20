@@ -126,6 +126,7 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
    <select id="robotMode"><option value="full">Поиск и доставка</option><option value="line">По линии до груза</option></select>
   </div>
   <p class="hint" id="robotModeHelp"></p>
+  <p class="hint">Без USB удерживайте START 6 секунд и отпустите. Три коротких сигнала после отпускания — «По линии до груза», один длинный — «Поиск и доставка». Для заезда держите START до двух коротких сигналов, отпустите, затем коротко нажмите и отпустите.</p>
   <div class="cal-buttons">
    <button data-command="arm" id="armMission">Разрешить запуск</button>
    <button data-command="start" id="startMission" class="primary">Запустить</button>

@@ -40,14 +40,17 @@ int main(){
  adcPins[14]=200;steps(restored,1);assert(restored.input.line[0]==1000);
  adcPins[14]=800;steps(restored,2);assert(restored.input.line[0]==0);
  adcPins[14]=200;steps(restored,3);assert(restored.input.line[0]==1000);
- // START: reject bouncing, arm after a long press and release, launch after
+ // START: reject bouncing, arm and sound while held, launch after
  // a second short press and release, abort motion on a confirmed press.
  RobotHardware start;start.init();
  inputPins[17]=LOW;steps(start,2);assert(!start.stableButton&&!start.armed);
  inputPins[17]=HIGH;steps(start,5);assert(!start.stableButton&&!start.armed);
  inputPins[17]=LOW;steps(start,5);assert(start.stableButton&&!start.armed);
- steps(start,205);assert(!start.armed);
- inputPins[17]=HIGH;steps(start,5);assert(start.armed&&start.robot.state==IDLE);
+ steps(start,199);assert(!start.armed&&!start.buzzer.busy());
+ steps(start,1);assert(start.armed&&start.robot.state==IDLE);
+ assert(start.buzzer.remaining==2&&outputPins[4]==HIGH&&start.buzzer.changedAt==clockMs);
+ steps(start,30);assert(!start.buzzer.busy()&&start.armed);
+ inputPins[17]=HIGH;steps(start,5);assert(start.armed&&start.robot.state==IDLE&&!start.buzzer.busy());
  inputPins[17]=LOW;steps(start,5);assert(start.robot.state==IDLE);
  inputPins[17]=HIGH;steps(start,5);assert(start.robot.active());
  inputPins[17]=LOW;steps(start,5);assert(start.robot.state==FAULT&&start.robot.fault==ABORTED&&!start.armed);
@@ -257,20 +260,32 @@ int main(){
  cmd(pickup,"erase");
  sample(pickup,"cal white",800);sample(pickup,"cal black",200);
  assert(!pickup.calibrationReady());
- cmd(pickup,"arm");cmd(pickup,"mode line");
+ inputPins[17]=LOW;steps(pickup,605);
+ assert(pickup.armed&&!pickup.lineMode&&pickup.robot.state==IDLE);
+ inputPins[17]=HIGH;steps(pickup,5);
  assert(pickup.lineMode&&!pickup.armed&&pickup.calibrationReady());
+ assert(pickup.buzzer.remaining==3&&pickup.buzzer.onMs==100);
  cmd(pickup,"save");
  cmd(pickup,"line set 800 80 40 35 300 50");
  assert(pickup.v(P_LINE_THRESHOLD)==350&&pickup.v(P_KP)==60); // Equal to wide threshold.
  cmd(pickup,"line set 400 80 40 35 300 50");
  assert(pickup.v(P_LINE_THRESHOLD)==400&&pickup.v(P_CONTACT_MS)==50);
  cmd(pickup,"line save");
+ inputPins[17]=LOW;
  RobotHardware lineBoot;lineBoot.init();
+ steps(lineBoot,610);
+ inputPins[17]=HIGH;steps(lineBoot,5);
  assert(lineBoot.lineMode&&lineBoot.calibrationReady()&&lineBoot.v(P_KP)==80);
+ assert(!lineBoot.armed&&lineBoot.robot.state==IDLE);
  cmd(lineBoot,"start");assert(lineBoot.robot.state==IDLE);
  adcPins[14]=800;adcPins[15]=200;adcPins[16]=800;
  steps(lineBoot,4);
- cmd(lineBoot,"arm");cmd(lineBoot,"start");
+ inputPins[17]=LOW;steps(lineBoot,205);
+ assert(lineBoot.armed&&lineBoot.robot.state==IDLE);
+ inputPins[17]=HIGH;steps(lineBoot,5);
+ assert(lineBoot.armed&&lineBoot.robot.state==IDLE);
+ inputPins[17]=LOW;steps(lineBoot,5);
+ inputPins[17]=HIGH;steps(lineBoot,5);
  assert(lineBoot.robot.state==LINE_PICKUP&&!lineBoot.armed);
  steps(lineBoot,3);
  assert(outputPins[10]>0&&outputPins[11]>0);
@@ -287,8 +302,13 @@ int main(){
  lineBoot.releaseButton(100,clockMs);assert(lineBoot.robot.state==DONE);
  inputPins[2]=LOW;cmd(lineBoot,"low");steps(lineBoot,340);cmd(lineBoot,"reset");
  assert(lineBoot.robot.state==IDLE&&lineBoot.lineMode);
- cmd(lineBoot,"line clear");cmd(lineBoot,"mode full");
+ cmd(lineBoot,"line clear");
+ inputPins[17]=LOW;steps(lineBoot,605);
+ inputPins[17]=HIGH;steps(lineBoot,5);
+ assert(!lineBoot.lineMode&&!lineBoot.armed&&lineBoot.buzzer.remaining==1&&lineBoot.buzzer.onMs==400);
  RobotHardware fullBoot;fullBoot.init();
  assert(!fullBoot.lineMode&&!fullBoot.calibrationReady()&&fullBoot.v(P_KP)==60);
+ cmd(fullBoot,"mode line");assert(fullBoot.lineMode);
+ cmd(fullBoot,"mode full");assert(!fullBoot.lineMode);
  puts("PASS: continuous motor PWM, median-filtered sensors, hardware adapter including independent persistent servo inversion, startup output, high/low mapping, detached confirmation, raised-fork lock and sensor-calibration erase/CRC independence, HW-511 modes and START debounce/hold/abort");
 }

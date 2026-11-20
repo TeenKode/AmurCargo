@@ -22,6 +22,7 @@ struct StoredMotorTuning {uint32_t magic;uint8_t minLeft,minRight;uint16_t leftT
 struct StoredMotorDynamics {uint16_t magic;uint8_t kickPwm,kickMs,legacy[4];uint16_t check;};
 #pragma pack(pop)
 static constexpr uint8_t LINE_TUNING_EEPROM=64, RUN_MODE_EEPROM=80;
+static constexpr uint16_t MODE_HOLD_MS=6000; // Longer than any supported arm hold.
 static_assert(sizeof(StoredCalibration)<=LINE_TUNING_EEPROM,"Line tuning must not overlap calibration");
 static_assert(LINE_TUNING_EEPROM+sizeof(StoredLineTuning)<=RUN_MODE_EEPROM,"Run mode must not overlap line tuning");
 static const uint8_t lineParams[]={P_LINE_THRESHOLD,P_KP,P_KD,P_MAX_CORRECTION,P_LOST_MS,P_CONTACT_MS};
@@ -42,6 +43,7 @@ struct RobotHardware {
  uint8_t motorKickPwm,motorKickMs;
  int8_t lastRequestedSign[2];uint32_t kickStarted[2],wheelStopped[2];
  bool lineMode,armed,stream,calibrating,jogging,jogWithKick,jogHoldLogged,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed,manualServoPending,contactPullup;
+ bool armHoldSignaled;
  uint8_t calKind,samples,lineLength;
  uint32_t sampleSum[3],lastRead,buttonChanged,buttonPressed,lastStream,jogStarted;
  uint8_t defaultServoLow,defaultServoHigh;
@@ -212,7 +214,7 @@ struct RobotHardware {
      savedBuzzer.check==(uint8_t)(0xA6^savedBuzzer.enabled))
    buzzer.setEnabled(savedBuzzer.enabled);
   lineMode=EEPROM.read(RUN_MODE_EEPROM)==0xA5;
-  armed=stream=calibrating=jogging=jogWithKick=jogHoldLogged=skipButtonRelease=lineOverflow=manualServoPending=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
+  armed=stream=calibrating=jogging=jogWithKick=jogHoldLogged=skipButtonRelease=armHoldSignaled=lineOverflow=manualServoPending=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
   lineHistorySlot=0;lineHistoryReady=false;appliedLeft=appliedRight=0;
   lastAudibleState=IDLE;
   lastRequestedSign[0]=lastRequestedSign[1]=0;kickStarted[0]=kickStarted[1]=wheelStopped[0]=wheelStopped[1]=lastRead;
@@ -239,7 +241,9 @@ struct RobotHardware {
     settings.v[P_CONTACT_LOW]=contactMode.activeLow;contactPullup=contactMode.pullup;
    }
    configureContactInput();outputMotors(0,0);
-  rawButton=stableButton=digitalRead(v(P_START_PIN))==LOW;buttonPressed=millis();
+  rawButton=stableButton=digitalRead(v(P_START_PIN))==LOW;
+  skipButtonRelease=stableButton; // Require a fresh press after powering up.
+  buttonPressed=millis();
   EEPROM.get(0,cal);bool valid=cal.magic==0x52414431UL&&cal.version==1&&cal.crc==calibrationCrc(cal);
   StoredServoDirection direction;EEPROM.get(1000,direction);servoReversed=direction.magic==0x53525631UL&&direction.reverse<=1&&direction.check==(uint8_t)(direction.reverse^255)&&direction.reverse;
   defaultServoLow=v(P_LIFT_LOW);defaultServoHigh=v(P_LIFT_HIGH);
@@ -256,7 +260,7 @@ struct RobotHardware {
   for(uint8_t i=0;i<3;i++)if(cal.pins[i]!=pins[i])valid=false;
   if(!valid){memset(&cal,0,sizeof(cal));cal.magic=0x52414431UL;cal.version=1;for(uint8_t i=0;i<3;i++)cal.pins[i]=pins[i];}
   lift.attach(v(P_SERVO_PIN));lift.write(servoOutputAngle());
-  memset(&input,0,sizeof(input));Serial.println(F("RADIAL READY. Hold START 2s to arm, release; short press to run. help"));
+  memset(&input,0,sizeof(input));Serial.println(F("RADIAL READY. Hold START 6s to change mode; 2s to arm; short press to run. help"));
   buzzer.play(ShieldBuzzer::READY,millis());
  }
  void readSensors(uint32_t now){
@@ -279,6 +283,16 @@ struct RobotHardware {
   lineHistoryReady=true;lineHistorySlot=(uint8_t)((lineHistorySlot+1)%3);
   for(uint8_t h=0;h<2;h++){input.hub[h]=basic&&(cal.mask&(1U<<(h+2)));for(uint8_t i=0;i<3;i++){uint16_t expected=normalizeAdc(cal.hub[h][i],cal.white[i],cal.black[i]);if(abs16((int16_t)input.line[i]-expected)>v(P_HUB_TOLERANCE))input.hub[h]=false;}}
  }
+ void saveRunMode(bool line){
+  lineMode=line;
+  EEPROM.update(RUN_MODE_EEPROM,lineMode?0xA5:0xFF);
+  armed=false;
+ }
+ void armFromButton(uint32_t now){
+  armHoldSignaled=armed=true;
+  Serial.println(F("ARMED. Release, then short press START."));
+  buzzer.play(ShieldBuzzer::ARMED,now);
+ }
  void releaseButton(uint32_t held,uint32_t now){
   if(robot.active()||jogging||calibrating)return;
   if(robot.state==DONE){
@@ -286,7 +300,16 @@ struct RobotHardware {
    robot.init(settings,now);armed=false;return;
   }
   if(robot.state==FAULT){if(held>=v(P_ARM_HOLD_MS)&&robot.servoAngle==v(P_LIFT_LOW)&&!contact()){robot.init(settings,now);armed=false;Serial.println(F("FAULT RESET"));}return;}
-  if(held>=v(P_ARM_HOLD_MS)){armed=true;Serial.println(F("ARMED. Release, then short press START."));buzzer.play(ShieldBuzzer::ARMED,now);return;}
+  if(held>=MODE_HOLD_MS){
+   saveRunMode(!lineMode);
+   buzzer.play(lineMode?ShieldBuzzer::MODE_LINE:ShieldBuzzer::MODE_FULL,now);
+   status();
+   return;
+  }
+  if(held>=v(P_ARM_HOLD_MS)){
+   if(!armHoldSignaled)armFromButton(now);
+   return;
+  }
   if(!armed){Serial.println(F("NOT ARMED: hold START or send arm."));buzzer.play(ShieldBuzzer::WARNING,now);return;}
   startMission(now);
  }
@@ -305,10 +328,16 @@ struct RobotHardware {
   // Remember the stop even if the timed jog expires during button debounce.
   if(pressed&&jogging)skipButtonRelease=true;
   if((uint32_t)(now-buttonChanged)<35)return;
-  if(pressed==stableButton){if(!pressed)skipButtonRelease=false;return;}
+  if(pressed==stableButton){
+   if(!pressed)skipButtonRelease=false;
+   else if(!skipButtonRelease&&!armHoldSignaled&&!calibrating&&robot.state==IDLE&&
+           (uint32_t)(now-buttonPressed)>=v(P_ARM_HOLD_MS))armFromButton(now);
+   return;
+  }
   stableButton=pressed;
   if(pressed){
    buttonPressed=now;
+   armHoldSignaled=false;
    if(robot.active()){robot.fail(ABORTED,now);armed=false;}
    if(skipButtonRelease){jogging=false;armed=false;robot.stop();outputMotors(0,0);buzzer.play(ShieldBuzzer::STOPPED,now);}
   }else if(!skipButtonRelease){
@@ -464,7 +493,7 @@ struct RobotHardware {
   if(!strcmp(cmd,"mode")){
    const char *mode=strtok(0," \t");
    if(!mode||strtok(0," \t")||(strcmp(mode,"line")&&strcmp(mode,"full"))){Serial.println(F("Use mode full|line"));return;}
-   lineMode=!strcmp(mode,"line");EEPROM.update(RUN_MODE_EEPROM,lineMode?0xA5:0xFF);armed=false;status();return;
+   saveRunMode(!strcmp(mode,"line"));status();return;
   }
   if(!strcmp(cmd,"contact")){
     char *mode=strtok(0," \t"),*value=strtok(0," \t");
