@@ -11,6 +11,7 @@
 struct StoredCalibration {uint32_t magic;uint8_t version,pins[3],mask;uint16_t white[3],black[3],hub[2][3],crc;};
 struct StoredServoLimits { uint32_t magic; uint8_t low, high, reverse, check; };
 struct StoredServoDirection {uint32_t magic;uint8_t reverse,check;};
+struct StoredContactMode {uint32_t magic;uint8_t activeLow,pullup,check;};
 #pragma pack(pop)
 inline uint16_t calibrationCrc(const StoredCalibration &c){const uint8_t *p=(const uint8_t*)&c;uint16_t crc=0xA51D;for(uint8_t i=0;i<sizeof(c)-2;i++){crc^=(uint16_t)p[i]<<8;for(uint8_t b=0;b<8;b++)crc=crc&0x8000?(crc<<1)^0x1021:crc<<1;}return crc;}
 inline uint16_t normalizeAdc(uint16_t raw,uint16_t white,uint16_t black){int32_t span=(int32_t)black-white;if(!span)return 0;return (uint16_t)clamp16(((int32_t)raw-white)*1000L/span,0,1000);}
@@ -18,13 +19,20 @@ inline uint16_t normalizeAdc(uint16_t raw,uint16_t white,uint16_t black){int32_t
 struct RobotHardware {
  Settings settings;RadialRobot robot;AmurServo lift;StoredCalibration cal;
  uint16_t raw[3];SensorInput input;
- bool armed,stream,calibrating,jogging,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed,manualServoPending;
+ bool armed,stream,calibrating,jogging,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed,manualServoPending,contactPullup;
  uint8_t calKind,samples,lineLength;
  uint32_t sampleSum[3],lastRead,buttonChanged,buttonPressed,lastStream,jogStarted;
  uint8_t defaultServoLow,defaultServoHigh;
  uint16_t jogDuration;int16_t jogLeft,jogRight;int configError;char command[80];
  uint16_t v(Param p)const{return settings.v[p];}
  bool contact()const{return digitalRead(v(P_CONTACT_PIN))==(v(P_CONTACT_LOW)?LOW:HIGH);}
+  void configureContactInput(){pinMode(v(P_CONTACT_PIN),contactPullup?INPUT_PULLUP:INPUT);}
+  static uint8_t contactModeCheck(uint8_t activeLow,uint8_t pullup){return (uint8_t)(0xC7^activeLow^(pullup*0x5B));}
+  void saveContactMode(){
+   const uint8_t activeLow=(uint8_t)v(P_CONTACT_LOW),pullup=(uint8_t)contactPullup;
+   const StoredContactMode mode={0x434F4E31UL,activeLow,pullup,contactModeCheck(activeLow,pullup)};
+   EEPROM.put(1006,mode); // Servo limits at 990; direction at 1000..1005.
+  }
  enum CalibrationState { CAL_READY, CAL_INCOMPLETE, CAL_HUB_OVERLAP };
  CalibrationState calibrationState()const{
   const bool useHubSamples=v(P_HUB_MODE)==0;
@@ -77,7 +85,16 @@ struct RobotHardware {
   if(v(P_DRIVER_MODE)==2){const uint8_t pins[4]={12,13,10,11};for(uint8_t i=0;i<4;i++){pinMode(pins[i],OUTPUT);digitalWrite(pins[i],LOW);}pinMode(4,OUTPUT);digitalWrite(4,LOW);}
   else{uint8_t outs[8]={(uint8_t)v(P_LEFT_IN1),(uint8_t)v(P_LEFT_IN2),(uint8_t)v(P_RIGHT_IN1),(uint8_t)v(P_RIGHT_IN2),(uint8_t)v(P_LEFT_EN),(uint8_t)v(P_RIGHT_EN),(uint8_t)v(P_LED_PIN),(uint8_t)v(P_STANDBY_PIN)};
   for(uint8_t i=0;i<8;i++)if(outs[i]!=255&&(v(P_DRIVER_MODE)==0||i<4||i>5)){pinMode(outs[i],OUTPUT);digitalWrite(outs[i],LOW);}}
-  pinMode(v(P_START_PIN),INPUT_PULLUP);pinMode(v(P_CONTACT_PIN),INPUT_PULLUP);outputMotors(0,0);
+  // START is a normally-open switch to GND. HW-511 is a powered comparator
+   // module, not a switch: leave its signal unbiased unless explicitly requested.
+   pinMode(v(P_START_PIN),INPUT_PULLUP);
+   contactPullup=false;
+   StoredContactMode contactMode;EEPROM.get(1006,contactMode);
+   if(contactMode.magic==0x434F4E31UL&&contactMode.activeLow<=1&&contactMode.pullup<=1&&
+      contactMode.check==contactModeCheck(contactMode.activeLow,contactMode.pullup)){
+    settings.v[P_CONTACT_LOW]=contactMode.activeLow;contactPullup=contactMode.pullup;
+   }
+   configureContactInput();outputMotors(0,0);
   rawButton=stableButton=digitalRead(v(P_START_PIN))==LOW;buttonPressed=millis();
   EEPROM.get(0,cal);bool valid=cal.magic==0x52414431UL&&cal.version==1&&cal.crc==calibrationCrc(cal);
   StoredServoDirection direction;EEPROM.get(1000,direction);servoReversed=direction.magic==0x53525631UL&&direction.reverse<=1&&direction.check==(uint8_t)(direction.reverse^255)&&direction.reverse;
@@ -145,8 +162,15 @@ struct RobotHardware {
   Serial.print(F(" servo_high="));Serial.print(v(P_LIFT_HIGH));
   Serial.print(F(" servo_settled="));Serial.print(servoSettled(millis())?1:0);
   Serial.print(F(" start_button="));Serial.print(stableButton?1:0);
+   Serial.print(F(" start_raw="));Serial.print(digitalRead(v(P_START_PIN)));
+   Serial.print(F(" start_pin="));Serial.print(v(P_START_PIN));
+   Serial.print(F(" start_hold_ms="));Serial.print(stableButton?(uint32_t)(millis()-buttonPressed):0UL);
   Serial.print(F(" raw="));for(uint8_t i=0;i<3;i++){Serial.print(raw[i]);Serial.print(' ');}Serial.print(F(" line="));for(uint8_t i=0;i<3;i++){Serial.print(input.line[i]);Serial.print(' ');}
   Serial.print(F(" contact="));Serial.print(contact());
+   Serial.print(F(" contact_raw="));Serial.print(digitalRead(v(P_CONTACT_PIN)));
+   Serial.print(F(" contact_low="));Serial.print(v(P_CONTACT_LOW));
+   Serial.print(F(" contact_pullup="));Serial.print(contactPullup?1:0);
+   Serial.print(F(" contact_pin="));Serial.print(v(P_CONTACT_PIN));
   // Diagnostic values make illumination problems and failed ray acquisition
   // distinguishable from a motor or PID tuning problem in a saved serial log.
   Serial.print(F(" pwm="));Serial.print(robot.left);Serial.print(' ');Serial.print(robot.right);
@@ -181,7 +205,21 @@ struct RobotHardware {
    return;
   }
   if(robot.active()||jogging){Serial.println(F("BUSY: only status, stream, stop."));return;}
-  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; jog L R ms; status; stream; reset; erase; stop"));return;}
+   // Recover a sensor even in FAULT when a wrong contact level blocks RESET.
+   if(!strcmp(cmd,"contact")){
+    char *mode=strtok(0," \t"),*value=strtok(0," \t");
+    if(!mode || (value && strtok(0," \t")) || calibrating){
+     Serial.println(F("Use contact high|low or contact pullup on|off while stopped."));return;
+    }
+    if(!value && !strcmp(mode,"high"))settings.v[P_CONTACT_LOW]=0;
+    else if(!value && !strcmp(mode,"low"))settings.v[P_CONTACT_LOW]=1;
+    else if(value && !strcmp(mode,"pullup") && (!strcmp(value,"on")||!strcmp(value,"off"))){
+     contactPullup=!strcmp(value,"on");configureContactInput();
+    }else{Serial.println(F("Use contact high|low or contact pullup on|off."));return;}
+    armed=false;robot.contactTimer.clear();robot.heldTimer.clear();
+    saveContactMode();Serial.println(F("CONTACT CONFIG SAVED"));status();return;
+   }
+  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; contact high|low; contact pullup on|off; jog L R ms; status; stream; reset; erase; stop"));return;}
   if(!strcmp(cmd,"low")||!strcmp(cmd,"high")){robot.servoGoal=!strcmp(cmd,"low")?v(P_LIFT_LOW):v(P_LIFT_HIGH);manualServoPending=true;Serial.println(F("MANUAL SERVO: support any load."));status();return;}
   if(!strcmp(cmd,"reset")){if(robot.servoAngle!=v(P_LIFT_LOW)||contact()){Serial.println(F("RESET REFUSED: lower forks and remove load."));return;}robot.init(settings,now);manualServoPending=false;armed=false;return;}
   if(robot.state!=IDLE){Serial.println(F("RESET REQUIRED"));return;}
