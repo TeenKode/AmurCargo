@@ -7,7 +7,10 @@ void steps(RobotHardware &h,int count){for(int i=0;i<count;i++){clockMs+=10;h.ti
 void sample(RobotHardware &h,const char *name,int adc){for(int i=14;i<=16;i++)adcPins[i]=adc;cmd(h,name);steps(h,32);assert(!h.calibrating);}
 int main(){
  for(int i=0;i<32;i++)inputPins[i]=HIGH;
+ inputPins[2]=LOW; // HW-511 no reflective cargo, HIGH means cargo by default.
  RobotHardware h;h.init();assert(h.configError==0&&!h.armed&&!h.calibrationReady());
+ assert(h.v(P_CONTACT_LOW)==0&&!h.contactPullup&&pinModes[2]==INPUT&&pinModes[17]==INPUT_PULLUP&&!h.contact());
+ inputPins[2]=HIGH;assert(h.contact());inputPins[2]=LOW;assert(!h.contact());
  h.releaseButton(2200,clockMs);h.releaseButton(100,clockMs);assert(h.robot.state==IDLE);
  sample(h,"cal white",800);sample(h,"cal black",200);sample(h,"cal left",500);sample(h,"cal right",368);assert(h.calibrationReady());
  assert(normalizeAdc(800,800,200)==0&&normalizeAdc(200,800,200)==1000&&normalizeAdc(500,800,200)==500);
@@ -21,6 +24,18 @@ int main(){
  sample(h,"cal right",397);assert(h.calibrationReady());
  sample(h,"cal right",368);assert(h.calibrationReady());
  cmd(h,"save");RobotHardware restored;restored.init();assert(restored.calibrationReady());
+ // START: reject bouncing, arm after a long press and release, launch after
+ // a second short press and release, abort motion on a confirmed press.
+ RobotHardware start;start.init();
+ inputPins[17]=LOW;steps(start,2);assert(!start.stableButton&&!start.armed);
+ inputPins[17]=HIGH;steps(start,5);assert(!start.stableButton&&!start.armed);
+ inputPins[17]=LOW;steps(start,5);assert(start.stableButton&&!start.armed);
+ steps(start,205);assert(!start.armed);
+ inputPins[17]=HIGH;steps(start,5);assert(start.armed&&start.robot.state==IDLE);
+ inputPins[17]=LOW;steps(start,5);assert(start.robot.state==IDLE);
+ inputPins[17]=HIGH;steps(start,5);assert(start.robot.active());
+ inputPins[17]=LOW;steps(start,5);assert(start.robot.state==FAULT&&start.robot.fault==ABORTED&&!start.armed);
+ inputPins[17]=HIGH;steps(start,5);assert(start.robot.state==FAULT&&!start.armed);
  cmd(h,"arm");cmd(h,"jog 100 -100 100");assert(h.jogging);steps(h,5);assert(outputPins[10]>0&&outputPins[11]>0);steps(h,6);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
  for(int duration : {1000, 20}){
   cmd(h,"arm");
@@ -37,7 +52,7 @@ int main(){
  cmd(h,"low");steps(h,250);assert(h.robot.servoAngle==h.v(P_LIFT_LOW));h.releaseButton(100,clockMs);assert(h.robot.active());
  cmd(h,"jog 100 100 1000");assert(!h.jogging);const int angle=h.robot.servoAngle;cmd(h,"stop");steps(h,2);assert(h.robot.state==FAULT&&h.robot.fault==ABORTED&&outputPins[10]==0&&outputPins[11]==0&&h.robot.servoAngle==angle);
  cmd(h,"high");steps(h,250);cmd(h,"reset");assert(h.robot.state==FAULT);cmd(h,"low");steps(h,250);cmd(h,"reset");assert(h.robot.state==IDLE&&!h.armed);
- inputPins[h.v(P_CONTACT_PIN)]=LOW;cmd(h,"arm");h.releaseButton(100,clockMs);assert(h.robot.state==IDLE);inputPins[h.v(P_CONTACT_PIN)]=HIGH;
+ inputPins[h.v(P_CONTACT_PIN)]=HIGH;cmd(h,"arm");h.releaseButton(100,clockMs);assert(h.robot.state==IDLE);inputPins[h.v(P_CONTACT_PIN)]=LOW;
  h.releaseButton(100,clockMs);assert(h.robot.active());inputPins[h.v(P_START_PIN)]=LOW;steps(h,5);assert(h.robot.state==FAULT&&h.robot.fault==ABORTED&&outputPins[10]==0&&outputPins[11]==0);inputPins[h.v(P_START_PIN)]=HIGH;
  EEPROM.bytes[15]^=1;RobotHardware bad;bad.init();assert(!bad.calibrationReady());
  assert(h.v(P_DRIVER_MODE)==2&&h.v(P_CONTACT_PIN)==2&&h.v(P_LED_PIN)==255);
@@ -90,5 +105,15 @@ int main(){
  assert(calibrated.v(P_LIFT_HIGH)==119);
  cmd(calibrated,"stream on");assert(calibrated.stream);
  cmd(calibrated,"stream off");assert(!calibrated.stream);
- puts("PASS: hardware adapter including independent persistent servo inversion, startup output, high/low mapping, detached confirmation, raised-fork lock and sensor-calibration erase/CRC independence");
+ // Store both the logic level and optional pull-up independently from servo
+ // direction and calibration. Fresh boards use HIGH with INPUT, not PULLUP.
+ cmd(calibrated,"contact low");assert(calibrated.v(P_CONTACT_LOW)==1&&calibrated.contact());
+ cmd(calibrated,"contact pullup on");assert(calibrated.contactPullup&&pinModes[2]==INPUT_PULLUP);
+ RobotHardware contactBoot;contactBoot.init();
+ assert(contactBoot.v(P_CONTACT_LOW)==1&&contactBoot.contactPullup&&pinModes[2]==INPUT_PULLUP);
+ cmd(contactBoot,"contact high");cmd(contactBoot,"contact pullup off");
+ assert(contactBoot.v(P_CONTACT_LOW)==0&&!contactBoot.contactPullup&&!contactBoot.contact()&&pinModes[2]==INPUT);
+ RobotHardware contactBoot2;contactBoot2.init();
+ assert(contactBoot2.v(P_CONTACT_LOW)==0&&!contactBoot2.contactPullup&&pinModes[2]==INPUT);
+ puts("PASS: hardware adapter including independent persistent servo inversion, startup output, high/low mapping, detached confirmation, raised-fork lock and sensor-calibration erase/CRC independence, HW-511 modes and START debounce/hold/abort");
 }
