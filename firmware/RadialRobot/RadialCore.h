@@ -46,12 +46,9 @@ struct RadialRobot {
   if(!command)return 0;
   uint32_t power=(uint32_t)command*trim/1000UL;
   if(power>255)power=255;
-  if(crawlLimit&&power<crawlLimit&&crawlPwm&&crawlPeriod>1){
-   uint32_t on=power*crawlPeriod/crawlPwm;
-   if(on<crawlMinOn)on=crawlMinOn;
-   if(on>=crawlPeriod)on=crawlPeriod-1;
-   return (uint16_t)(on*crawlPwm/crawlPeriod);
-  }
+  // The pulse generator chooses duty approximately proportional to request;
+  // its average power is near this command (start/stop inertia still varies).
+  if(crawlLimit&&power<crawlLimit)return (uint16_t)power;
   return (uint16_t)(power<minimum?minimum:power);
  }
  __attribute__((noinline)) uint16_t effectiveMotionPwm(uint16_t command)const{
@@ -67,12 +64,12 @@ struct RadialRobot {
   if(!actual||!baseline)return calibratedMs;
   return (calibratedMs*(uint32_t)baseline+actual/2)/actual;
  }
- uint32_t cruiseMs(uint32_t calibratedMs)const{
+ __attribute__((noinline)) uint32_t cruiseMs(uint32_t calibratedMs)const{
   return motionMs(calibratedMs,loaded?v(P_LOADED_PWM):v(P_DRIVE_PWM),loaded?75:85);
  }
- uint32_t slowMs(uint32_t calibratedMs)const{return motionMs(calibratedMs,v(P_APPROACH_PWM),55);}
- uint32_t centreMs(uint32_t calibratedMs)const{return motionMs(calibratedMs,v(P_CENTRE_PWM),80);}
- uint32_t pivotMs(uint32_t calibratedMs)const{
+ __attribute__((noinline)) uint32_t slowMs(uint32_t calibratedMs)const{return motionMs(calibratedMs,v(P_APPROACH_PWM),55);}
+ __attribute__((noinline)) uint32_t centreMs(uint32_t calibratedMs)const{return motionMs(calibratedMs,v(P_CENTRE_PWM),80);}
+ __attribute__((noinline)) uint32_t pivotMs(uint32_t calibratedMs)const{
   return motionMs(calibratedMs,loaded?v(P_TURN_LOADED_PWM):v(P_TURN_PWM),loaded?75:85);
  }
  bool active()const{return state!=IDLE&&state!=DONE&&state!=FAULT;}
