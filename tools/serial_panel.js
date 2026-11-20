@@ -95,14 +95,18 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   setTimeout(()=>URL.revokeObjectURL(url),1000);
  };
  terminal.append(saveLog);
- const directionSection=section('Направление SG90',direction);
+ const sound=document.createElement('div');
+  sound.innerHTML='<p class="hint">Буззер D4 сигнализирует о старте, зонах, грузе, финише и ошибках. Отключение сохраняется после перезагрузки.</p>'+
+   '<div class="cal-buttons"><button data-command="buzzer test">Проверить звук</button><button data-command="buzzer off">Выключить</button><button data-command="buzzer on">Включить</button><button data-command="buzzer status">Состояние</button></div>'+
+   '<p class="hint">Тест доступен только при остановке. Выключить звук можно и во время движения.</p>';
+  const directionSection=section('Направление SG90',direction);
  limits.append(directionSection);
  const heading=document.createElement('h2');
  heading.textContent='Реальный робот';
  const portStatus=document.createElement('p');
  portStatus.id='portStatus';
  pane.replaceChildren(heading,$('serialSupport'),connection,portStatus,controls,
-  section('Сервопривод',limits,true),section('Датчики',sensors),
+  section('Сервопривод',limits,true),section('Звуковые сигналы',sound),section('Датчики',sensors),
   section('Скорости моторов',motor,true),section('Проба моторов',real),section('Прошивка',flashing),section('Терминал COM',terminal));
  let telemetry=null,limitsLoaded=false,motorDirty=false,dynamicsDirty=false;
  let busy=false,controller=null,monitor=null,openingMonitor=false;

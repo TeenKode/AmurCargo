@@ -50,6 +50,8 @@ jobs:
           npm test
           g++ -std=c++17 -Itools/kit_host -Ifirmware/RadialRobot tools/test_radial_hardware.cpp -o "$RUNNER_TEMP/amur-hardware-test"
           "$RUNNER_TEMP/amur-hardware-test"
+          g++ -std=c++17 -Itools/kit_host -Ifirmware/RadialRobot tools/test_shield_buzzer.cpp -o "$RUNNER_TEMP/amur-buzzer-test"
+          "$RUNNER_TEMP/amur-buzzer-test"
           g++ -std=c++17 -Ifirmware/RadialRobot tools/test_line_following.cpp -o "$RUNNER_TEMP/amur-line-test"
           "$RUNNER_TEMP/amur-line-test"
           g++ -std=c++17 -Itools/kit_host -Ifirmware/RadialRobot tools/test_l298p_servo_timing.cpp -o "$RUNNER_TEMP/amur-timer-test"

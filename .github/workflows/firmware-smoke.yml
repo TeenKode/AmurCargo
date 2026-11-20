@@ -21,6 +21,8 @@ jobs:
         run: |
           g++ -std=c++17 -Itools/kit_host -Ifirmware/RadialRobot tools/test_radial_hardware.cpp -o /tmp/amur-hardware-test
           /tmp/amur-hardware-test
+          g++ -std=c++17 -Itools/kit_host -Ifirmware/RadialRobot tools/test_shield_buzzer.cpp -o /tmp/amur-buzzer-test
+          /tmp/amur-buzzer-test
       - name: Exercise all simulated missions using the committed WASM firmware
         run: node tools/test_radial_batch.cjs
       - name: Verify servo timer integration

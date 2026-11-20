@@ -10,6 +10,14 @@ int main(){
  inputPins[2]=LOW; // HW-511 no reflective cargo, HIGH means cargo by default.
  RobotHardware h;h.init();assert(h.configError==0&&!h.armed&&!h.calibrationReady());
  assert(h.v(P_CONTACT_LOW)==0&&!h.contactPullup&&pinModes[2]==INPUT&&pinModes[17]==INPUT_PULLUP&&!h.contact());
+  assert(pinModes[4]==OUTPUT&&outputPins[4]==HIGH&&h.buzzer.busy());
+  steps(h,10);assert(outputPins[4]==LOW);
+  cmd(h,"buzzer off");assert(!h.buzzer.enabled&&outputPins[4]==LOW);
+  cmd(h,"buzzer test");assert(!h.buzzer.busy());
+  cmd(h,"buzzer on");assert(h.buzzer.enabled);
+  cmd(h,"buzzer test");assert(h.buzzer.remaining==3&&outputPins[4]==HIGH);
+  steps(h,60);assert(!h.buzzer.busy()&&outputPins[4]==LOW);
+  RobotHardware buzzerBoot;buzzerBoot.init();assert(buzzerBoot.buzzer.enabled);
  inputPins[2]=HIGH;assert(h.contact());inputPins[2]=LOW;assert(!h.contact());
  h.releaseButton(2200,clockMs);h.releaseButton(100,clockMs);assert(h.robot.state==IDLE);
  sample(h,"cal white",800);sample(h,"cal black",200);sample(h,"cal left",500);sample(h,"cal right",368);assert(h.calibrationReady());
