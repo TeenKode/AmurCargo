@@ -25,7 +25,8 @@ struct RadialRobot {
  int8_t lineDirection;bool resetDerivative;
  uint8_t servoAngle,servoGoal;
  uint32_t entered,started,lastMotor,lastServo,lastLine,approachUsed,retreatDuration;
- HoldTimer contactTimer,wideTimer,clearTimer,lineTimer,hubTimer,lostTimer,heldTimer,servoTimer;
+ HoldTimer contactTimer,wideTimer,clearTimer,lineTimer,hubTimer,lostTimer,heldTimer,servoTimer,turnGapTimer;
+ bool turnGapSeen;
  uint16_t v(Param p)const{return cfg->v[p];}
  uint16_t z(ZoneParam p)const{return cfg->zone[hub][ray][p];}
  bool active()const{return state!=IDLE&&state!=DONE&&state!=FAULT;}
@@ -33,14 +34,14 @@ struct RadialRobot {
  void drive(int16_t l,int16_t r){wantLeft=clamp16(l,-255,255);wantRight=clamp16(r,-255,255);}
  void enter(RobotState next,uint32_t now){
   stop();state=next;entered=now;correction=previousError=filteredDerivative=0;lineDirection=0;resetDerivative=true;lastLine=now;
-  wideTimer.clear();clearTimer.clear();lineTimer.clear();hubTimer.clear();lostTimer.clear();servoTimer.clear();
+  wideTimer.clear();clearTimer.clear();lineTimer.clear();hubTimer.clear();lostTimer.clear();servoTimer.clear();turnGapTimer.clear();turnGapSeen=false;
  }
  void fail(RobotFault why,uint32_t now){fault=why;servoGoal=servoAngle;enter(FAULT,now);}
  void init(const Settings &settings,uint32_t now=0){
   cfg=&settings;state=IDLE;fault=OK;purpose=SEARCH_LEG;hub=(uint8_t)v(P_START_HUB);heading=(uint8_t)v(P_START_HEADING);ray=searchPos=expectedHub=crosses=0;
   loaded=false;wideArmed=true;turnSteps=0;stop();correction=previousError=0;servoAngle=servoGoal=(uint8_t)v(P_LIFT_LOW);
   entered=started=lastMotor=lastServo=lastLine=now;approachUsed=retreatDuration=0;filteredDerivative=0;lineDirection=0;resetDerivative=true;
-  contactTimer.clear();wideTimer.clear();clearTimer.clear();lineTimer.clear();hubTimer.clear();lostTimer.clear();heldTimer.clear();servoTimer.clear();
+  contactTimer.clear();wideTimer.clear();clearTimer.clear();lineTimer.clear();hubTimer.clear();lostTimer.clear();heldTimer.clear();servoTimer.clear();turnGapTimer.clear();turnGapSeen=false;
  }
  void plan(uint32_t now){
   if(hub==v(P_START_HUB)){
@@ -92,6 +93,8 @@ struct RadialRobot {
    const bool marker=wide(s);
    uint32_t sum=(uint32_t)s.line[0]+s.line[1]+s.line[2];
    int16_t error=sum?(int16_t)(((int32_t)s.line[2]-s.line[0])*1000L/(int32_t)sum):0;
+   // Ignore tiny left/right differences near the centre rather than hunting them.
+   if(abs16(error)<=25)error=0;
    if(marker){correction=0;filteredDerivative=0;lineDirection=0;}
    else {
     if(error>80)lineDirection=1;
@@ -103,12 +106,18 @@ struct RadialRobot {
    }
    previousError=error;resetDerivative=false;
    // Slow progressively as the line moves toward an outer sensor. Never speed up in a turn.
+   // Do not command a wheel below the cautious forward-drive PWM while
+   // tracking. With TT motors + L298P this previously stalled the inside
+   // wheel, turning small errors into violent alternating pivots.
    int16_t floor=(int16_t)v(P_APPROACH_PWM);
    if(floor>pwm)floor=pwm;
    int16_t magnitude=(int16_t)abs16(error);
    if(magnitude>1000)magnitude=1000;
-   int16_t base=marker?pwm:(int16_t)(pwm-(int32_t)(pwm-floor)*magnitude/1000L);
-   drive(clamp16(base+correction,0,255),clamp16(base-correction,0,255));
+   // Modest corner slowdown keeps steering authority even at the outer sensor.
+   int16_t base=marker?pwm:(int16_t)(pwm-(int32_t)(pwm-floor)*magnitude/3000L);
+   int16_t steerLimit=base-floor;
+   int16_t steer=clamp16(correction,-steerLimit,steerLimit);
+   drive(clamp16(base+steer,0,255),clamp16(base-steer,0,255));
    return;
   }
   // Reuse the last motor request between scheduled sensor updates.
@@ -183,10 +192,21 @@ struct RadialRobot {
    case RETREAT:
     if(e>=retreatDuration)enter(UTURN,now);else drive(-slow,-slow);break;
    case UTURN:{
-    uint16_t minMs=loaded?v(P_UTURN_LOADED_MIN_MS):v(P_UTURN_MIN_MS),maxMs=loaded?v(P_UTURN_LOADED_MAX_MS):v(P_UTURN_MAX_MS);
-    bool line=s.line[1]>=v(P_LINE_THRESHOLD)&&!wide(s);
-    if(lineTimer.test(e>=minMs&&line,now,v(P_TURN_LINE_MS))){heading=(uint8_t)((ray+4)%8);enter(RETURN_HUB,now);}
-    else if(e>maxMs)fail(TURN_TIMEOUT,now);else drive(-turn,turn);break;
+    const uint16_t minMs=loaded?v(P_UTURN_LOADED_MIN_MS):v(P_UTURN_MIN_MS);
+    const uint16_t maxMs=loaded?v(P_UTURN_LOADED_MAX_MS):v(P_UTURN_MAX_MS);
+    const bool onCentre=s.line[1]>=v(P_LINE_THRESHOLD)&&!wide(s);
+    // A timed minimum of 2050 ms could rotate a real TT chassis through a
+    // full 360 degrees before the old code was even allowed to see the line.
+    // First confirm we have LEFT the original line, then stop at the next
+    // stable centre-line crossing (nominally 180 degrees).
+    if(!turnGapSeen && turnGapTimer.test(!onCentre,now,40)){
+     turnGapSeen=true;lineTimer.clear();
+    }
+    if(turnGapSeen && lineTimer.test(e>=minMs&&onCentre&&narrow(s),now,v(P_TURN_LINE_MS))){
+     heading=(uint8_t)((ray+4)%8);enter(RETURN_HUB,now);
+    }else if(e>maxMs)fail(TURN_TIMEOUT,now);
+    else drive(-turn,turn);
+    break;
    }
    case RETURN_HUB:{
     bool candidate=e>=z(Z_RETURN_MIN_MS)&&(v(P_HUB_MODE)==0?s.hub[hub]:e>=z(Z_RETURN_ENTRY_MS));
