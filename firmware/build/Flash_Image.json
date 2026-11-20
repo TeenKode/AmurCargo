@@ -7,8 +7,8 @@
   "configuration_size": 440,
   "crc_offset": 575,
   "bytes": 27750,
-  "sha256": "9e1ac164c078e913b3fe912e0c27d2aa0238cf04c9555170a2ce49efc76d44e6",
-  "source_sha256": "5dbc71404cbcec9561741b2e86368ebfe4292fbbc06b9493aff462ab9f849658",
+  "sha256": "63de31dcaff92a15d89d5890835b00a1da6eaefc456f14591dab9c4592d6afa5",
+  "source_sha256": "0a7a1766bc4d08a62f1bc43926d183055a55316e1894f75d4156fb9bc783f6f2",
   "signature": [
     30,
     149,
