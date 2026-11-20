@@ -121,6 +121,13 @@ int main(){
  assert(outputPins[10]==15);steps(tuned,5);assert(outputPins[10]==0);
  cmd(tuned,"motor dynamics 145 151 75 110 160 16");assert(tuned.motorKickMs==60);
  cmd(tuned,"motor dynamics 145 60 75 110 10 16");assert(tuned.motorCrawlPeriod==160);
+ // Faster pulse schedules are accepted, with "on" still shorter than a cycle.
+ cmd(tuned,"motor dynamics 145 60 75 110 40 8");
+ assert(tuned.motorCrawlPeriod==40&&tuned.motorCrawlMinOn==8);
+ cmd(tuned,"motor dynamics 145 60 75 110 30 30");
+ assert(tuned.motorCrawlPeriod==40); // on duration must be < period
+ cmd(tuned,"motor dynamics 145 60 75 110 160 16");
+ assert(tuned.motorCrawlPeriod==160&&tuned.motorCrawlMinOn==16);
  cmd(tuned,"motor save");
  RobotHardware dynamicsBoot;dynamicsBoot.init();
  assert(dynamicsBoot.motorKickPwm==145&&dynamicsBoot.motorKickMs==60);
