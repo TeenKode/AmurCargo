@@ -9,6 +9,11 @@ const fs=require('fs'),path=require('path'),{Simulation,defaults}=require('../si
  cfg=defaults(schema);cfg.physics.leftGain=cfg.physics.rightGain=0;await run('stalled_motors',cfg,false,7);
  cfg=defaults(schema);cfg.values[indices.MISSION_SECONDS]=30;cfg.cargoRay=7;await run('mission_timeout',cfg,false,11);
  for(let seed=1;seed<=3;seed++){cfg=defaults(schema);cfg.physics.noise=8;cfg.physics.seed=seed;cfg.cargoRay=seed;await run('sensor_noise_'+seed,cfg,true,0);}
+ for(const pwm of [40,30]){
+  cfg=defaults(schema);cfg.cargoRay=1;cfg.physics.leftGain=.94;
+  for(const key of ['DRIVE_PWM','LOADED_PWM','TURN_PWM','TURN_LOADED_PWM','APPROACH_PWM','CENTRE_PWM'])cfg.values[indices[key]]=pwm;
+  await run('slow_drive_with_unequal_wheels_'+pwm,cfg,true,0);
+ }
  const ex=(await WebAssembly.instantiate(module,{})).exports;ex.config_default();ex.config_set(indices.LEFT_EN,9);if(!ex.config_error())throw Error('Servo timer/PWM conflict not rejected');ex.config_default();ex.config_set(indices.CONTACT_PIN,9);if(!ex.config_error())throw Error('Duplicate pin not rejected');ex.config_default();ex.config_set(indices.DROP_RAY,4);if(!ex.config_error())throw Error('Bridge is not a loading zone');
  fs.writeFileSync(path.join(O,'Simulation_Checks.json'),JSON.stringify({shared_cpp_core:true,wasm_bytes:fs.statSync('firmware/build/FirmwareCore.wasm').size,missions:results,configuration_guards:true,physical_hardware_tested:false},null,2));console.log(JSON.stringify({tests:results.length,successful_missions:results.filter(x=>x.success).length,expected_faults:results.filter(x=>x.fault).length,max_seconds:Math.max(...results.map(x=>x.seconds))}));
 })().catch(e=>{console.error(e);process.exit(1);});

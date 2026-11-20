@@ -23,6 +23,7 @@ template<typename T>T constrain(T v,T a,T b){return std::max(a,std::min(v,b));}
 struct SerialMock {
  std::deque<char> commands;
  void begin(int){}
+ int availableForWrite(){return 63;}
  int available(){return (int)commands.size();}
  char read(){char c=commands.front();commands.pop_front();return c;}
  template<class T>void print(T){}

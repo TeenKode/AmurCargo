@@ -13,7 +13,11 @@ void zone_set(int h,int r,int k,int value){if(h>=0&&h<2&&r>=0&&r<8&&k>=0&&k<Z_CO
 void search_set(int pos,int ray){if(pos>=0&&pos<7)settings.search[pos]=(uint8_t)ray;}
 void search_count(int count){settings.searchCount=(uint8_t)count;}
 int config_error(){int e=settingsError(settings);return e?e:pinSettingsError(settings);}
-void reset_robot(){robot.init(settings,0);}
+void reset_robot(){
+ // The simulator uses linear wheel output without the physical TT PWM floor.
+ robot.configureMotion(0,0);
+ robot.init(settings,0);
+}
 int start_robot(int now){return robot.start((uint32_t)now);}
 void robot_tick(int now,int l,int c,int r,int h0,int h1,int contact,int abort){SensorInput s={{(uint16_t)l,(uint16_t)c,(uint16_t)r},{h0!=0,h1!=0},contact!=0,abort!=0};robot.tick(s,(uint32_t)now);}
 int get_left(){return robot.left;}int get_right(){return robot.right;}int get_servo(){return robot.servoAngle;}
