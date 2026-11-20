@@ -223,7 +223,7 @@ struct RadialRobot {
   switch(state){
    case HUB_TURN:{
     if(!turnSteps){heading=ray;enter(HUB_EXIT,now);break;}
-    uint32_t duration=v(P_TURN_START_MS)+pivotMs((uint32_t)abs16(turnSteps)*(loaded?v(P_TURN45_LOADED_MS):v(P_TURN45_MS));
+    uint32_t duration=v(P_TURN_START_MS)+pivotMs((uint32_t)abs16(turnSteps)*(loaded?v(P_TURN45_LOADED_MS):v(P_TURN45_MS)));
     if(turnSteps<0)duration=duration*v(P_TURN_RIGHT_SCALE)/1000UL;
     if(e>=duration){heading=ray;enter(HUB_EXIT,now);}else drive(turnSteps>0?-turn:turn,turnSteps>0?turn:-turn);break;
    }
