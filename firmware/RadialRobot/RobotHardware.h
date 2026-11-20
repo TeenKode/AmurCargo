@@ -378,7 +378,11 @@ struct RobotHardware {
   if(!strcmp(cmd,"jog")){
    long l,r,t;char *a=strtok(0," \t"),*b=strtok(0," \t"),*c=strtok(0," \t");
    if(!armed||calibrating||digitalRead(v(P_START_PIN))==LOW||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-255||l>255||r<-255||r>255||t<1||t>2000||(!l&&!r)){Serial.println(F("JOG REFUSED: arm, low, no load; nonzero PWM +/-255, 1..2000ms."));return;}
-   jogLeft=l;jogRight=r;jogDuration=t;jogStarted=now;jogging=true;return;
+   jogLeft=l;jogRight=r;jogDuration=t;jogStarted=now;jogging=true;
+   Serial.print(F("JOG START left="));Serial.print(jogLeft);
+   Serial.print(F(" right="));Serial.print(jogRight);
+   Serial.print(F(" duration_ms="));Serial.println(jogDuration);
+   return;
   }
   Serial.println(F("UNKNOWN COMMAND"));
  }
@@ -393,7 +397,7 @@ struct RobotHardware {
   uint32_t now=millis();if(configError)return;
   serial(now);readSensors(now);button(now);input.contact=contact();input.abort=false;
   const RobotState before=robot.state;
-  if(jogging){if((uint32_t)(now-jogStarted)>=jogDuration){jogging=false;robot.stop();}else robot.drive(jogLeft,jogRight);robot.services(now);}else robot.tick(input,now);
+  if(jogging){if((uint32_t)(now-jogStarted)>=jogDuration){jogging=false;robot.stop();Serial.println(F("JOG DONE"));}else robot.drive(jogLeft,jogRight);robot.services(now);}else robot.tick(input,now);
   // Clear, timestampable serial diagnostics when a loading/drop-off stripe is
   // actually accepted, rather than merely showing a brief black ADC reading.
   if(before==SEARCH_OUT&&robot.state==APPROACH)Serial.println(F("MARKER CONFIRMED: LOADING ZONE"));
