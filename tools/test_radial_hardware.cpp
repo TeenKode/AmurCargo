@@ -115,6 +115,8 @@ int main(){
  RobotHardware tuned;tuned.init();
  cmd(tuned,"motor set 100 110 1200 900 130 120 95 100 135 125 8 12");
  assert(tuned.motorMinLeft==100&&tuned.motorMinRight==110&&tuned.v(P_DRIVE_PWM)==130);
+  assert(tuned.robot.minMotorLeft==100&&tuned.robot.minMotorRight==110);
+  assert(tuned.robot.pivotMs(510)<510); // Tuned turn PWM 135 is faster than stock 85.
  tuned.outputMotors(20,-30);assert(outputPins[10]==100&&outputPins[11]==110);
  tuned.outputMotors(0,0);
  // Motor trim/minimum affect driving, never the calibration probe.
@@ -129,6 +131,7 @@ int main(){
  // Optional start kick is applied once per motion, not on every crawl pulse.
  cmd(tuned,"motor dynamics 145 60 75 110 160 16");
  assert(tuned.motorKickPwm==145&&tuned.motorCrawlLimit==75);
+  assert(tuned.robot.crawlLimit==75&&tuned.robot.crawlPwm==110);
  tuned.outputMotors(30,0);assert(outputPins[10]==145&&outputPins[11]==0);
  const int kickWrites=pwmWrites[10];
  tuned.outputMotors(30,0);assert(outputPins[10]==145&&pwmWrites[10]==kickWrites);
@@ -158,6 +161,7 @@ int main(){
  cmd(tuned,"motor save");
  RobotHardware dynamicsBoot;dynamicsBoot.init();
  assert(dynamicsBoot.motorKickPwm==145&&dynamicsBoot.motorKickMs==60);
+  assert(dynamicsBoot.robot.minMotorLeft==100&&dynamicsBoot.robot.crawlLimit==75);
  assert(dynamicsBoot.motorCrawlLimit==75&&dynamicsBoot.motorCrawlPeriod==160);
  assert(dynamicsBoot.motorCrawlMinOn==16);
  // The optional 980..989 record has its own CRC and must not affect
