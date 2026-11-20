@@ -14,8 +14,11 @@ struct StoredServoDirection {uint32_t magic;uint8_t reverse,check;};
 struct StoredContactMode {uint32_t magic;uint8_t activeLow,pullup,check;};
 // Dedicated 20-byte motor calibration record at EEPROM 960..979.
 struct StoredMotorTuning {uint32_t magic;uint8_t minLeft,minRight;uint16_t leftTrim,rightTrim;uint8_t drive,loaded,approach,centre,turn,turnLoaded,rampStep,rampMs;uint16_t check;};
+// Separate 10-byte optional record, 980..989: never overwrite servo EEPROM at 990.
+struct StoredMotorDynamics {uint16_t magic;uint8_t kickPwm,kickMs,crawlLimit,crawlPwm,crawlPeriod,crawlMinOn;uint16_t check;};
 #pragma pack(pop)
 static_assert(sizeof(StoredMotorTuning)==20,"Unexpected EEPROM motor layout");
+static_assert(sizeof(StoredMotorDynamics)==10,"Unexpected EEPROM dynamics layout");
 inline uint16_t calibrationCrc(const StoredCalibration &c){const uint8_t *p=(const uint8_t*)&c;uint16_t crc=0xA51D;for(uint8_t i=0;i<sizeof(c)-2;i++){crc^=(uint16_t)p[i]<<8;for(uint8_t b=0;b<8;b++)crc=crc&0x8000?(crc<<1)^0x1021:crc<<1;}return crc;}
 inline uint16_t normalizeAdc(uint16_t raw,uint16_t white,uint16_t black){int32_t span=(int32_t)black-white;if(!span)return 0;return (uint16_t)clamp16(((int32_t)raw-white)*1000L/span,0,1000);}
 
@@ -25,6 +28,8 @@ struct RobotHardware {
  uint8_t lineHistorySlot;bool lineHistoryReady;
  int16_t appliedLeft,appliedRight;
  uint8_t motorMinLeft,motorMinRight;
+ uint8_t motorKickPwm,motorKickMs,motorCrawlLimit,motorCrawlPwm,motorCrawlPeriod,motorCrawlMinOn;
+ int8_t lastRequestedSign[2];uint32_t kickStarted[2];
  bool armed,stream,calibrating,jogging,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed,manualServoPending,contactPullup;
  uint8_t calKind,samples,lineLength;
  uint32_t sampleSum[3],lastRead,buttonChanged,buttonPressed,lastStream,jogStarted;
@@ -67,6 +72,50 @@ struct RobotHardware {
   settings.v[P_APPROACH_PWM]=t.approach;settings.v[P_CENTRE_PWM]=t.centre;
   settings.v[P_TURN_PWM]=t.turn;settings.v[P_TURN_LOADED_PWM]=t.turnLoaded;
   settings.v[P_RAMP_STEP]=t.rampStep;settings.v[P_RAMP_MS]=t.rampMs;
+ }
+ static uint16_t dynamicsChecksum(const StoredMotorDynamics &t){
+  const uint8_t *p=(const uint8_t*)&t;uint16_t crc=0xB19D;
+  for(uint8_t i=0;i<sizeof(t)-2;i++){crc^=(uint16_t)p[i]<<8;for(uint8_t j=0;j<8;j++)crc=crc&0x8000?(crc<<1)^0x1021:crc<<1;}
+  return crc;
+ }
+ static bool validDynamics(const StoredMotorDynamics &t){
+  return t.magic==0x4B53&&t.check==dynamicsChecksum(t)&&
+   t.kickMs<=150&&t.crawlLimit<=150&&
+   t.crawlPwm>=40&&t.crawlPeriod>=60&&t.crawlMinOn>=5&&
+   t.crawlMinOn<t.crawlPeriod;
+ }
+ StoredMotorDynamics dynamicsPreset()const{
+  StoredMotorDynamics t={0x4B53,motorKickPwm,motorKickMs,motorCrawlLimit,
+   motorCrawlPwm,motorCrawlPeriod,motorCrawlMinOn,0};
+  t.check=dynamicsChecksum(t);return t;
+ }
+ void applyDynamics(const StoredMotorDynamics &t){
+  motorKickPwm=t.kickPwm;motorKickMs=t.kickMs;motorCrawlLimit=t.crawlLimit;
+  motorCrawlPwm=t.crawlPwm;motorCrawlPeriod=t.crawlPeriod;motorCrawlMinOn=t.crawlMinOn;
+  lastRequestedSign[0]=lastRequestedSign[1]=0;
+ }
+ // These effects never modify USB jog, which must remain an exact PWM measurement.
+ // Kick only at a true stop->move transition; crawl uses aligned low-frequency
+ // bursts so both wheels keep a common time base (no additional blocking delays).
+ int16_t shapedMotor(int16_t requested,uint16_t trim,uint8_t minimum,uint8_t channel,uint32_t now){
+  const int8_t sign=requested>0?1:requested<0?-1:0;
+  const int8_t before=lastRequestedSign[channel];
+  lastRequestedSign[channel]=sign;
+  if(!sign)return 0;
+  const uint16_t power=(uint16_t)clamp16((int32_t)abs16(requested)*trim/1000L,0,255);
+  if(!before)kickStarted[channel]=now;
+  if(motorKickPwm&&motorKickMs&&!before){/* kickStarted recorded above */}
+  if(motorKickPwm&&motorKickMs&&(uint32_t)(now-kickStarted[channel])<motorKickMs &&
+     power<motorKickPwm)return sign*(int16_t)motorKickPwm;
+  if(motorCrawlLimit&&power<motorCrawlLimit){
+   uint16_t on=(uint32_t)power*motorCrawlPeriod/motorCrawlPwm;
+   if(on<motorCrawlMinOn)on=motorCrawlMinOn;
+   if(on>=motorCrawlPeriod)on=motorCrawlPeriod-1;
+   const uint8_t level=(now%motorCrawlPeriod)<on?motorCrawlPwm:0;
+   return sign*(int16_t)level;
+  }
+  const int16_t steady=(int16_t)(power<minimum?minimum:power);
+  return sign*steady;
  }
  // True stop remains zero; calibrated minimum is applied AFTER trim.
  static int16_t motorOutput(int16_t command,uint16_t trim,uint8_t minimum){
@@ -114,10 +163,9 @@ struct RobotHardware {
  }
  void outputMotors(int16_t l,int16_t r,bool directPwm=false){
   if(configError)return;
-  // USB jog is an exact PWM measurement: no ramp, trim or stall-minimum.
-  // Normal autonomous movement still uses calibrated trims/minimums.
-  if(directPwm){l=clamp16(l,-255,255);r=clamp16(r,-255,255);}
-  else{l=motorOutput(l,v(P_LEFT_TRIM),motorMinLeft);r=motorOutput(r,v(P_RIGHT_TRIM),motorMinRight);}
+  // USB jog remains an exact command, never shaped by kick or crawl.
+  if(directPwm){lastRequestedSign[0]=lastRequestedSign[1]=0;l=clamp16(l,-255,255);r=clamp16(r,-255,255);}
+  else{const uint32_t now=millis();l=shapedMotor(l,v(P_LEFT_TRIM),motorMinLeft,0,now);r=shapedMotor(r,v(P_RIGHT_TRIM),motorMinRight,1,now);}
   if(v(P_LEFT_REVERSE))l=-l;if(v(P_RIGHT_REVERSE))r=-r;
   if(v(P_DRIVER_MODE)==2){shieldMotor(v(P_LEFT_IN1),v(P_LEFT_EN),l,appliedLeft);shieldMotor(v(P_RIGHT_IN1),v(P_RIGHT_EN),r,appliedRight);}
   else if(v(P_DRIVER_MODE)==0){safeChannel(v(P_LEFT_IN1),v(P_LEFT_IN2),v(P_LEFT_EN),l);safeChannel(v(P_RIGHT_IN1),v(P_RIGHT_IN2),v(P_RIGHT_EN),r);}
@@ -130,10 +178,16 @@ struct RobotHardware {
   configError=settingsError(settings);if(!configError)configError=pinSettingsError(settings);
   armed=stream=calibrating=jogging=skipButtonRelease=lineOverflow=manualServoPending=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
   lineHistorySlot=0;lineHistoryReady=false;appliedLeft=appliedRight=0;
+  lastRequestedSign[0]=lastRequestedSign[1]=0;kickStarted[0]=kickStarted[1]=0;
   if(configError){Serial.print(F("CONFIG ERROR "));Serial.println(configError);return;}
   motorMinLeft=motorMinRight=70; // Starting estimate, not a measured motor threshold.
   StoredMotorTuning motorData;EEPROM.get(960,motorData);
   if(validMotor(motorData))applyMotor(motorData);
+  // Conservative defaults: both dynamic modes are OPT-IN.
+  motorKickPwm=0;motorKickMs=0;motorCrawlLimit=0;
+  motorCrawlPwm=110;motorCrawlPeriod=160;motorCrawlMinOn=16;
+  StoredMotorDynamics extra;EEPROM.get(980,extra);
+  if(validDynamics(extra))applyDynamics(extra);
   // Shield uses only four motor pins. D4 is an active buzzer on the shield.
   if(v(P_DRIVER_MODE)==2){const uint8_t pins[4]={12,13,10,11};for(uint8_t i=0;i<4;i++){pinMode(pins[i],OUTPUT);digitalWrite(pins[i],LOW);}pinMode(4,OUTPUT);digitalWrite(4,LOW);}
   else{uint8_t outs[8]={(uint8_t)v(P_LEFT_IN1),(uint8_t)v(P_LEFT_IN2),(uint8_t)v(P_RIGHT_IN1),(uint8_t)v(P_RIGHT_IN2),(uint8_t)v(P_LEFT_EN),(uint8_t)v(P_RIGHT_EN),(uint8_t)v(P_LED_PIN),(uint8_t)v(P_STANDBY_PIN)};
@@ -252,6 +306,10 @@ struct RobotHardware {
   Serial.print(v(P_APPROACH_PWM));Serial.print(',');Serial.print(v(P_CENTRE_PWM));Serial.print(',');
   Serial.print(v(P_TURN_PWM));Serial.print(',');Serial.print(v(P_TURN_LOADED_PWM));
   Serial.print(F(" motor_ramp="));Serial.print(v(P_RAMP_STEP));Serial.print(',');Serial.print(v(P_RAMP_MS));
+  Serial.print(F(" motor_dynamics="));Serial.print(motorKickPwm);Serial.print(',');
+  Serial.print(motorKickMs);Serial.print(',');Serial.print(motorCrawlLimit);Serial.print(',');
+  Serial.print(motorCrawlPwm);Serial.print(',');Serial.print(motorCrawlPeriod);Serial.print(',');
+  Serial.print(motorCrawlMinOn);
   Serial.print(F(" motor_applied="));Serial.print(appliedLeft);Serial.print(',');Serial.print(appliedRight);
   Serial.print(F(" motor_jog="));Serial.println(jogging?1:0);
  }
@@ -293,13 +351,25 @@ struct RobotHardware {
     armed=false;robot.contactTimer.clear();robot.heldTimer.clear();
     saveContactMode();Serial.println(F("CONTACT CONFIG SAVED"));status();return;
    }
-  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; contact high|low; contact pullup on|off; motor set [12 values]|save|clear; jog L R ms (-255..255); status; stream; reset; erase; stop"));return;}
+  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; contact high|low; contact pullup on|off; motor set [12 values]|dynamics KICK PWMMS CRAWL_LIMIT CRAWL_PWM PERIOD MINON|save|clear; jog L R ms (-255..255); status; stream; reset; erase; stop"));return;}
   if(!strcmp(cmd,"low")||!strcmp(cmd,"high")){robot.servoGoal=!strcmp(cmd,"low")?v(P_LIFT_LOW):v(P_LIFT_HIGH);manualServoPending=true;Serial.println(F("MANUAL SERVO: support any load."));status();return;}
   if(!strcmp(cmd,"reset")){if(robot.servoAngle!=v(P_LIFT_LOW)||contact()){Serial.println(F("RESET REFUSED: lower forks and remove load."));return;}robot.init(settings,now);manualServoPending=false;armed=false;return;}
   if(robot.state!=IDLE){Serial.println(F("RESET REQUIRED"));return;}
 
   if(!strcmp(cmd,"motor")){
    char *action=strtok(0," \t");
+   if(action&&!strcmp(action,"dynamics")){
+    long a[6];bool ok=true;
+    for(uint8_t i=0;i<6;i++){char *word=strtok(0," \t");if(!number(word,a[i])||a[i]<0||a[i]>255){ok=false;break;}}
+    if(strtok(0," \t"))ok=false;
+    if(!ok){Serial.println(F("MOTOR REFUSED: dynamics needs 6 integers 0..255"));return;}
+    StoredMotorDynamics t={0x4B53,(uint8_t)a[0],(uint8_t)a[1],(uint8_t)a[2],
+     (uint8_t)a[3],(uint8_t)a[4],(uint8_t)a[5],0};
+    t.check=dynamicsChecksum(t);
+    if(!validDynamics(t)){Serial.println(F("MOTOR REFUSED: invalid kick/crawl settings"));return;}
+    applyDynamics(t);armed=false;
+    Serial.println(F("MOTOR DYNAMICS UPDATED: RAM only; use motor save"));status();return;
+   }
    if(action&&!strcmp(action,"set")){
     long a[12];bool ok=true;
     for(uint8_t i=0;i<12;i++){
@@ -319,13 +389,14 @@ struct RobotHardware {
    }
    if(action&&!strcmp(action,"save")&&!strtok(0," \t")){
     const StoredMotorTuning t=motorPreset();EEPROM.put(960,t);
+    const StoredMotorDynamics extra=dynamicsPreset();EEPROM.put(980,extra);
     Serial.println(F("MOTOR SAVED: EEPROM"));status();return;
    }
    if(action&&!strcmp(action,"clear")&&!strtok(0," \t")){
-    const uint32_t blank=0;EEPROM.put(960,blank);armed=false;
+    const uint32_t blank=0;EEPROM.put(960,blank);EEPROM.put(980,blank);armed=false;
     Serial.println(F("MOTOR CLEARED: reboot to restore firmware values"));return;
    }
-   Serial.println(F("MOTOR REFUSED: use motor set [12 values], motor save, motor clear"));return;
+   Serial.println(F("MOTOR REFUSED: use motor set, motor dynamics [6 values], motor save or motor clear"));return;
   }
   if(!strcmp(cmd,"angle")||!strcmp(cmd,"limits")){
    if(calibrating||contact()){
