@@ -62,7 +62,9 @@ struct RadialRobot {
   if(!calibratedMs)return 0;
   const uint16_t actual=effectiveMotionPwm(command),baseline=effectiveMotionPwm(reference);
   if(!actual||!baseline)return calibratedMs;
-  return (calibratedMs*(uint32_t)baseline+actual/2)/actual;
+  // Q8 fixed-point scale avoids a costly 32-bit variable division on AVR.
+  const uint16_t ratio=(uint16_t)((uint16_t)(baseline<<8)/actual);
+  return (calibratedMs*ratio+128UL)>>8;
  }
  __attribute__((noinline)) uint32_t cruiseMs(uint32_t calibratedMs)const{
   return motionMs(calibratedMs,loaded?v(P_LOADED_PWM):v(P_DRIVE_PWM),loaded?75:85);
