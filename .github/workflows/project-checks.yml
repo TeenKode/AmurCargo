@@ -23,7 +23,7 @@ jobs:
       - name: Enforce version bump in pull requests
         if: github.event_name == 'pull_request'
         run: |
-          git fetch --no-tags origin main
+          git fetch --no-tags origin main:refs/remotes/origin/main
           python tools/check_version.py --base origin/main
       - name: Test version policy
         run: python tools/test_version_policy.py
