@@ -34,7 +34,7 @@ body:has(#pane-arduino.active) :is(#openRobotTop,#wideView,#fullscreen,.head .ch
 .robot-shortcuts{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 10px}
 .robot-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
 .robot-form-grid .form-row{align-items:flex-start;flex-direction:column;gap:3px}
-#globalSettings .form-row[hidden]{display:none}
+#globalSettings .param[hidden]{display:none}
 #settingsSearch{margin:0 0 12px;width:100%;padding:8px;border:1px solid #ccd8e2;border-radius:8px}
 @media(max-width:760px){
  .layout:has(#pane-arduino.active) .tabs button{font-size:11px;padding:9px 7px}
@@ -2666,14 +2666,14 @@ global.RadialSim={Simulation,defaults,names,faults,dirs,clamp};if(typeof module!
  function resize(){viewer.resize();draw();}new ResizeObserver(resize).observe(board);
  function directionOptions(select,excluded,value){select.replaceChildren();dirs.forEach((d,r)=>{if(r===excluded)return;const o=document.createElement('option');o.value=r;o.textContent=r+' · '+d;select.append(o);});select.value=value;}
  function renderScenario(){const source=val('START_HUB');$('startHub').value=source;directionOptions($('startHeading'),-1,val('START_HEADING'));directionOptions($('cargoRay'),source?4:0,cfg.cargoRay);directionOptions($('dropRay'),source?0:4,val('DROP_RAY'));$('searchOrder').replaceChildren();const eligible=dirs.map((_,r)=>r).filter(r=>r!==(source?4:0));const order=[...cfg.search,...eligible.filter(r=>!cfg.search.includes(r))];for(const r of order){const row=document.createElement('div');row.className='search-item';const check=document.createElement('input');check.type='checkbox';check.checked=cfg.search.includes(r);check.setAttribute('aria-label','Проверять '+dirs[r]);check.onchange=()=>{if(check.checked)cfg.search.push(r);else cfg.search=cfg.search.filter(x=>x!==r);renderScenario();reset();};const n=document.createElement('b');n.textContent=cfg.search.includes(r)?cfg.search.indexOf(r)+1:'—';const label=document.createElement('span');label.textContent=dirs[r];const ar=document.createElement('span');ar.className='arrows';for(const [icon,delta]of [['↑',-1],['↓',1]]){const b=document.createElement('button');b.textContent=icon;b.setAttribute('aria-label',(delta<0?'Раньше ':'Позже ')+dirs[r]);const i=cfg.search.indexOf(r);b.disabled=i<0||i+delta<0||i+delta>=cfg.search.length;b.onclick=()=>{[cfg.search[i],cfg.search[i+delta]]=[cfg.search[i+delta],cfg.search[i]];renderScenario();reset();};ar.append(b);}row.append(check,n,label,ar);$('searchOrder').append(row);}}
- function numberRow(label,value,min,max,step,change){const row=document.createElement('div');row.className='param';const l=document.createElement('label'),input=document.createElement('input');l.textContent=label;input.type='number';input.value=value;input.min=min;input.max=max;input.step=step;input.setAttribute('aria-label',label);input.onchange=()=>{const n=Number(input.value);if(!Number.isFinite(n)||n<min||n>max||Math.abs(n/step-Math.round(n/step))>1e-6){toast('Недопустимое значение');input.value=value;return;}change(n);};row.append(l,input);return row;}
+ function numberRow(label,value,min,max,step,change){const row=document.createElement('div');row.className='param';const l=document.createElement('label'),input=document.createElement('input');l.textContent=label;input.type='number';input.value=value;input.min=min;input.max=max;input.step=step;input.setAttribute('aria-label',label);input.onchange=()=>{const n=input.valueAsNumber;if(!Number.isFinite(n)||n<min||n>max||Math.abs(n/step-Math.round(n/step))>1e-6){toast('Недопустимое значение');input.value=value;return;}change(n);};row.append(l,input);return row;}
  function filterSettings(){
   const query=$('settingsSearch').value.trim().toLowerCase();
   for(const group of $('globalSettings').children){
    const groupMatch=group.querySelector('summary').textContent.toLowerCase().includes(query);
    let found=false;
    for(const input of group.querySelectorAll('[data-key]')){
-    const row=input.closest('.form-row');
+    const row=input.closest('.param');
     row.hidden=!(groupMatch||row.textContent.toLowerCase().includes(query)||input.dataset.key.toLowerCase().includes(query));
     found||=!row.hidden;
    }
