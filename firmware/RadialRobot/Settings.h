@@ -1,5 +1,8 @@
 #pragma once
 #include <stdint.h>
+#ifdef __AVR__
+#include <avr/pgmspace.h>
+#endif
 enum Param {
  P_START_HUB=0,
  P_START_HEADING=1,
@@ -87,94 +90,116 @@ enum ZoneParam {
  Z_COUNT};
 struct Settings { uint16_t v[P_COUNT]; uint16_t zone[2][8][Z_COUNT]; uint8_t search[7]; uint8_t searchCount; };
 inline uint8_t bridgeRay(uint8_t hub){return hub?4:0;}
+struct SettingRange { uint16_t min, max; };
+static const SettingRange paramRanges[]
+#ifdef __AVR__
+ PROGMEM
+#endif
+ = {
+ {0, 1}, // START_HUB
+ {0, 7}, // START_HEADING
+ {0, 7}, // DROP_RAY
+ {0, 1}, // HUB_MODE
+ {0, 4}, // BRIDGE_CROSSES
+ {2, 2}, // DRIVER_MODE
+ {2, 19}, // LEFT_IN1
+ {2, 255}, // LEFT_IN2
+ {2, 255}, // LEFT_EN
+ {2, 19}, // RIGHT_IN1
+ {2, 255}, // RIGHT_IN2
+ {2, 255}, // RIGHT_EN
+ {2, 255}, // STANDBY_PIN
+ {2, 19}, // SERVO_PIN
+ {2, 19}, // START_PIN
+ {2, 19}, // CONTACT_PIN
+ {14, 19}, // LINE_LEFT
+ {14, 19}, // LINE_CENTRE
+ {14, 19}, // LINE_RIGHT
+ {2, 255}, // LED_PIN
+ {0, 1}, // LEFT_REVERSE
+ {0, 1}, // RIGHT_REVERSE
+ {0, 1}, // CONTACT_LOW
+ {20, 220}, // DRIVE_PWM
+ {20, 220}, // LOADED_PWM
+ {15, 180}, // APPROACH_PWM
+ {15, 180}, // CENTRE_PWM
+ {20, 200}, // TURN_PWM
+ {20, 200}, // TURN_LOADED_PWM
+ {500, 1500}, // LEFT_TRIM
+ {500, 1500}, // RIGHT_TRIM
+ {1, 255}, // RAMP_STEP
+ {1, 100}, // RAMP_MS
+ {50, 950}, // LINE_THRESHOLD
+ {400, 1000}, // WIDE_THRESHOLD
+ {5, 250}, // HUB_TOLERANCE
+ {0, 500}, // KP
+ {0, 500}, // KD
+ {0, 180}, // MAX_CORRECTION
+ {2, 100}, // SENSOR_MS
+ {30, 2000}, // LOST_MS
+ {5, 300}, // MARKER_MS
+ {10, 500}, // MARKER_CLEAR_MS
+ {10, 500}, // HUB_CONFIRM_MS
+ {5, 300}, // CONTACT_MS
+ {50, 3000}, // TURN45_MS
+ {50, 3500}, // TURN45_LOADED_MS
+ {0, 1000}, // TURN_START_MS
+ {500, 1500}, // TURN_RIGHT_SCALE
+ {100, 10000}, // UTURN_MIN_MS
+ {200, 15000}, // UTURN_MAX_MS
+ {100, 12000}, // UTURN_LOADED_MIN_MS
+ {200, 15000}, // UTURN_LOADED_MAX_MS
+ {5, 200}, // TURN_LINE_MS
+ {0, 1000}, // SETTLE_MS
+ {50, 5000}, // HUB_EXIT_MS
+ {100, 8000}, // ACQUIRE_MS
+ {0, 6000}, // CENTRE_LEFT_MS
+ {0, 6000}, // CENTRE_RIGHT_MS
+ {0, 20000}, // BRIDGE_MIN_MS
+ {1000, 60000}, // BRIDGE_MAX_MS
+ {1000, 50000}, // BRIDGE_ENTRY_MS
+ {200, 3000}, // REVERSE_RATIO
+ {30, 1800}, // MISSION_SECONDS
+ {0, 180}, // LIFT_LOW
+ {0, 180}, // LIFT_HIGH
+ {1, 10}, // SERVO_STEP
+ {5, 100}, // SERVO_MS
+ {0, 3000}, // SERVO_SETTLE_MS
+ {0, 1}, // CHECK_HELD_CONTACT
+ {20, 2000}, // HELD_LOST_MS
+ {500, 5000}, // ARM_HOLD_MS
+};
+static const SettingRange zoneRanges[]
+#ifdef __AVR__
+ PROGMEM
+#endif
+ = {
+ {0, 5000}, // OUT_MIN_MS
+ {500, 30000}, // OUT_MAX_MS
+ {0, 5000}, // SEARCH_MS
+ {0, 5000}, // BACKOFF_MS
+ {0, 5000}, // RETURN_MIN_MS
+ {500, 30000}, // RETURN_MAX_MS
+ {0, 20000}, // RETURN_ENTRY_MS
+ {0, 4000}, // DROP_ADVANCE_MS
+ {100, 6000}, // DROP_BACK_MS
+};
+inline bool inSettingRange(uint16_t value,const SettingRange &range){
+#ifdef __AVR__
+ return value>=pgm_read_word(&range.min)&&value<=pgm_read_word(&range.max);
+#else
+ return value>=range.min&&value<=range.max;
+#endif
+}
 inline int settingsError(const Settings &s){
- if(s.v[0]<0 || s.v[0]>1)return 1;
- if(s.v[1]<0 || s.v[1]>7)return 2;
- if(s.v[2]<0 || s.v[2]>7)return 3;
- if(s.v[3]<0 || s.v[3]>1)return 4;
- if(s.v[4]<0 || s.v[4]>4)return 5;
- if(s.v[5]<2 || s.v[5]>2)return 6;
- if(s.v[6]<2 || s.v[6]>19)return 7;
- if(s.v[7]<2 || s.v[7]>255)return 8;
- if(s.v[8]<2 || s.v[8]>255)return 9;
- if(s.v[9]<2 || s.v[9]>19)return 10;
- if(s.v[10]<2 || s.v[10]>255)return 11;
- if(s.v[11]<2 || s.v[11]>255)return 12;
- if(s.v[12]<2 || s.v[12]>255)return 13;
- if(s.v[13]<2 || s.v[13]>19)return 14;
- if(s.v[14]<2 || s.v[14]>19)return 15;
- if(s.v[15]<2 || s.v[15]>19)return 16;
- if(s.v[16]<14 || s.v[16]>19)return 17;
- if(s.v[17]<14 || s.v[17]>19)return 18;
- if(s.v[18]<14 || s.v[18]>19)return 19;
- if(s.v[19]<2 || s.v[19]>255)return 20;
- if(s.v[20]<0 || s.v[20]>1)return 21;
- if(s.v[21]<0 || s.v[21]>1)return 22;
- if(s.v[22]<0 || s.v[22]>1)return 23;
- if(s.v[23]<20 || s.v[23]>220)return 24;
- if(s.v[24]<20 || s.v[24]>220)return 25;
- if(s.v[25]<15 || s.v[25]>180)return 26;
- if(s.v[26]<15 || s.v[26]>180)return 27;
- if(s.v[27]<20 || s.v[27]>200)return 28;
- if(s.v[28]<20 || s.v[28]>200)return 29;
- if(s.v[29]<500 || s.v[29]>1500)return 30;
- if(s.v[30]<500 || s.v[30]>1500)return 31;
- if(s.v[31]<1 || s.v[31]>255)return 32;
- if(s.v[32]<1 || s.v[32]>100)return 33;
- if(s.v[33]<50 || s.v[33]>950)return 34;
- if(s.v[34]<400 || s.v[34]>1000)return 35;
- if(s.v[35]<5 || s.v[35]>250)return 36;
- if(s.v[36]<0 || s.v[36]>500)return 37;
- if(s.v[37]<0 || s.v[37]>500)return 38;
- if(s.v[38]<0 || s.v[38]>180)return 39;
- if(s.v[39]<2 || s.v[39]>100)return 40;
- if(s.v[40]<30 || s.v[40]>2000)return 41;
- if(s.v[41]<5 || s.v[41]>300)return 42;
- if(s.v[42]<10 || s.v[42]>500)return 43;
- if(s.v[43]<10 || s.v[43]>500)return 44;
- if(s.v[44]<5 || s.v[44]>300)return 45;
- if(s.v[45]<50 || s.v[45]>3000)return 46;
- if(s.v[46]<50 || s.v[46]>3500)return 47;
- if(s.v[47]<0 || s.v[47]>1000)return 48;
- if(s.v[48]<500 || s.v[48]>1500)return 49;
- if(s.v[49]<100 || s.v[49]>10000)return 50;
- if(s.v[50]<200 || s.v[50]>15000)return 51;
- if(s.v[51]<100 || s.v[51]>12000)return 52;
- if(s.v[52]<200 || s.v[52]>15000)return 53;
- if(s.v[53]<5 || s.v[53]>200)return 54;
- if(s.v[54]<0 || s.v[54]>1000)return 55;
- if(s.v[55]<50 || s.v[55]>5000)return 56;
- if(s.v[56]<100 || s.v[56]>8000)return 57;
- if(s.v[57]<0 || s.v[57]>6000)return 58;
- if(s.v[58]<0 || s.v[58]>6000)return 59;
- if(s.v[59]<0 || s.v[59]>20000)return 60;
- if(s.v[60]<1000 || s.v[60]>60000)return 61;
- if(s.v[61]<1000 || s.v[61]>50000)return 62;
- if(s.v[62]<200 || s.v[62]>3000)return 63;
- if(s.v[63]<30 || s.v[63]>1800)return 64;
- if(s.v[64]<0 || s.v[64]>180)return 65;
- if(s.v[65]<0 || s.v[65]>180)return 66;
- if(s.v[66]<1 || s.v[66]>10)return 67;
- if(s.v[67]<5 || s.v[67]>100)return 68;
- if(s.v[68]<0 || s.v[68]>3000)return 69;
- if(s.v[69]<0 || s.v[69]>1)return 70;
- if(s.v[70]<20 || s.v[70]>2000)return 71;
- if(s.v[71]<500 || s.v[71]>5000)return 72;
+ for(uint8_t i=0;i<P_COUNT;i++)if(!inSettingRange(s.v[i],paramRanges[i]))return i+1;
  if(s.v[P_LINE_THRESHOLD]>=s.v[P_WIDE_THRESHOLD])return 200;
  if(s.v[P_UTURN_MIN_MS]>=s.v[P_UTURN_MAX_MS] || s.v[P_UTURN_LOADED_MIN_MS]>=s.v[P_UTURN_LOADED_MAX_MS])return 201;
  if(s.v[P_DROP_RAY]==bridgeRay(1-s.v[P_START_HUB]))return 202;
  if(s.searchCount<1 || s.searchCount>7)return 203;
  uint8_t seen=0; for(uint8_t i=0;i<s.searchCount;i++){uint8_t r=s.search[i];if(r>7 || r==bridgeRay(s.v[P_START_HUB]) || (seen&(1U<<r)))return 204;seen|=1U<<r;}
  for(uint8_t h=0;h<2;h++)for(uint8_t r=0;r<8;r++){
- if(s.zone[h][r][0]<0 || s.zone[h][r][0]>5000)return 210;
- if(s.zone[h][r][1]<500 || s.zone[h][r][1]>30000)return 211;
- if(s.zone[h][r][2]<0 || s.zone[h][r][2]>5000)return 212;
- if(s.zone[h][r][3]<0 || s.zone[h][r][3]>5000)return 213;
- if(s.zone[h][r][4]<0 || s.zone[h][r][4]>5000)return 214;
- if(s.zone[h][r][5]<500 || s.zone[h][r][5]>30000)return 215;
- if(s.zone[h][r][6]<0 || s.zone[h][r][6]>20000)return 216;
- if(s.zone[h][r][7]<0 || s.zone[h][r][7]>4000)return 217;
- if(s.zone[h][r][8]<100 || s.zone[h][r][8]>6000)return 218;
+ for(uint8_t i=0;i<Z_COUNT;i++)if(!inSettingRange(s.zone[h][r][i],zoneRanges[i]))return 210+i;
  if(s.zone[h][r][Z_OUT_MIN_MS]>=s.zone[h][r][Z_OUT_MAX_MS] || s.zone[h][r][Z_RETURN_MIN_MS]>=s.zone[h][r][Z_RETURN_MAX_MS])return 230;
  }
  if(s.v[P_LIFT_LOW]>=s.v[P_LIFT_HIGH])return 231;

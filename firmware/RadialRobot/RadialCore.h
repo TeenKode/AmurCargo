@@ -2,7 +2,7 @@
 #include "Settings.h"
 
 // Portable navigation engine: the same file is compiled for ATmega328P and WebAssembly.
-enum RobotState { IDLE,HUB_TURN,HUB_EXIT,ACQUIRE,SEARCH_OUT,APPROACH,LIFT,RETREAT,UTURN,RETURN_HUB,HUB_CENTRE,BRIDGE,DELIVERY_OUT,DELIVERY_CREEP,LOWER,DROP_BACK,DONE,FAULT };
+enum RobotState { IDLE,HUB_TURN,HUB_EXIT,ACQUIRE,SEARCH_OUT,APPROACH,LIFT,RETREAT,UTURN,RETURN_HUB,HUB_CENTRE,BRIDGE,DELIVERY_OUT,DELIVERY_CREEP,LOWER,DROP_BACK,DONE,FAULT,LINE_PICKUP };
 enum RobotFault { OK=0,BAD_SETTINGS=1,NO_CARGO=2,LINE_LOST=3,STATION_TIMEOUT=4,HUB_TIMEOUT=5,TURN_TIMEOUT=6,EXIT_TIMEOUT=7,LOAD_LOST=8,CARGO_STUCK=9,ABORTED=10,MISSION_TIMEOUT=11,SERVO_TIMEOUT=12 };
 enum LegPurpose { SEARCH_LEG,BRIDGE_LEG,DELIVERY_LEG };
 struct SensorInput { uint16_t line[3]; bool hub[2]; bool contact; bool abort; };
@@ -19,7 +19,7 @@ struct RadialRobot {
  const Settings *cfg;
  RobotState state;RobotFault fault;LegPurpose purpose;
  uint8_t hub,heading,ray,searchPos,expectedHub,crosses;
- bool loaded,wideArmed;
+ bool loaded,wideArmed,lineOnly;
  // Estimates actual wheel drive for timed manoeuvres. Updated from EEPROM motor tuning.
  uint8_t minMotorLeft=70,minMotorRight=70,crawlLimit=0,crawlPwm=110,crawlPeriod=160,crawlMinOn=16;
  int8_t turnSteps;
@@ -85,7 +85,7 @@ struct RadialRobot {
  void fail(RobotFault why,uint32_t now){fault=why;servoGoal=servoAngle;enter(FAULT,now);}
  void init(const Settings &settings,uint32_t now=0){
   cfg=&settings;state=IDLE;fault=OK;purpose=SEARCH_LEG;hub=(uint8_t)v(P_START_HUB);heading=(uint8_t)v(P_START_HEADING);ray=searchPos=expectedHub=crosses=0;
-  loaded=false;wideArmed=true;turnSteps=0;stop();correction=previousError=0;servoAngle=servoGoal=(uint8_t)v(P_LIFT_LOW);
+  loaded=false;lineOnly=false;wideArmed=true;turnSteps=0;stop();correction=previousError=0;servoAngle=servoGoal=(uint8_t)v(P_LIFT_LOW);
   entered=started=lastMotor=lastServo=lastLine=now;approachUsed=retreatDuration=0;filteredDerivative=0;lineDirection=0;resetDerivative=true;
   contactTimer.clear();wideTimer.clear();clearTimer.clear();lineTimer.clear();hubTimer.clear();lostTimer.clear();heldTimer.clear();servoTimer.clear();turnGapTimer.clear();turnGapSeen=false;
   markerBaseLeft=markerBaseRight=0;markerRiseLeft=markerRiseRight=0;lastMarkerSample=now;markerBaseReady=markerCandidateNow=false;
@@ -97,10 +97,13 @@ struct RadialRobot {
   }else{purpose=DELIVERY_LEG;ray=(uint8_t)v(P_DROP_RAY);}
   int8_t d=(int8_t)((ray+8-heading)%8);if(d>4)d-=8;turnSteps=d;enter(HUB_TURN,now);
  }
- bool start(uint32_t now){
+ bool start(uint32_t now,bool pickupOnly=false){
   if(state!=IDLE||loaded||servoAngle!=v(P_LIFT_LOW))return false;
   if(settingsError(*cfg)){fail(BAD_SETTINGS,now);return false;}
-  fault=OK;hub=(uint8_t)v(P_START_HUB);heading=(uint8_t)v(P_START_HEADING);searchPos=0;loaded=false;started=now;approachUsed=0;plan(now);return true;
+  fault=OK;hub=(uint8_t)v(P_START_HUB);heading=(uint8_t)v(P_START_HEADING);searchPos=0;loaded=false;started=now;approachUsed=0;lineOnly=pickupOnly;
+  if(lineOnly){contactTimer.clear();enter(LINE_PICKUP,now);}
+  else plan(now);
+  return true;
  }
  int16_t ramp(int16_t actual,int16_t target){
   if(actual&&((actual>0)!=(target>0)))target=0;
@@ -211,15 +214,19 @@ struct RadialRobot {
   uint32_t elapsed=now-entered,settle=v(P_SETTLE_MS),e=elapsed>=settle?elapsed-settle:0;
   if(state==LIFT||state==LOWER){
    if(servoDone(now)){
-    if(state==LIFT){loaded=true;beginRetreat(now);}else{loaded=false;enter(DROP_BACK,now);}
+    if(state==LIFT){loaded=true;if(lineOnly)enter(DONE,now);else beginRetreat(now);}else{loaded=false;enter(DROP_BACK,now);}
    }else{
     uint32_t maxServo=((uint32_t)180*v(P_SERVO_MS)/v(P_SERVO_STEP))+v(P_SERVO_SETTLE_MS)+1500UL;
     if(elapsed>maxServo)fail(SERVO_TIMEOUT,now);
    }services(now);return;
   }
-  if(elapsed<settle){drive(0,0);services(now);return;}
+  if(state!=LINE_PICKUP&&elapsed<settle){drive(0,0);services(now);return;}
   const int16_t cruise=loaded?v(P_LOADED_PWM):v(P_DRIVE_PWM),slow=v(P_APPROACH_PWM),turn=loaded?v(P_TURN_LOADED_PWM):v(P_TURN_PWM);
   switch(state){
+   case LINE_PICKUP:
+    if(contact)pickup(now,0);
+    else follow(s,cruise,now);
+    break;
    case HUB_TURN:{
     if(!turnSteps){heading=ray;enter(HUB_EXIT,now);break;}
     uint32_t duration=v(P_TURN_START_MS)+pivotMs((uint32_t)abs16(turnSteps)*(loaded?v(P_TURN45_LOADED_MS):v(P_TURN45_MS)));

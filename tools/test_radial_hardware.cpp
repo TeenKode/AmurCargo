@@ -236,5 +236,45 @@ int main(){
  assert(contactBoot.v(P_CONTACT_LOW)==0&&!contactBoot.contactPullup&&!contactBoot.contact()&&pinModes[2]==INPUT);
  RobotHardware contactBoot2;contactBoot2.init();
  assert(contactBoot2.v(P_CONTACT_LOW)==0&&!contactBoot2.contactPullup&&pinModes[2]==INPUT);
+ // Line pickup runs with white/black samples only, retains selection after
+ // power loss, and holds the raised forks without turning or backing away.
+ RobotHardware pickup;pickup.init();
+ assert(!pickup.lineMode);
+ cmd(pickup,"erase");
+ sample(pickup,"cal white",800);sample(pickup,"cal black",200);
+ assert(!pickup.calibrationReady());
+ cmd(pickup,"arm");cmd(pickup,"mode line");
+ assert(pickup.lineMode&&!pickup.armed&&pickup.calibrationReady());
+ cmd(pickup,"save");
+ cmd(pickup,"line set 800 80 40 35 300 50");
+ assert(pickup.v(P_LINE_THRESHOLD)==350&&pickup.v(P_KP)==60); // Equal to wide threshold.
+ cmd(pickup,"line set 400 80 40 35 300 50");
+ assert(pickup.v(P_LINE_THRESHOLD)==400&&pickup.v(P_CONTACT_MS)==50);
+ cmd(pickup,"line save");
+ RobotHardware lineBoot;lineBoot.init();
+ assert(lineBoot.lineMode&&lineBoot.calibrationReady()&&lineBoot.v(P_KP)==80);
+ cmd(lineBoot,"start");assert(lineBoot.robot.state==IDLE);
+ adcPins[14]=800;adcPins[15]=200;adcPins[16]=800;
+ steps(lineBoot,4);
+ cmd(lineBoot,"arm");cmd(lineBoot,"start");
+ assert(lineBoot.robot.state==LINE_PICKUP&&!lineBoot.armed);
+ steps(lineBoot,3);
+ assert(outputPins[10]>0&&outputPins[11]>0);
+ inputPins[2]=HIGH;steps(lineBoot,2);inputPins[2]=LOW;steps(lineBoot,1);
+ assert(lineBoot.robot.state==LINE_PICKUP); // Ignore a short sensor pulse.
+ inputPins[2]=HIGH;steps(lineBoot,6);
+ assert(lineBoot.robot.state==LIFT&&outputPins[10]==0&&outputPins[11]==0);
+ for(int i=0;i<340;i++){
+  steps(lineBoot,1);
+  assert(outputPins[10]==0&&outputPins[11]==0);
+  assert(lineBoot.robot.state==LIFT||lineBoot.robot.state==DONE);
+ }
+ assert(lineBoot.robot.state==DONE&&lineBoot.robot.loaded&&lineBoot.lift.position==lineBoot.v(P_LIFT_HIGH));
+ lineBoot.releaseButton(100,clockMs);assert(lineBoot.robot.state==DONE);
+ inputPins[2]=LOW;cmd(lineBoot,"low");steps(lineBoot,340);cmd(lineBoot,"reset");
+ assert(lineBoot.robot.state==IDLE&&lineBoot.lineMode);
+ cmd(lineBoot,"line clear");cmd(lineBoot,"mode full");
+ RobotHardware fullBoot;fullBoot.init();
+ assert(!fullBoot.lineMode&&!fullBoot.calibrationReady()&&fullBoot.v(P_KP)==60);
  puts("PASS: continuous motor PWM, median-filtered sensors, hardware adapter including independent persistent servo inversion, startup output, high/low mapping, detached confirmation, raised-fork lock and sensor-calibration erase/CRC independence, HW-511 modes and START debounce/hold/abort");
 }

@@ -13,12 +13,19 @@ struct StoredCalibration {uint32_t magic;uint8_t version,pins[3],mask;uint16_t w
 struct StoredServoLimits { uint32_t magic; uint8_t low, high, reverse, check; };
 struct StoredServoDirection {uint32_t magic;uint8_t reverse,check;};
 struct StoredContactMode {uint32_t magic;uint8_t activeLow,pullup,check;};
+// Independent EEPROM record at 64; the calibration record starts at 0.
+struct StoredLineTuning {uint16_t magic,values[6],check;};
 struct StoredBuzzerMode {uint32_t magic;uint8_t enabled,check;}; // EEPROM 1013..1018
 // Dedicated 20-byte motor calibration record at EEPROM 960..979.
 struct StoredMotorTuning {uint32_t magic;uint8_t minLeft,minRight;uint16_t leftTrim,rightTrim;uint8_t drive,loaded,approach,centre,turn,turnLoaded,rampStep,rampMs;uint16_t check;};
 // Separate 10-byte optional record, 980..989: never overwrite servo EEPROM at 990.
 struct StoredMotorDynamics {uint16_t magic;uint8_t kickPwm,kickMs,crawlLimit,crawlPwm,crawlPeriod,crawlMinOn;uint16_t check;};
 #pragma pack(pop)
+static constexpr uint8_t LINE_TUNING_EEPROM=64, RUN_MODE_EEPROM=80;
+static_assert(sizeof(StoredCalibration)<=LINE_TUNING_EEPROM,"Line tuning must not overlap calibration");
+static_assert(LINE_TUNING_EEPROM+sizeof(StoredLineTuning)<=RUN_MODE_EEPROM,"Run mode must not overlap line tuning");
+static const uint8_t lineParams[]={P_LINE_THRESHOLD,P_KP,P_KD,P_MAX_CORRECTION,P_LOST_MS,P_CONTACT_MS};
+static_assert(sizeof(lineParams)==sizeof(StoredLineTuning::values)/sizeof(uint16_t),"Line tuning parameter count");
 static_assert(sizeof(StoredMotorTuning)==20,"Unexpected EEPROM motor layout");
 static_assert(sizeof(StoredMotorDynamics)==10,"Unexpected EEPROM dynamics layout");
 static_assert(sizeof(StoredBuzzerMode)==6,"Unexpected EEPROM buzzer layout");
@@ -34,12 +41,24 @@ struct RobotHardware {
  uint8_t motorMinLeft,motorMinRight;
  uint8_t motorKickPwm,motorKickMs,motorCrawlLimit,motorCrawlPwm,motorCrawlPeriod,motorCrawlMinOn;
  int8_t lastRequestedSign[2];uint32_t kickStarted[2];
- bool armed,stream,calibrating,jogging,jogWithKick,jogHoldLogged,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed,manualServoPending,contactPullup;
+ bool lineMode,armed,stream,calibrating,jogging,jogWithKick,jogHoldLogged,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed,manualServoPending,contactPullup;
  uint8_t calKind,samples,lineLength;
  uint32_t sampleSum[3],lastRead,buttonChanged,buttonPressed,lastStream,jogStarted;
  uint8_t defaultServoLow,defaultServoHigh;
  uint16_t jogDuration;int16_t jogLeft,jogRight;uint8_t jogProbeKickPwm,jogProbeKickMs;int configError;char command[80];
  uint16_t v(Param p)const{return settings.v[p];}
+ uint16_t lineCheck(const StoredLineTuning &t)const{
+  uint16_t check=0x4A17;
+  for(uint16_t value:t.values)check=(uint16_t)(check*31)^value;
+  return check;
+ }
+ bool applyLine(const StoredLineTuning &t){
+  for(uint8_t i=0;i<sizeof(lineParams);i++)
+   if(!inSettingRange(t.values[i],paramRanges[lineParams[i]]))return false;
+  if(t.values[0]>=v(P_WIDE_THRESHOLD))return false;
+  for(uint8_t i=0;i<sizeof(lineParams);i++)settings.v[lineParams[i]]=t.values[i];
+  return true;
+ }
  void storeBuzzerMode(){
   const StoredBuzzerMode m={0x42555A31UL,(uint8_t)buzzer.enabled,(uint8_t)(0xA6^(uint8_t)buzzer.enabled)};
   EEPROM.put(1013,m);
@@ -150,7 +169,7 @@ struct RobotHardware {
  }
  enum CalibrationState { CAL_READY, CAL_INCOMPLETE, CAL_HUB_OVERLAP };
  CalibrationState calibrationState()const{
-  const bool useHubSamples=v(P_HUB_MODE)==0;
+  const bool useHubSamples=!lineMode&&v(P_HUB_MODE)==0;
   const uint8_t required=useHubSamples?15:3;
   if((cal.mask&required)!=required)return CAL_INCOMPLETE;
   for(uint8_t i=0;i<3;i++){
@@ -172,10 +191,6 @@ struct RobotHardware {
   else if(state==CAL_INCOMPLETE)Serial.println(F("CAL REQUIRED: sample white, black and required circles."));
   return state==CAL_READY;
  }
- void safeChannel(uint8_t a,uint8_t b,uint8_t en,int16_t value){
-  analogWrite(en,0);digitalWrite(a,value>0?HIGH:LOW);digitalWrite(b,value<0?HIGH:LOW);analogWrite(en,abs16(value));
- }
- void dualPwm(uint8_t a,uint8_t b,int16_t value){if(value>=0){analogWrite(b,0);analogWrite(a,value);}else{analogWrite(a,0);analogWrite(b,-value);}}
  void shieldMotor(uint8_t direction,uint8_t speed,int16_t value,int16_t previous){
   if(value==previous)return; // No PWM teardown during steady-state tracking.
   // Disable PWM before real direction changes, not for speed-only updates.
@@ -191,9 +206,7 @@ struct RobotHardware {
   if(directPwm){lastRequestedSign[0]=lastRequestedSign[1]=0;l=clamp16(l,-255,255);r=clamp16(r,-255,255);}
   else{const uint32_t now=millis();l=shapedMotor(l,v(P_LEFT_TRIM),motorMinLeft,0,now);r=shapedMotor(r,v(P_RIGHT_TRIM),motorMinRight,1,now);}
   if(v(P_LEFT_REVERSE))l=-l;if(v(P_RIGHT_REVERSE))r=-r;
-  if(v(P_DRIVER_MODE)==2){shieldMotor(v(P_LEFT_IN1),v(P_LEFT_EN),l,appliedLeft);shieldMotor(v(P_RIGHT_IN1),v(P_RIGHT_EN),r,appliedRight);}
-  else if(v(P_DRIVER_MODE)==0){safeChannel(v(P_LEFT_IN1),v(P_LEFT_IN2),v(P_LEFT_EN),l);safeChannel(v(P_RIGHT_IN1),v(P_RIGHT_IN2),v(P_RIGHT_EN),r);}
-  else{dualPwm(v(P_LEFT_IN1),v(P_LEFT_IN2),l);dualPwm(v(P_RIGHT_IN1),v(P_RIGHT_IN2),r);}
+  shieldMotor(12,10,l,appliedLeft);shieldMotor(13,11,r,appliedRight);
   if(v(P_STANDBY_PIN)!=255)digitalWrite(v(P_STANDBY_PIN),(l||r)?HIGH:LOW);
   appliedLeft=l;appliedRight=r;
  }
@@ -205,6 +218,7 @@ struct RobotHardware {
   if(savedBuzzer.magic==0x42555A31UL&&savedBuzzer.enabled<=1&&
      savedBuzzer.check==(uint8_t)(0xA6^savedBuzzer.enabled))
    buzzer.setEnabled(savedBuzzer.enabled);
+  lineMode=EEPROM.read(RUN_MODE_EEPROM)==0xA5;
   armed=stream=calibrating=jogging=jogWithKick=jogHoldLogged=skipButtonRelease=lineOverflow=manualServoPending=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
   lineHistorySlot=0;lineHistoryReady=false;appliedLeft=appliedRight=0;
   lastAudibleState=IDLE;
@@ -219,9 +233,10 @@ struct RobotHardware {
   StoredMotorDynamics extra;EEPROM.get(980,extra);
   if(validDynamics(extra))applyDynamics(extra);
   // Shield uses only four motor pins. D4 is an active buzzer on the shield.
-  if(v(P_DRIVER_MODE)==2){const uint8_t pins[4]={12,13,10,11};for(uint8_t i=0;i<4;i++){pinMode(pins[i],OUTPUT);digitalWrite(pins[i],LOW);}pinMode(4,OUTPUT);digitalWrite(4,LOW);}
-  else{uint8_t outs[8]={(uint8_t)v(P_LEFT_IN1),(uint8_t)v(P_LEFT_IN2),(uint8_t)v(P_RIGHT_IN1),(uint8_t)v(P_RIGHT_IN2),(uint8_t)v(P_LEFT_EN),(uint8_t)v(P_RIGHT_EN),(uint8_t)v(P_LED_PIN),(uint8_t)v(P_STANDBY_PIN)};
-  for(uint8_t i=0;i<8;i++)if(outs[i]!=255&&(v(P_DRIVER_MODE)==0||i<4||i>5)){pinMode(outs[i],OUTPUT);digitalWrite(outs[i],LOW);}}
+  const uint8_t outputs[]={12,13,10,11,(uint8_t)v(P_STANDBY_PIN)};
+  for(uint8_t pin:outputs)if(pin!=255){pinMode(pin,OUTPUT);digitalWrite(pin,LOW);}
+  StoredLineTuning line;EEPROM.get(LINE_TUNING_EEPROM,line);
+  if(line.magic==0x4C31&&line.check==lineCheck(line))applyLine(line);
   // START is a normally-open switch to GND. HW-511 is a powered comparator
    // module, not a switch: leave its signal unbiased unless explicitly requested.
    pinMode(v(P_START_PIN),INPUT_PULLUP);
@@ -274,14 +289,21 @@ struct RobotHardware {
  }
  void releaseButton(uint32_t held,uint32_t now){
   if(robot.active()||jogging||calibrating)return;
-  if(robot.state==DONE){robot.init(settings,now);armed=false;Serial.println(F("RESET: reposition at configured hub and heading."));return;}
+  if(robot.state==DONE){
+   if(robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact())return;
+   robot.init(settings,now);armed=false;return;
+  }
   if(robot.state==FAULT){if(held>=v(P_ARM_HOLD_MS)&&robot.servoAngle==v(P_LIFT_LOW)&&!contact()){robot.init(settings,now);armed=false;Serial.println(F("FAULT RESET"));}return;}
   if(held>=v(P_ARM_HOLD_MS)){armed=true;Serial.println(F("ARMED. Release, then short press START."));buzzer.play(ShieldBuzzer::ARMED,now);return;}
   if(!armed){Serial.println(F("NOT ARMED: hold START or send arm."));buzzer.play(ShieldBuzzer::WARNING,now);return;}
+  startMission(now);
+ }
+ void startMission(uint32_t now){
+  if(!armed||calibrating||robot.state!=IDLE||digitalRead(v(P_START_PIN))==LOW){Serial.println(F("START REFUSED: arm, idle, START released."));return;}
   if(!requireCalibration()){buzzer.play(ShieldBuzzer::WARNING,now);return;}
   if(robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)){Serial.println(F("LOWER FORKS BEFORE START"));buzzer.play(ShieldBuzzer::WARNING,now);return;}
   if(contact()){Serial.println(F("CONTACT ALREADY PRESSED"));buzzer.play(ShieldBuzzer::WARNING,now);return;}
-  robot.start(now);
+  if(robot.start(now,lineMode))armed=false;
  }
  void button(uint32_t now){
   bool pressed=digitalRead(v(P_START_PIN))==LOW;
@@ -345,6 +367,9 @@ struct RobotHardware {
   Serial.print(F(" motor_applied="));Serial.print(appliedLeft);Serial.print(',');Serial.print(appliedRight);
   Serial.print(F(" motor_jog="));Serial.print(jogging?1:0);
   Serial.print(F(" buzzer="));Serial.print(buzzer.enabled?1:0);
+  Serial.print(F(" line_tuning="));
+  for(uint8_t i=0;i<sizeof(lineParams);i++){if(i)Serial.print(',');Serial.print(settings.v[lineParams[i]]);}
+  Serial.print(F(" mode="));Serial.print(lineMode?1:0);
   Serial.print(F(" motor_jog_stage="));
   if(!jogging)Serial.println(F("idle"));
   else if(!jogWithKick)Serial.println(F("direct"));
@@ -391,7 +416,34 @@ struct RobotHardware {
   }
   if(robot.active()||jogging){Serial.println(F("BUSY: only status, stream, buzzer, stop."));buzzer.play(ShieldBuzzer::WARNING,now);return;}
    // Recover a sensor even in FAULT when a wrong contact level blocks RESET.
-   if(!strcmp(cmd,"contact")){
+   if(!strcmp(cmd,"start")&&!strtok(0," \t")){startMission(now);status();return;}
+  if(!strcmp(cmd,"line")){
+   const char *action=strtok(0," \t");
+   StoredLineTuning t={0x4C31,{},0};
+   if(action&&!strcmp(action,"set")){
+    for(uint8_t i=0;i<sizeof(lineParams);i++){
+     long n;
+     if(!number(strtok(0," \t"),n)||n<0||n>2000){Serial.println(F("LINE REFUSED: invalid tuning"));return;}
+     t.values[i]=(uint16_t)n;
+    }
+    if(strtok(0," \t")||!applyLine(t)){Serial.println(F("LINE REFUSED: invalid tuning"));return;}
+    armed=false;Serial.println(F("LINE UPDATED"));status();return;
+   }
+   if(action&&!strcmp(action,"save")&&!strtok(0," \t")){
+    for(uint8_t i=0;i<sizeof(lineParams);i++)t.values[i]=settings.v[lineParams[i]];
+    t.check=lineCheck(t);EEPROM.put(LINE_TUNING_EEPROM,t);Serial.println(F("LINE SAVED"));return;
+   }
+   if(action&&!strcmp(action,"clear")&&!strtok(0," \t")){
+    EEPROM.update(LINE_TUNING_EEPROM,0);armed=false;Serial.println(F("LINE CLEARED"));return;
+   }
+   Serial.println(F("Use line set|save|clear"));return;
+  }
+  if(!strcmp(cmd,"mode")){
+   const char *mode=strtok(0," \t");
+   if(!mode||strtok(0," \t")||(strcmp(mode,"line")&&strcmp(mode,"full"))){Serial.println(F("Use mode full|line"));return;}
+   lineMode=!strcmp(mode,"line");EEPROM.update(RUN_MODE_EEPROM,lineMode?0xA5:0xFF);armed=false;status();return;
+  }
+  if(!strcmp(cmd,"contact")){
     char *mode=strtok(0," \t"),*value=strtok(0," \t");
     if(!mode || (value && strtok(0," \t")) || calibrating){
      Serial.println(F("Use contact high|low or contact pullup on|off while stopped."));return;
@@ -404,9 +456,9 @@ struct RobotHardware {
     armed=false;robot.contactTimer.clear();robot.heldTimer.clear();
     saveContactMode();Serial.println(F("CONTACT CONFIG SAVED"));buzzer.play(ShieldBuzzer::ACK,now);status();return;
    }
-  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; arm; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; contact high|low; contact pullup on|off; buzzer on|off|test|status; motor set [12 values]|dynamics KICK PWMMS CRAWL_LIMIT CRAWL_PWM PERIOD MINON|save|clear; jog L R ms; jogkick L R ms kickPWM kickMs; status; stream; reset; erase; stop"));return;}
+  if(!strcmp(cmd,"help")){Serial.println(F("cal white|black|left|right; save; line set|save|clear; mode full|line; arm; start; low; high; angle N; limits LOW HIGH; servo normal|reverse detached; contact high|low; contact pullup on|off; buzzer on|off|test|status; motor set [12 values]|dynamics KICK PWMMS CRAWL_LIMIT CRAWL_PWM PERIOD MINON|save|clear; jog L R ms; jogkick L R ms kickPWM kickMs; status; stream; reset; erase; stop"));return;}
   if(!strcmp(cmd,"low")||!strcmp(cmd,"high")){robot.servoGoal=!strcmp(cmd,"low")?v(P_LIFT_LOW):v(P_LIFT_HIGH);manualServoPending=true;Serial.println(F("MANUAL SERVO: support any load."));status();return;}
-  if(!strcmp(cmd,"reset")){if(robot.servoAngle!=v(P_LIFT_LOW)||contact()){Serial.println(F("RESET REFUSED: lower forks and remove load."));buzzer.play(ShieldBuzzer::WARNING,now);return;}robot.init(settings,now);manualServoPending=false;armed=false;return;}
+  if(!strcmp(cmd,"reset")){if(robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()){Serial.println(F("RESET REFUSED: lower forks and remove load."));buzzer.play(ShieldBuzzer::WARNING,now);return;}robot.init(settings,now);manualServoPending=false;armed=false;return;}
   if(robot.state!=IDLE){Serial.println(F("RESET REQUIRED"));buzzer.play(ShieldBuzzer::WARNING,now);return;}
 
   if(!strcmp(cmd,"motor")){
@@ -563,7 +615,8 @@ struct RobotHardware {
   // actually accepted, rather than merely showing a brief black ADC reading.
   if(before==SEARCH_OUT&&robot.state==APPROACH)Serial.println(F("MARKER CONFIRMED: LOADING ZONE"));
   else if(before==DELIVERY_OUT&&robot.state==DELIVERY_CREEP)Serial.println(F("MARKER CONFIRMED: DELIVERY ZONE"));
-  if(robot.state!=lastAudibleState){signalStateChange(lastAudibleState,robot.state,now);lastAudibleState=robot.state;}
+  const bool stageChanged=robot.state!=lastAudibleState;
+  if(stageChanged){signalStateChange(lastAudibleState,robot.state,now);lastAudibleState=robot.state;}
   // Apply the requested test PWM immediately; ramp() is for the mission only.
   // The next tick returns to zero as soon as the jog deadline expires.
   int16_t testLeft=jogging?jogLeft:0,testRight=jogging?jogRight:0;
@@ -574,13 +627,17 @@ struct RobotHardware {
   }
   outputMotors(jogging?testLeft:robot.left,jogging?testRight:robot.right,jogging);
   lift.write(servoOutputAngle());
+  if(stageChanged){
+   Serial.print(F("stage="));Serial.print((uint8_t)robot.state);
+   Serial.print(F(" fault="));Serial.print((uint8_t)robot.fault);
+   Serial.print(F(" held="));Serial.println(robot.loaded);
+  }
   // For USB angle tuning, publish an arrival status even with stream off.
   // Otherwise the browser only sees the old angle sent before movement,
   // and "capture current" never knows that SG90 has reached the target.
   if(manualServoPending&&servoSettled(now)){
     manualServoPending=false;status();
   }
-  if(v(P_LED_PIN)!=255)digitalWrite(v(P_LED_PIN),robot.state==FAULT?((now/150)%2):robot.state==DONE?HIGH:armed?((now/700)%2):LOW);
   if(stream&&(uint32_t)(now-lastStream)>=150){lastStream=now;status();}
   buzzer.tick(now);
  }
