@@ -1,6 +1,19 @@
 window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectConfig}){
  const $=id=>document.getElementById(id),pane=$('pane-arduino');pane.innerHTML='<h2>Arduino UNO / Nano</h2><div class="form-row"><label for="boardProfile">Какая плата?</label><select id="boardProfile"><option value="uno">UNO · Optiboot</option><option value="uno-auto">UNO · не знаю загрузчик</option><option value="uno-old">UNO · 57600</option><option value="nano-auto">Nano · не знаю загрузчик</option><option value="nano-old">Nano · старый, 57600</option><option value="nano-new">Nano · новый, 115200</option></select></div><p class="hint" id="boardHelp"></p><label class="hint"><input type="checkbox" id="manualReset"> Сброс кнопкой RESET</label><p class="hint">Если плата не отвечает: закройте монитор порта и Arduino IDE, отключите всё от D0/RX и D1/TX. Включите сброс кнопкой и нажмите RESET, когда появится подсказка. Если COM-порта нет — проверьте USB-кабель и драйвер USB-чипа вашей платы.</p><p class="hint">В плату попадёт программа с вашими настройками. На роботе проверьте датчики и время движений.</p><p class="hint">Перед записью отключите моторы. Поддерживаются UNO и классическая Nano на ATmega328P, 16 МГц.</p><div class="export-buttons"><button id="flashUno" class="primary">Записать программу по USB</button><button id="cancelFlash" disabled>Остановить запись</button><button id="downloadHex">↓ HEX с текущими настройками</button></div><progress id="flashProgress" max="100" value="0" style="width:100%;margin-top:14px"></progress><p class="hint" id="serialSupport"></p><pre id="serialLog" class="serial-log"></pre><div class="section"><h2>Настроить датчики</h2><div class="inline"><button id="openMonitor">Подключить</button><button id="closeMonitor" disabled>Отключить</button></div><div class="cal-buttons" id="calButtons"></div><form id="serialForm" class="inline" style="margin-top:10px"><input id="serialCommand" aria-label="Команда Arduino" placeholder="status" style="min-width:0;width:100%"><button>Отправить</button></form><p class="hint">Все три датчика — над одним покрытием. Нажмите его название. Дождитесь CAL SAMPLE OK. Повторите для остальных покрытий, затем «Сохранить».</p></div>';
- const real=document.createElement('div');real.className='section';real.innerHTML='<h2>Проверка настоящего робота по USB</h2><p class="hint">Ниже команды для подключённой платы. Моторные пробы: вилы внизу, груз снят. Сначала «Подключить», затем «Разрешить пробы». После «Стоп» — опустите вилы, «Сброс», снова разрешите пробы.</p><div class="form-row"><label for="realPwm">PWM · 1–150</label><input id="realPwm" type="number" min="1" max="150" step="1" value="85"></div><div class="form-row"><label for="realDuration">Время пробы · 50–2000 мс</label><input id="realDuration" type="number" min="50" max="2000" step="10" value="1000"></div><div id="realControls" class="cal-buttons"></div>';
+ const real=document.createElement('div');real.className='section';real.innerHTML='<h2>Проверка настоящего робота по USB</h2><p class="hint">Ниже команды для подключённой платы. Моторные пробы: вилы внизу, груз снят. Сначала «Подключить», затем «Разрешить пробы». После «Стоп» — опустите вилы, «Сброс», снова разрешите пробы.</p><div class="form-row"><label for="realLeftPwm">Левый PWM · 0–255</label><input id="realLeftPwm" type="number" min="0" max="255" value="85"></div><div class="form-row"><label for="realRightPwm">Правый PWM · 0–255</label><input id="realRightPwm" type="number" min="0" max="255" value="85"></div><p class="hint">Для измерения порога запуска временно задайте оба минимума PWM=0, затем пробуйте колёса по одному. Моторы должны получать штатное питание.</p><div class="form-row"><label for="realDuration">Время пробы · 50–2000 мс</label><input id="realDuration" type="number" min="50" max="2000" step="10" value="1000"></div><div id="realControls" class="cal-buttons"></div>';
+ 
+ const motorDefs=[
+  ['motorMinLeft','Левый: минимальный PWM',0,255,70],['motorMinRight','Правый: минимальный PWM',0,255,70],
+  ['motorTrimLeft','Левый: баланс /1000',500,1500,1000],['motorTrimRight','Правый: баланс /1000',500,1500,1000],
+  ['motorDrive','По линии без груза',20,220,85],['motorLoaded','По линии с грузом',20,220,75],
+  ['motorApproach','Подъезд / отход',15,180,55],['motorCentre','Подъезд к центру',15,180,80],
+  ['motorTurn','Поворот без груза',20,200,85],['motorTurnLoaded','Поворот с грузом',20,200,75],
+  ['motorRampStep','Шаг плавного разгона',1,255,5],['motorRampMs','Интервал разгона, мс',1,100,10]
+ ];
+ const motor=document.createElement('div');
+ motor.innerHTML='<h2>Скорости и пороги запуска</h2><p class="hint">Ненулевые команды ниже минимального PWM поднимаются до порога, а команда 0 всегда останавливает мотор. Баланс 1000 = 100%.</p>'+
+  motorDefs.map(([id,label,min,max,value])=>'<div class="form-row"><label for="'+id+'">'+label+'</label><input id="'+id+'" type="number" min="'+min+'" max="'+max+'" step="1" value="'+value+'"></div>').join('')+
+  '<div class="cal-buttons"><button id="motorApply">Применить в Arduino</button><button id="motorSave">Сохранить в EEPROM</button><button id="motorClear">Очистить EEPROM моторов</button></div><p class="hint" id="motorConfigStatus">Нужна обновлённая прошивка. Применить — временно; после проверки нажмите «Сохранить в EEPROM».</p>';
  const direction=document.createElement('div');direction.className='section';direction.innerHTML='<h2>Направление SG90</h2><p class="hint">Если настоящая качалка движется противоположно модели: сначала запишите обновлённую прошивку. Снимите качалку, подключите монитор, нажмите «Опустить» и дождитесь остановки. При ошибке состояния нажмите «Сброс».</p><div class="form-row"><label for="servoDirection">Направление настоящего серво</label><select id="servoDirection"><option value="normal">Обычное</option><option value="reverse">Обратное</option></select></div><label class="check"><input id="servoDetached" type="checkbox">Качалка снята, серво без нагрузки</label><button id="applyServoDirection" disabled>Сохранить направление в Arduino</button><p class="hint" id="servoDirectionStatus">Текущее направление: нажмите «Статус». servo_reverse=1 — обратное. После сохранения выключите питание и установите качалку в нижнее положение по рисунку. Настройка хранится в EEPROM платы, отдельно от HTML.</p>';
  real.append(direction);const powerNote=document.createElement('p');powerNote.className='hint';powerNote.textContent='Для USB-проб отсоедините внешний провод 5 В от Arduino: плата питается от USB, моторы и серво — от своих источников. Общий GND оставьте соединённым.';real.append(powerNote);pane.append(real);
  const projectButton=document.createElement('button');projectButton.id='downloadProject';projectButton.textContent='↓ Скачать проект Arduino (ZIP)';$('downloadHex').after(projectButton);
@@ -79,11 +92,11 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  portStatus.id='portStatus';
  pane.replaceChildren(heading,$('serialSupport'),connection,portStatus,controls,
   section('Сервопривод',limits,true),section('Датчики',sensors),
-  section('Проба моторов',real),section('Прошивка',flashing),section('Терминал COM',terminal));
- let telemetry=null,limitsLoaded=false;
+  section('Скорости моторов',motor,true),section('Проба моторов',real),section('Прошивка',flashing),section('Терминал COM',terminal));
+ let telemetry=null,limitsLoaded=false,motorDirty=false;
  let busy=false,controller=null,monitor=null,openingMonitor=false;
  const telemetryPlaceholders=Object.fromEntries(
-  ['liveHardware','servoLimitsStatus','servoDirectionStatus'].map(id=>[id,$(id).textContent])
+  ['liveHardware','servoLimitsStatus','servoDirectionStatus','motorConfigStatus'].map(id=>[id,$(id).textContent])
  );
  const log=s=>{$('serialLog').textContent=($('serialLog').textContent+'\n'+s).slice(-10000);$('serialLog').scrollTop=$('serialLog').scrollHeight;const status=String(s).match(/angle=(\d+).*?servo_output=(\d+).*?servo_goal=(\d+).*?servo_low=(\d+).*?servo_high=(\d+).*?start_button=(\d).*?raw=([^=]+?) line=.*?contact=(\d)/);
  if(status){
@@ -105,6 +118,15 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  if(s.startsWith('CAL REQUIRED'))$('calibrationFeedback').textContent='Снимите образцы белого, чёрного и требуемых кругов.';
  if(s.startsWith('CAL SAMPLE OK')||s==='EEPROM SAVED')$('calibrationFeedback').textContent=s==='EEPROM SAVED'?'Калибровка сохранена.':'Образец записан. После завершения нажмите «Сохранить».';
  if(String(s)==='SERVO LIMITS SAVED'){limitsLoaded=false;$('servoLimitsStatus').textContent='Положения записаны в Arduino.';}
+ const mt=String(s).match(/motor_min=(\d+),(\d+)\s+motor_trim=(\d+),(\d+)\s+motor_speed=(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\s+motor_ramp=(\d+),(\d+)/);
+ if(mt){
+  if(!motorDirty)motorDefs.forEach(([id],i)=>{$(id).value=mt[i+1];});
+  $('motorConfigStatus').textContent='Настройки прочитаны с Arduino. После применения сохраните в EEPROM.';
+ }
+ if(s.startsWith('MOTOR UPDATED')){motorDirty=false;$('motorConfigStatus').textContent='Применено в RAM; не сохранено в EEPROM.';}
+ if(s.startsWith('MOTOR SAVED'))$('motorConfigStatus').textContent='Сохранено в EEPROM.';
+ if(s.startsWith('MOTOR CLEARED'))$('motorConfigStatus').textContent='EEPROM очищена. Перезапустите плату для возврата к настройкам прошивки.';
+ if(s.startsWith('MOTOR REFUSED')||s==='UNKNOWN COMMAND')$('motorConfigStatus').textContent=s==='UNKNOWN COMMAND'?'Обновите прошивку: команда не поддерживается.':s;
  if(s.startsWith('RADIAL READY'))send('status').catch(e=>log(e.message));
  const match=String(s).match(/(?:servo_reverse|SERVO SAVED reverse)=(0|1)/);if(match){if(String(s).startsWith('SERVO SAVED')){limitsLoaded=false;}$('servoDirection').value=match[1]==='1'?'reverse':'normal';$('servoDirectionStatus').textContent='Плата сообщает: '+(match[1]==='1'?'обратное':'обычное')+' направление SG90. Сохранено в EEPROM. Установите качалку в нижнем положении при выключенном питании.';}};
  const supported=!!navigator.serial&&isSecureContext;
@@ -121,6 +143,7 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   $('downloadHex').disabled=busy;
   $('boardProfile').disabled=$('manualReset').disabled=locked;
   $('applyServoDirection').disabled=!connected||!$('servoDetached').checked;
+  for(const id of ['motorApply','motorSave','motorClear'])$(id).disabled=!connected;
   $('portStatus').textContent=connected?'COM-порт подключён · 115200 бод. Для прошивки нажмите «Записать программу по USB»: монитор будет отключён автоматически.':'COM-порт отключён';
   for(const button of pane.querySelectorAll('[data-command],[data-real-command],[data-real-jog],#calButtons button,#serialForm button'))button.disabled=!connected;
   for(const id of ['servoBack','servoForward','servoPreview'])$(id).disabled=!connected||!telemetry;
@@ -149,7 +172,7 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  };
  $('cancelFlash').onclick=()=>controller?.abort();
  function clearTelemetry(){
-  telemetry=null;limitsLoaded=false;
+  telemetry=null;limitsLoaded=false;motorDirty=false;
   for(const [id,message] of Object.entries(telemetryPlaceholders))$(id).textContent=message;
   for(const id of ['servoLow','servoHigh','servoTarget'])$(id).value='';
   $('calibrationFeedback').textContent='';
@@ -213,9 +236,20 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   await monitor.writer.write(new TextEncoder().encode(command+'\n'));
   log('> '+command);
  }
+ 
+ motorDefs.forEach(([id])=>$(id).addEventListener('input',()=>{motorDirty=true;}));
+ $('motorApply').onclick=()=>{
+  const values=motorDefs.map(([id])=>$(id).value===''?NaN:Number($(id).value));
+  if(values.some((v,i)=>!Number.isInteger(v)||v<motorDefs[i][2]||v>motorDefs[i][3])){
+   $('motorConfigStatus').textContent='Проверьте диапазоны и целые значения всех параметров.';return;
+  }
+  send('motor set '+values.join(' ')).catch(e=>log(e.message));
+ };
+ $('motorSave').onclick=()=>send('motor save').catch(e=>log(e.message));
+ $('motorClear').onclick=()=>{if(confirm('Очистить EEPROM настроек моторов? Настройки прошивки вернутся после перезапуска Arduino.'))send('motor clear').catch(e=>log(e.message));};
  $('servoDetached').onchange=buttons;$('applyServoDirection').onclick=()=>{if(!monitor||monitor.closing||!$('servoDetached').checked)return;const mode=$('servoDirection').value;if(!['normal','reverse'].includes(mode))return;send('servo '+mode+' detached').catch(e=>log(e.message));$('servoDetached').checked=false;buttons();};
  for(const [label,command]of [['Разрешить пробы','arm'],['↑ Поднять вилы','high'],['↓ Опустить вилы','low'],['Сброс','reset'],['■ Стоп','stop']]){const b=document.createElement('button');b.textContent=label;b.dataset.realCommand=command;b.onclick=()=>send(command).catch(e=>log(e.message));$('realControls').append(b);}
- for(const [label,l,r]of [['↑ Вперёд',1,1],['↓ Назад',-1,-1],['↶ Влево',-1,1],['↷ Вправо',1,-1]]){const b=document.createElement('button');b.textContent=label;b.dataset.realJog=l+','+r;b.onclick=()=>{const p=Number($('realPwm').value),t=Number($('realDuration').value);if(!Number.isInteger(p)||p<1||p>150||!Number.isInteger(t)||t<50||t>2000){log('PWM: 1–150; время: 50–2000 мс.');return;}send('jog '+l*p+' '+r*p+' '+t).catch(e=>log(e.message));};$('realControls').append(b);}
+ for(const [label,l,r]of [['↑ Вперёд',1,1],['↓ Назад',-1,-1],['↶ Влево',-1,1],['↷ Вправо',1,-1],['Только левый',1,0],['Только правый',0,1]]){const b=document.createElement('button');b.textContent=label;b.dataset.realJog=l+','+r;b.onclick=()=>{const lp=$('realLeftPwm').value===''?NaN:Number($('realLeftPwm').value),rp=$('realRightPwm').value===''?NaN:Number($('realRightPwm').value),t=Number($('realDuration').value);if(!Number.isInteger(lp)||lp<0||lp>255||!Number.isInteger(rp)||rp<0||rp>255||!Number.isInteger(t)||t<50||t>2000||(!l*lp&&!r*rp)){log('PWM 0–255; время 50–2000 мс; хотя бы одно колесо должно двигаться.');return;}send('jog '+l*lp+' '+r*rp+' '+t).catch(e=>log(e.message));};$('realControls').append(b);}
  const command=s=>{
   if(telemetry && /^(angle |low$|high$|stop$)/.test(s)){telemetry.angle=null;telemetry.settled=false;buttons();}
   send(s).catch(e=>log(e.message));
