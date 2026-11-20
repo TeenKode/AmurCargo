@@ -44,7 +44,16 @@ int main(){
  inputPins[17]=HIGH;steps(start,5);assert(start.robot.active());
  inputPins[17]=LOW;steps(start,5);assert(start.robot.state==FAULT&&start.robot.fault==ABORTED&&!start.armed);
  inputPins[17]=HIGH;steps(start,5);assert(start.robot.state==FAULT&&!start.armed);
- cmd(h,"arm");cmd(h,"jog 100 -100 100");assert(h.jogging);steps(h,5);assert(outputPins[10]>0&&outputPins[11]>0);steps(h,6);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
+ cmd(h,"arm");cmd(h,"jog 100 -100 100");assert(h.jogging);steps(h,5);assert(outputPins[10]==100&&outputPins[11]==100);steps(h,6);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
+ // A 50 ms diagnostic pulse must reach its requested PWM on the first tick,
+ // independently of the normal 5-per-10ms autonomous ramp and 70 minimum.
+ cmd(h,"arm");cmd(h,"jog 255 -200 50");assert(h.jogging);steps(h,1);
+ assert(outputPins[10]==255&&outputPins[11]==200&&outputPins[12]==HIGH&&outputPins[13]==LOW);
+ steps(h,5);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
+ cmd(h,"arm");cmd(h,"jog 15 0 50");assert(h.jogging);steps(h,1);
+ assert(outputPins[10]==15&&outputPins[11]==0);
+ steps(h,5);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
+ cmd(h,"arm");cmd(h,"jog 0 0 100");assert(!h.jogging);
  for(int duration : {1000, 20}){
   cmd(h,"arm");
   cmd(h,duration==20?"jog 100 100 20":"jog 100 100 1000");
@@ -80,7 +89,12 @@ int main(){
  cmd(tuned,"motor set 100 110 1200 900 130 120 95 100 135 125 8 12");
  assert(tuned.motorMinLeft==100&&tuned.motorMinRight==110&&tuned.v(P_DRIVE_PWM)==130);
  tuned.outputMotors(20,-30);assert(outputPins[10]==100&&outputPins[11]==110);
- tuned.outputMotors(0,0);assert(outputPins[10]==0&&outputPins[11]==0);
+ tuned.outputMotors(0,0);
+ // Motor trim/minimum affect driving, never the calibration probe.
+ cmd(tuned,"arm");cmd(tuned,"jog 40 -45 50");assert(tuned.jogging);steps(tuned,1);
+ assert(outputPins[10]==40&&outputPins[11]==45);
+ assert(outputPins[12]==HIGH&&outputPins[13]==LOW);
+ steps(tuned,5);assert(!tuned.jogging&&outputPins[10]==0&&outputPins[11]==0);assert(outputPins[10]==0&&outputPins[11]==0);
  tuned.outputMotors(-200,250);assert(outputPins[10]==240&&outputPins[11]==225);
  tuned.outputMotors(0,0);
  cmd(tuned,"motor set 5 5 1000 1000 0 120 95 100 135 125 8 12");assert(tuned.v(P_DRIVE_PWM)==130);
