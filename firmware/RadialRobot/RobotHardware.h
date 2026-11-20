@@ -455,12 +455,12 @@ struct RobotHardware {
     // Both stages bypass ramp, min PWM, trim and crawl pulses.
     const bool withKick=!strcmp(cmd,"jogkick");
     long l,r,t,kp=0,km=0;
-    char *a=strtok(0," \\t"),*b=strtok(0," \\t"),*c=strtok(0," \\t");
-    char *d=withKick?strtok(0," \\t"):nullptr,*e=withKick?strtok(0," \\t"):nullptr;
+    char *a=strtok(0," \t"),*b=strtok(0," \t"),*c=strtok(0," \t");
+    char *d=withKick?strtok(0," \t"):nullptr,*e=withKick?strtok(0," \t"):nullptr;
     const bool valid=armed&&!calibrating&&digitalRead(v(P_START_PIN))!=LOW&&
      robot.servoAngle==v(P_LIFT_LOW)&&robot.servoGoal==v(P_LIFT_LOW)&&!contact()&&
      number(a,l)&&number(b,r)&&number(c,t)&&
-     (!withKick||(number(d,kp)&&number(e,km)))&&!strtok(0," \\t")&&
+     (!withKick||(number(d,kp)&&number(e,km)))&&!strtok(0," \t")&&
      l>=-255&&l<=255&&r>=-255&&r<=255&&t>=1&&t<=2000&&(l||r)&&
      (!withKick||(kp>=1&&kp<=255&&km>=1&&km<=150&&km<t));
     if(!valid){
