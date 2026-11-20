@@ -52,9 +52,9 @@ inline void loadDefaultSettings(Settings &s){
  s.v[P_TURN_START_MS]=55;
  s.v[P_TURN_RIGHT_SCALE]=1000;
  s.v[P_UTURN_MIN_MS]=500;
- s.v[P_UTURN_MAX_MS]=1700;
+ s.v[P_UTURN_MAX_MS]=2800;
  s.v[P_UTURN_LOADED_MIN_MS]=600;
- s.v[P_UTURN_LOADED_MAX_MS]=2100;
+ s.v[P_UTURN_LOADED_MAX_MS]=3300;
  s.v[P_TURN_LINE_MS]=30;
  s.v[P_SETTLE_MS]=120;
  s.v[P_HUB_EXIT_MS]=650;
