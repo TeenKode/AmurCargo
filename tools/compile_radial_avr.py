@@ -8,7 +8,7 @@ SDK=Path(os.environ.get('ARDUINO_DATA',str(Path(os.environ.get('LOCALAPPDATA',st
 def tool(name):
  return TC/'bin'/(name+'.exe' if os.name=='nt' else name)
 includes=[CORE/'cores/arduino',CORE/('variants/eightanaloginputs' if board=='nano' else 'variants/standard'),CORE/'libraries/EEPROM/src',SK]
-common=['-c','-Os','-ffunction-sections','-fdata-sections','-flto','-mmcu=atmega328p','-DF_CPU=16000000L','-DARDUINO=10819','-DARDUINO_AVR_'+board.upper(),'-DARDUINO_ARCH_AVR']+['-I'+str(x) for x in includes]
+common=['-c','-Os','-mcall-prologues','-ffunction-sections','-fdata-sections','-flto','-mmcu=atmega328p','-DF_CPU=16000000L','-DARDUINO=10819','-DARDUINO_AVR_'+board.upper(),'-DARDUINO_ARCH_AVR']+['-I'+str(x) for x in includes]
 sources=list((CORE/'cores/arduino').glob('*.cpp'))+list((CORE/'cores/arduino').glob('*.c'))+list((CORE/'cores/arduino').glob('*.S'))+[SK/'RadialRobot.ino'];objects=[]
 for index,source in enumerate(sources):
  cpp=source.suffix in ('.cpp','.ino');compiler=tool('avr-g++' if cpp else 'avr-gcc');obj=BUILD/(str(index)+'_'+source.name+'.o');objects.append(obj)
