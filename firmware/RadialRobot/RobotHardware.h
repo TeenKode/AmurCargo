@@ -195,6 +195,10 @@ struct RobotHardware {
   Serial.print(F(" corr="));Serial.print(robot.correction);
   Serial.print(F(" dfilter="));Serial.print(robot.filteredDerivative);
   Serial.print(F(" lost_ms="));Serial.print(robot.lostTimer.active?(uint32_t)(millis()-robot.lostTimer.since):0UL);
+  Serial.print(F(" marker="));Serial.print(robot.markerCandidateNow?1:0);
+  Serial.print(F(" marker_base="));Serial.print(robot.markerBaseLeft);Serial.print(' ');Serial.print(robot.markerBaseRight);
+  Serial.print(F(" marker_rise="));Serial.print(robot.markerRiseLeft);Serial.print(' ');Serial.print(robot.markerRiseRight);
+  Serial.print(F(" marker_confirm_ms="));Serial.print(robot.wideTimer.active?(uint32_t)(millis()-robot.wideTimer.since):0UL);
   Serial.print(F(" cal="));Serial.println((int)calibrationState());
  }
  static uint8_t servoLimitsCheck(const StoredServoLimits &limits){
@@ -304,7 +308,12 @@ struct RobotHardware {
  void tick(){
   uint32_t now=millis();if(configError)return;
   serial(now);readSensors(now);button(now);input.contact=contact();input.abort=false;
+  const RobotState before=robot.state;
   if(jogging){if((uint32_t)(now-jogStarted)>=jogDuration){jogging=false;robot.stop();}else robot.drive(jogLeft,jogRight);robot.services(now);}else robot.tick(input,now);
+  // Clear, timestampable serial diagnostics when a loading/drop-off stripe is
+  // actually accepted, rather than merely showing a brief black ADC reading.
+  if(before==SEARCH_OUT&&robot.state==APPROACH)Serial.println(F("MARKER CONFIRMED: LOADING ZONE"));
+  else if(before==DELIVERY_OUT&&robot.state==DELIVERY_CREEP)Serial.println(F("MARKER CONFIRMED: DELIVERY ZONE"));
   outputMotors(robot.left,robot.right);lift.write(servoOutputAngle());
   // For USB angle tuning, publish an arrival status even with stream off.
   // Otherwise the browser only sees the old angle sent before movement,
