@@ -112,9 +112,12 @@ struct RobotHardware {
   }
   analogWrite(speed,abs16(value));
  }
- void outputMotors(int16_t l,int16_t r){
+ void outputMotors(int16_t l,int16_t r,bool directPwm=false){
   if(configError)return;
-  l=motorOutput(l,v(P_LEFT_TRIM),motorMinLeft);r=motorOutput(r,v(P_RIGHT_TRIM),motorMinRight);
+  // USB jog is an exact PWM measurement: no ramp, trim or stall-minimum.
+  // Normal autonomous movement still uses calibrated trims/minimums.
+  if(directPwm){l=clamp16(l,-255,255);r=clamp16(r,-255,255);}
+  else{l=motorOutput(l,v(P_LEFT_TRIM),motorMinLeft);r=motorOutput(r,v(P_RIGHT_TRIM),motorMinRight);}
   if(v(P_LEFT_REVERSE))l=-l;if(v(P_RIGHT_REVERSE))r=-r;
   if(v(P_DRIVER_MODE)==2){shieldMotor(v(P_LEFT_IN1),v(P_LEFT_EN),l,appliedLeft);shieldMotor(v(P_RIGHT_IN1),v(P_RIGHT_EN),r,appliedRight);}
   else if(v(P_DRIVER_MODE)==0){safeChannel(v(P_LEFT_IN1),v(P_LEFT_IN2),v(P_LEFT_EN),l);safeChannel(v(P_RIGHT_IN1),v(P_RIGHT_IN2),v(P_RIGHT_EN),r);}
@@ -248,7 +251,9 @@ struct RobotHardware {
   Serial.print(F(" motor_speed="));Serial.print(v(P_DRIVE_PWM));Serial.print(',');Serial.print(v(P_LOADED_PWM));Serial.print(',');
   Serial.print(v(P_APPROACH_PWM));Serial.print(',');Serial.print(v(P_CENTRE_PWM));Serial.print(',');
   Serial.print(v(P_TURN_PWM));Serial.print(',');Serial.print(v(P_TURN_LOADED_PWM));
-  Serial.print(F(" motor_ramp="));Serial.print(v(P_RAMP_STEP));Serial.print(',');Serial.println(v(P_RAMP_MS));
+  Serial.print(F(" motor_ramp="));Serial.print(v(P_RAMP_STEP));Serial.print(',');Serial.print(v(P_RAMP_MS));
+  Serial.print(F(" motor_applied="));Serial.print(appliedLeft);Serial.print(',');Serial.print(appliedRight);
+  Serial.print(F(" motor_jog="));Serial.println(jogging?1:0);
  }
  static uint8_t servoLimitsCheck(const StoredServoLimits &limits){
   return 0xA7 ^ limits.low ^ (uint8_t)(limits.high*3) ^ limits.reverse;
@@ -372,7 +377,7 @@ struct RobotHardware {
   }
   if(!strcmp(cmd,"jog")){
    long l,r,t;char *a=strtok(0," \t"),*b=strtok(0," \t"),*c=strtok(0," \t");
-   if(!armed||calibrating||digitalRead(v(P_START_PIN))==LOW||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-255||l>255||r<-255||r>255||t<1||t>2000){Serial.println(F("JOG REFUSED: arm, low, no load; PWM +/-255, 1..2000ms."));return;}
+   if(!armed||calibrating||digitalRead(v(P_START_PIN))==LOW||robot.servoAngle!=v(P_LIFT_LOW)||robot.servoGoal!=v(P_LIFT_LOW)||contact()||!number(a,l)||!number(b,r)||!number(c,t)||strtok(0," \t")||l<-255||l>255||r<-255||r>255||t<1||t>2000||(!l&&!r)){Serial.println(F("JOG REFUSED: arm, low, no load; nonzero PWM +/-255, 1..2000ms."));return;}
    jogLeft=l;jogRight=r;jogDuration=t;jogStarted=now;jogging=true;return;
   }
   Serial.println(F("UNKNOWN COMMAND"));
@@ -393,7 +398,10 @@ struct RobotHardware {
   // actually accepted, rather than merely showing a brief black ADC reading.
   if(before==SEARCH_OUT&&robot.state==APPROACH)Serial.println(F("MARKER CONFIRMED: LOADING ZONE"));
   else if(before==DELIVERY_OUT&&robot.state==DELIVERY_CREEP)Serial.println(F("MARKER CONFIRMED: DELIVERY ZONE"));
-  outputMotors(robot.left,robot.right);lift.write(servoOutputAngle());
+  // Apply the requested test PWM immediately; ramp() is for the mission only.
+  // The next tick returns to zero as soon as the jog deadline expires.
+  outputMotors(jogging?jogLeft:robot.left,jogging?jogRight:robot.right,jogging);
+  lift.write(servoOutputAngle());
   // For USB angle tuning, publish an arrival status even with stream off.
   // Otherwise the browser only sees the old angle sent before movement,
   // and "capture current" never knows that SG90 has reached the target.
