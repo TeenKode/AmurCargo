@@ -20,6 +20,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Enforce version bump in pull requests
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          python tools/check_version.py --base origin/main
+      - name: Test version policy
+        run: python tools/test_version_policy.py
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -45,6 +52,7 @@ jobs:
         run: |
           export ZIG="$(python -c 'import pathlib, ziglang; print(pathlib.Path(ziglang.__file__).with_name("zig"))')"
           python tools/rebuild_site.py
+          python tools/check_version.py --check-html
       - name: Test firmware and simulated missions
         run: |
           npm test
@@ -104,6 +112,7 @@ jobs:
         run: |
           export ZIG="$(python -c 'import pathlib, ziglang; print(pathlib.Path(ziglang.__file__).with_name("zig"))')"
           python tools/rebuild_site.py
+          python tools/check_version.py --check-html
           python tools/verify_firmware_publication.py
           python tools/test_offline_all.py
       - uses: actions/upload-artifact@v4
@@ -116,6 +125,7 @@ jobs:
             tools/quick_guide_body.html
             tools/calibration_guide_body.html
             OFFLINE.html
+            START.html
             firmware/build/RadialRobot_UNO.hex
             firmware/build/RadialRobot_NANO.hex
             firmware/build/Firmware_Uno.bin
@@ -145,6 +155,7 @@ jobs:
         run: |
           python tools/verify_firmware_publication.py
           python tools/test_offline_all.py
+          python tools/check_version.py --check-html
       - name: Commit generated files only when the verified branch is unchanged
         shell: bash
         run: |
@@ -162,6 +173,7 @@ jobs:
             tools/quick_guide_body.html \
             tools/calibration_guide_body.html \
             OFFLINE.html \
+            START.html \
             firmware/build/RadialRobot_UNO.hex \
             firmware/build/RadialRobot_NANO.hex \
             firmware/build/Firmware_Uno.bin \

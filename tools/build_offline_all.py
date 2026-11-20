@@ -9,6 +9,8 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "OFFLINE.html"
+START_TEMPLATE = ROOT / "tools/start_page_template.html"
+START_OUTPUT = ROOT / "START.html"
 STYLE_GUIDE = """body{font:16px/1.6 "Segoe UI",Arial,sans-serif;background:#eef3f7;color:#20374a;margin:0}
 main{max-width:850px;background:#fff;margin:24px auto;padding:28px 36px;border-radius:14px}
 h1{font-size:27px;margin:0 0 20px}h2{font-size:18px;margin:22px 0 7px}p{margin:8px 0}
@@ -32,6 +34,13 @@ def wrap_guide(title, body):
 
 
 def build():
+    version = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
+    if not re.fullmatch(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", version):
+        raise ValueError("Invalid project version in package.json")
+    start_template = START_TEMPLATE.read_text(encoding="utf-8")
+    if "__PROJECT_VERSION__" not in start_template:
+        raise ValueError("START template has no version placeholder")
+    START_OUTPUT.write_text(start_template.replace("__PROJECT_VERSION__", version), encoding="utf-8")
     pages = {}
     for name, title, file in SOURCES:
         pages[name] = {"title": title, "filename": Path(file).name,
@@ -57,7 +66,7 @@ def build():
 :root{color-scheme:light;--navy:#17364c;--blue:#245ad5;--border:#d7e2eb}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font:15px/1.45 "Segoe UI",Arial,sans-serif;color:var(--navy);background:#edf3f8}
 .appbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 18px;background:#fff;border-bottom:1px solid var(--border)}
-.brand{font-weight:750;font-size:17px;letter-spacing:.2px}.sub{font-size:11px;color:#678195}
+.brand{font-weight:750;font-size:17px;letter-spacing:.2px}.sub{font-size:11px;color:#678195}.version-badge{border:1px solid #cbd9e5;border-radius:999px;background:#f1f6fb;color:#315a76;padding:4px 10px;font-size:11px;font-weight:700;white-space:nowrap}
 nav{display:flex;gap:5px;overflow-x:auto;flex:1;white-space:nowrap;scrollbar-width:thin}
 nav button,.toolbar button{font:inherit;cursor:pointer;border:1px solid transparent;border-radius:9px;padding:9px 12px;background:transparent;color:#395a73;white-space:nowrap}
 nav button[aria-current=page]{color:#fff;background:var(--blue)}
@@ -79,7 +88,7 @@ nav button:hover:not([aria-current=page]),.toolbar button:hover{background:#eaf2
 @media print{.appbar,.toolbar{display:none}.workspace iframe{min-height:100vh;height:100vh}}
 </style></head>
 <body>
-<header class="appbar"><div class="brand">ПОГРУЗЧИК <span class="sub">· AmurCargo · офлайн</span></div>
+<header class="appbar"><div class="brand">ПОГРУЗЧИК <span class="sub">· AmurCargo · офлайн</span></div><span class="version-badge" data-project-version="__PROJECT_VERSION__">v__PROJECT_VERSION__</span>
 <nav aria-label="Разделы проекта">
 <button type="button" data-section="home" aria-current="page">Главная</button>
 <button type="button" data-section="sim">3D-симулятор</button>
@@ -152,7 +161,7 @@ open(decodeURIComponent(location.hash.slice(1))||'home');
 })();
 </script></body></html>
 """
-    text = shell.replace("__PAGE_JSON__", payload)
+    text = shell.replace("__PAGE_JSON__", payload).replace("__PROJECT_VERSION__", version)
     OUTPUT.write_text(text, encoding="utf-8")
     print("Built", OUTPUT.relative_to(ROOT), OUTPUT.stat().st_size, "bytes, sections:", ", ".join(pages))
 
