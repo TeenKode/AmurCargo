@@ -20,6 +20,8 @@ struct RadialRobot {
  RobotState state;RobotFault fault;LegPurpose purpose;
  uint8_t hub,heading,ray,searchPos,expectedHub,crosses;
  bool loaded,wideArmed;
+ // Estimates actual wheel drive for timed manoeuvres. Updated from EEPROM motor tuning.
+ uint8_t minMotorLeft=70,minMotorRight=70,crawlLimit=0,crawlPwm=110,crawlPeriod=160,crawlMinOn=16;
  int8_t turnSteps;
  int16_t left,right,wantLeft,wantRight,correction,previousError,filteredDerivative;
  int8_t lineDirection;bool resetDerivative;
@@ -34,6 +36,45 @@ struct RadialRobot {
  bool markerBaseReady,markerCandidateNow;
  uint16_t v(Param p)const{return cfg->v[p];}
  uint16_t z(ZoneParam p)const{return cfg->zone[hub][ray][p];}
+ void configureMotion(uint8_t leftMinimum,uint8_t rightMinimum,uint8_t limit,uint8_t pulsePwm,uint8_t period,uint8_t minOn){
+  minMotorLeft=leftMinimum;minMotorRight=rightMinimum;
+  crawlLimit=limit;crawlPwm=pulsePwm;crawlPeriod=period;crawlMinOn=minOn;
+ }
+ // Relative PWM is only an estimate of wheel speed, not encoder feedback.
+ // Account for trim, motor minimum, and the average on-time of crawl pulses.
+ uint16_t effectiveWheelPwm(uint16_t command,uint16_t trim,uint8_t minimum)const{
+  if(!command)return 0;
+  uint32_t power=(uint32_t)command*trim/1000UL;
+  if(power>255)power=255;
+  if(crawlLimit&&power<crawlLimit&&crawlPwm&&crawlPeriod>1){
+   uint32_t on=power*crawlPeriod/crawlPwm;
+   if(on<crawlMinOn)on=crawlMinOn;
+   if(on>=crawlPeriod)on=crawlPeriod-1;
+   return (uint16_t)(on*crawlPwm/crawlPeriod);
+  }
+  return (uint16_t)(power<minimum?minimum:power);
+ }
+ uint16_t effectiveMotionPwm(uint16_t command)const{
+  uint16_t l=effectiveWheelPwm(command,v(P_LEFT_TRIM),minMotorLeft);
+  uint16_t r=effectiveWheelPwm(command,v(P_RIGHT_TRIM),minMotorRight);
+  return (uint16_t)((l+r)/2);
+ }
+ // Times in configuration describe travel at the original default PWM.
+ // Keep sensor debounces/settle and the mission watchdog in wall-clock time.
+ uint32_t motionMs(uint32_t calibratedMs,uint16_t command,uint16_t reference)const{
+  if(!calibratedMs)return 0;
+  const uint16_t actual=effectiveMotionPwm(command),baseline=effectiveMotionPwm(reference);
+  if(!actual||!baseline)return calibratedMs;
+  return (calibratedMs*(uint32_t)baseline+actual/2)/actual;
+ }
+ uint32_t cruiseMs(uint32_t calibratedMs)const{
+  return motionMs(calibratedMs,loaded?v(P_LOADED_PWM):v(P_DRIVE_PWM),loaded?75:85);
+ }
+ uint32_t slowMs(uint32_t calibratedMs)const{return motionMs(calibratedMs,v(P_APPROACH_PWM),55);}
+ uint32_t centreMs(uint32_t calibratedMs)const{return motionMs(calibratedMs,v(P_CENTRE_PWM),80);}
+ uint32_t pivotMs(uint32_t calibratedMs)const{
+  return motionMs(calibratedMs,loaded?v(P_TURN_LOADED_PWM):v(P_TURN_PWM),loaded?75:85);
+ }
  bool active()const{return state!=IDLE&&state!=DONE&&state!=FAULT;}
  void stop(){left=right=wantLeft=wantRight=0;}
  void drive(int16_t l,int16_t r){wantLeft=clamp16(l,-255,255);wantRight=clamp16(r,-255,255);}
@@ -160,7 +201,7 @@ struct RadialRobot {
   // Reuse the last motor request between scheduled sensor updates.
  }
  void pickup(uint32_t now,uint32_t used){approachUsed=used;servoGoal=(uint8_t)v(P_LIFT_HIGH);enter(LIFT,now);}
- void beginRetreat(uint32_t now){retreatDuration=(uint32_t)z(Z_BACKOFF_MS)+approachUsed*v(P_REVERSE_RATIO)/1000UL;enter(RETREAT,now);}
+ void beginRetreat(uint32_t now){retreatDuration=slowMs(z(Z_BACKOFF_MS))+approachUsed*v(P_REVERSE_RATIO)/1000UL;enter(RETREAT,now);}
  bool servoDone(uint32_t now){return servoTimer.test(servoAngle==servoGoal,now,v(P_SERVO_SETTLE_MS));}
  void tick(const SensorInput &s,uint32_t now){
   bool contact=contactTimer.test(s.contact,now,v(P_CONTACT_MS));
@@ -182,7 +223,7 @@ struct RadialRobot {
   switch(state){
    case HUB_TURN:{
     if(!turnSteps){heading=ray;enter(HUB_EXIT,now);break;}
-    uint32_t duration=v(P_TURN_START_MS)+(uint32_t)abs16(turnSteps)*(loaded?v(P_TURN45_LOADED_MS):v(P_TURN45_MS));
+    uint32_t duration=v(P_TURN_START_MS)+pivotMs((uint32_t)abs16(turnSteps)*(loaded?v(P_TURN45_LOADED_MS):v(P_TURN45_MS));
     if(turnSteps<0)duration=duration*v(P_TURN_RIGHT_SCALE)/1000UL;
     if(e>=duration){heading=ray;enter(HUB_EXIT,now);}else drive(turnSteps>0?-turn:turn,turnSteps>0?turn:-turn);break;
    }
@@ -190,8 +231,8 @@ struct RadialRobot {
     // The turn angle is predicted from time, but steer by a confirmed ray as soon
     // as the robot's forward sensor has cleared the hub. Keep the original exit
     // distance budget so station/bridge timing remains comparable.
-    if(e>=v(P_HUB_EXIT_MS)){enter(ACQUIRE,now);break;}
-    if(e>=v(P_HUB_EXIT_MS)/2&&narrow(s)&&!s.hub[hub])follow(s,cruise,now);
+    if(e>=cruiseMs(v(P_HUB_EXIT_MS))){enter(ACQUIRE,now);break;}
+    if(e>=cruiseMs(v(P_HUB_EXIT_MS))/2&&narrow(s)&&!s.hub[hub])follow(s,cruise,now);
     else drive(cruise,cruise);
     break;
    }
@@ -200,7 +241,7 @@ struct RadialRobot {
     // Only a narrow line, continuously observed for TURN_LINE_MS, confirms it.
     bool line=narrow(s)&&!s.hub[hub];
     if(lineTimer.test(line,now,v(P_TURN_LINE_MS))){crosses=(uint8_t)v(P_BRIDGE_CROSSES);wideArmed=true;enter(purpose==SEARCH_LEG?SEARCH_OUT:purpose==BRIDGE_LEG?BRIDGE:DELIVERY_OUT,now);}
-    else if(e>v(P_ACQUIRE_MS))fail(EXIT_TIMEOUT,now);
+    else if(e>slowMs(v(P_ACQUIRE_MS)))fail(EXIT_TIMEOUT,now);
     else if(line)follow(s,cruise,now);
     else {
      // Never continue at full cruise into an unobserved ray. A brief forward
@@ -210,7 +251,7 @@ struct RadialRobot {
      if(scan>cruise)scan=cruise;
      if(e<120)drive(scan,scan);
      else {
-      bool first=e<(uint32_t)v(P_ACQUIRE_MS)/2;
+      bool first=e<slowMs(v(P_ACQUIRE_MS))/2;
       int8_t side=turnSteps<0?-1:1;
       if(!first)side=-side;
       drive(side>0?-scan:scan,side>0?scan:-scan);
@@ -219,25 +260,25 @@ struct RadialRobot {
     break;
    }
    case SEARCH_OUT:case DELIVERY_OUT:{
-    if(state==SEARCH_OUT&&e>=z(Z_OUT_MIN_MS)&&contact){pickup(now,0);break;}
+    if(state==SEARCH_OUT&&e>=cruiseMs(z(Z_OUT_MIN_MS))&&contact){pickup(now,0);break;}
     const bool marker=crossbar(s,now);
-    if(wideTimer.test(e>=z(Z_OUT_MIN_MS)&&marker,now,v(P_MARKER_MS))){
+    if(wideTimer.test(e>=cruiseMs(z(Z_OUT_MIN_MS))&&marker,now,v(P_MARKER_MS))){
      enter(state==SEARCH_OUT?APPROACH:DELIVERY_CREEP,now);break;
     }
-    if(e>z(Z_OUT_MAX_MS)){fail(STATION_TIMEOUT,now);break;}
+    if(e>cruiseMs(z(Z_OUT_MAX_MS))){fail(STATION_TIMEOUT,now);break;}
     // Reduce speed while confirming the bar, so a short mark isn't missed.
-    if(marker&&e>=z(Z_OUT_MIN_MS))drive(slow,slow);
+    if(marker&&e>=cruiseMs(z(Z_OUT_MIN_MS)))drive(slow,slow);
     else follow(s,cruise,now);
     break;
    }
    case APPROACH:
     if(contact){pickup(now,e);break;}
-    if(e>=z(Z_SEARCH_MS)){approachUsed=e;beginRetreat(now);}else drive(slow,slow);break;
+    if(e>=slowMs(z(Z_SEARCH_MS))){approachUsed=e;beginRetreat(now);}else drive(slow,slow);break;
    case RETREAT:
     if(e>=retreatDuration)enter(UTURN,now);else drive(-slow,-slow);break;
    case UTURN:{
-    const uint16_t minMs=loaded?v(P_UTURN_LOADED_MIN_MS):v(P_UTURN_MIN_MS);
-    const uint16_t maxMs=loaded?v(P_UTURN_LOADED_MAX_MS):v(P_UTURN_MAX_MS);
+    const uint32_t minMs=pivotMs(loaded?v(P_UTURN_LOADED_MIN_MS):v(P_UTURN_MIN_MS));
+    const uint32_t maxMs=pivotMs(loaded?v(P_UTURN_LOADED_MAX_MS):v(P_UTURN_MAX_MS));
     const bool onCentre=s.line[1]>=v(P_LINE_THRESHOLD)&&!wide(s);
     // A timed minimum of 2050 ms could rotate a real TT chassis through a
     // full 360 degrees before the old code was even allowed to see the line.
@@ -256,24 +297,24 @@ struct RadialRobot {
     break;
    }
    case RETURN_HUB:{
-    bool candidate=e>=z(Z_RETURN_MIN_MS)&&(v(P_HUB_MODE)==0?s.hub[hub]:e>=z(Z_RETURN_ENTRY_MS));
+    bool candidate=e>=cruiseMs(z(Z_RETURN_MIN_MS))&&(v(P_HUB_MODE)==0?s.hub[hub]:e>=cruiseMs(z(Z_RETURN_ENTRY_MS)));
     if(hubTimer.test(candidate,now,v(P_HUB_CONFIRM_MS))){expectedHub=hub;enter(HUB_CENTRE,now);}
-    else if(e>z(Z_RETURN_MAX_MS))fail(HUB_TIMEOUT,now);else if(candidate)drive(v(P_CENTRE_PWM),v(P_CENTRE_PWM));else follow(s,cruise,now);break;
+    else if(e>cruiseMs(z(Z_RETURN_MAX_MS)))fail(HUB_TIMEOUT,now);else if(candidate)drive(v(P_CENTRE_PWM),v(P_CENTRE_PWM));else follow(s,cruise,now);break;
    }
    case HUB_CENTRE:
-    if(e>=v(expectedHub?P_CENTRE_RIGHT_MS:P_CENTRE_LEFT_MS)){if(expectedHub==hub&&purpose==SEARCH_LEG&&!loaded)searchPos++;hub=expectedHub;plan(now);}else drive(v(P_CENTRE_PWM),v(P_CENTRE_PWM));break;
+    if(e>=centreMs(v(expectedHub?P_CENTRE_RIGHT_MS:P_CENTRE_LEFT_MS))){if(expectedHub==hub&&purpose==SEARCH_LEG&&!loaded)searchPos++;hub=expectedHub;plan(now);}else drive(v(P_CENTRE_PWM),v(P_CENTRE_PWM));break;
    case BRIDGE:{
     const bool marker=crossbar(s,now);
     if(clearTimer.test(!marker,now,v(P_MARKER_CLEAR_MS)))wideArmed=true;
     if(wideArmed&&wideTimer.test(marker,now,v(P_MARKER_MS))){wideArmed=false;if(crosses)crosses--;}
-    bool candidate=e>=v(P_BRIDGE_MIN_MS)&&crosses==0&&(v(P_HUB_MODE)==0?s.hub[1-hub]:e>=v(P_BRIDGE_ENTRY_MS));
+    bool candidate=e>=cruiseMs(v(P_BRIDGE_MIN_MS))&&crosses==0&&(v(P_HUB_MODE)==0?s.hub[1-hub]:e>=cruiseMs(v(P_BRIDGE_ENTRY_MS)));
     if(hubTimer.test(candidate,now,v(P_HUB_CONFIRM_MS))){expectedHub=1-hub;enter(HUB_CENTRE,now);}
-    else if(e>v(P_BRIDGE_MAX_MS))fail(HUB_TIMEOUT,now);else if(candidate)drive(v(P_CENTRE_PWM),v(P_CENTRE_PWM));else follow(s,cruise,now);break;
+    else if(e>cruiseMs(v(P_BRIDGE_MAX_MS)))fail(HUB_TIMEOUT,now);else if(candidate)drive(v(P_CENTRE_PWM),v(P_CENTRE_PWM));else follow(s,cruise,now);break;
    }
    case DELIVERY_CREEP:
-    if(e>=z(Z_DROP_ADVANCE_MS)){servoGoal=(uint8_t)v(P_LIFT_LOW);enter(LOWER,now);}else drive(slow,slow);break;
+    if(e>=slowMs(z(Z_DROP_ADVANCE_MS))){servoGoal=(uint8_t)v(P_LIFT_LOW);enter(LOWER,now);}else drive(slow,slow);break;
    case DROP_BACK:
-    if(e>=z(Z_DROP_BACK_MS)){if(s.contact)fail(CARGO_STUCK,now);else enter(DONE,now);}else drive(-slow,-slow);break;
+    if(e>=slowMs(z(Z_DROP_BACK_MS))){if(s.contact)fail(CARGO_STUCK,now);else enter(DONE,now);}else drive(-slow,-slow);break;
    default:fail(BAD_SETTINGS,now);break;
   }
   services(now);
