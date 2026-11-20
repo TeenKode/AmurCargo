@@ -48,6 +48,47 @@ int main(){
  robot.follow(sample(0,500,500),75,20);
  assert(robot.wantLeft+robot.wantRight<unloaded);
 
+ // On the actual LDR strip the outer sensors may see half-black (~500)
+ // while tracking. A painted crossing can raise them to ~700 without ever
+ // reaching the previous fixed 800 threshold; still recognize the crossing.
+ robot.init(settings,0);robot.enter(SEARCH_OUT,0);
+ for(uint32_t t=130;t<=630;t+=10)robot.tick(sample(500,1000,500),t);
+ assert(robot.state==SEARCH_OUT&&!robot.markerCandidateNow);
+ robot.tick(sample(535,1000,550),640); // Side-edge jitter isn't a T-mark.
+ assert(robot.state==SEARCH_OUT&&!robot.markerCandidateNow);
+ robot.tick(sample(690,1000,715),650); // One noisy sample.
+ assert(robot.markerCandidateNow&&robot.state==SEARCH_OUT);
+ robot.tick(sample(500,1000,500),660);
+ assert(!robot.markerCandidateNow&&robot.state==SEARCH_OUT);
+ robot.tick(sample(690,1000,715),670);
+ robot.tick(sample(690,1000,715),680);
+ assert(robot.state==SEARCH_OUT);
+ robot.tick(sample(690,1000,715),690);
+ assert(robot.state==APPROACH); // Confirmed despite both sides < 800.
+
+ // Confirm no false station event if the side LDRs are always dark: the
+ // detector requires a change from each sensor's own normal baseline.
+ robot.init(settings,0);robot.enter(SEARCH_OUT,0);
+ for(uint32_t t=130;t<=750;t+=10)robot.tick(sample(750,1000,750),t);
+ assert(robot.state==SEARCH_OUT&&!robot.markerCandidateNow);
+
+ // Marker in the bridge uses the same contrast recognition and counts only
+ // once while the vehicle remains above the transverse bar.
+ robot.init(settings,0);robot.enter(BRIDGE,0);robot.crosses=1;
+ for(uint32_t t=130;t<=190;t+=10)robot.tick(sample(500,1000,500),t);
+ for(uint32_t t=200;t<=250;t+=10)robot.tick(sample(700,1000,730),t);
+ assert(robot.crosses==0&&!robot.wideArmed);
+ for(uint32_t t=260;t<=340;t+=10)robot.tick(sample(700,1000,730),t);
+ assert(robot.crosses==0&&!robot.wideArmed);
+
+ // The same transverse mark in the drop-off ray starts the delivery phase.
+ robot.init(settings,0);robot.enter(DELIVERY_OUT,0);
+ for(uint32_t t=130;t<=630;t+=10)robot.tick(sample(500,1000,500),t);
+ robot.tick(sample(710,1000,720),640);
+ robot.tick(sample(710,1000,720),650);
+ robot.tick(sample(710,1000,720),660);
+ assert(robot.state==DELIVERY_CREEP);
+
  // A slow default turn timer used to force a full 360-degree revolution.
  // Reacquire only after the old line has been absent and require a stable
  // centre crossing after the short anti-false-positive guard period.
@@ -143,5 +184,5 @@ int main(){
  robot.follow(sample(0,0,0),85,100);
  robot.follow(sample(0,0,0),85,100+settings.v[P_LOST_MS]);
  assert(robot.state==FAULT&&robot.fault==LINE_LOST);
- std::puts("PASS: tracking, gentle steering, gap-confirmed 180 U-turn, filtered D, hub exit, timed ray acquisition, light fluctuations and sensor dropout");
+ std::puts("PASS: adaptive crossbar/zone/bridge detection, tracking, gentle steering, gap-confirmed 180 U-turn, filtered D, hub exit, timed ray acquisition, light fluctuations and sensor dropout");
 }

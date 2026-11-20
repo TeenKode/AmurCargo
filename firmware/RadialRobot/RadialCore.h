@@ -27,6 +27,11 @@ struct RadialRobot {
  uint32_t entered,started,lastMotor,lastServo,lastLine,approachUsed,retreatDuration;
  HoldTimer contactTimer,wideTimer,clearTimer,lineTimer,hubTimer,lostTimer,heldTimer,servoTimer,turnGapTimer;
  bool turnGapSeen;
+ // Side LDR reference on the current ray, reset after changing robot state.
+ uint16_t markerBaseLeft,markerBaseRight;
+ int16_t markerRiseLeft,markerRiseRight;
+ uint32_t lastMarkerSample;
+ bool markerBaseReady,markerCandidateNow;
  uint16_t v(Param p)const{return cfg->v[p];}
  uint16_t z(ZoneParam p)const{return cfg->zone[hub][ray][p];}
  bool active()const{return state!=IDLE&&state!=DONE&&state!=FAULT;}
@@ -35,6 +40,7 @@ struct RadialRobot {
  void enter(RobotState next,uint32_t now){
   stop();state=next;entered=now;correction=previousError=filteredDerivative=0;lineDirection=0;resetDerivative=true;lastLine=now;
   wideTimer.clear();clearTimer.clear();lineTimer.clear();hubTimer.clear();lostTimer.clear();servoTimer.clear();turnGapTimer.clear();turnGapSeen=false;
+  markerBaseLeft=markerBaseRight=0;markerRiseLeft=markerRiseRight=0;lastMarkerSample=now;markerBaseReady=markerCandidateNow=false;
  }
  void fail(RobotFault why,uint32_t now){fault=why;servoGoal=servoAngle;enter(FAULT,now);}
  void init(const Settings &settings,uint32_t now=0){
@@ -42,6 +48,7 @@ struct RadialRobot {
   loaded=false;wideArmed=true;turnSteps=0;stop();correction=previousError=0;servoAngle=servoGoal=(uint8_t)v(P_LIFT_LOW);
   entered=started=lastMotor=lastServo=lastLine=now;approachUsed=retreatDuration=0;filteredDerivative=0;lineDirection=0;resetDerivative=true;
   contactTimer.clear();wideTimer.clear();clearTimer.clear();lineTimer.clear();hubTimer.clear();lostTimer.clear();heldTimer.clear();servoTimer.clear();turnGapTimer.clear();turnGapSeen=false;
+  markerBaseLeft=markerBaseRight=0;markerRiseLeft=markerRiseRight=0;lastMarkerSample=now;markerBaseReady=markerCandidateNow=false;
  }
  void plan(uint32_t now){
   if(hub==v(P_START_HUB)){
@@ -68,6 +75,36 @@ struct RadialRobot {
  }
  bool narrow(const SensorInput &s)const{return max3(s.line[0],s.line[1],s.line[2])>=v(P_LINE_THRESHOLD)&&!wide(s);}
  bool wide(const SensorInput &s)const{return s.line[0]>=v(P_WIDE_THRESHOLD)&&s.line[1]>=v(P_WIDE_THRESHOLD)&&s.line[2]>=v(P_WIDE_THRESHOLD);}
+ // Perpendicular stripe raises BOTH lateral LDRs above their usual levels
+ // on this ray. A fixed 800/1000 on every sensor misses partial black bars.
+ // Process once per SENSOR_MS, never at each high-frequency hardware tick.
+ bool crossbar(const SensorInput &s,uint32_t now){
+  if((uint32_t)(now-lastMarkerSample)<v(P_SENSOR_MS))return markerCandidateNow;
+  lastMarkerSample=now;
+  const uint16_t l=s.line[0],r=s.line[2];
+  if(!markerBaseReady){
+   markerBaseLeft=l;markerBaseRight=r;markerBaseReady=true;
+   markerRiseLeft=markerRiseRight=0;markerCandidateNow=false;return false;
+  }
+  markerRiseLeft=(int16_t)l-(int16_t)markerBaseLeft;
+  markerRiseRight=(int16_t)r-(int16_t)markerBaseRight;
+  // WIDE_THRESHOLD remains the UI sensitivity control. Defaults 800/350
+  // require a rise of 90 on each side and 270 total.
+  uint16_t contrast=(v(P_WIDE_THRESHOLD)-v(P_LINE_THRESHOLD))/5;
+  if(contrast<65)contrast=65;
+  markerCandidateNow=s.line[1]>=v(P_LINE_THRESHOLD) &&
+     l>=v(P_LINE_THRESHOLD)&&r>=v(P_LINE_THRESHOLD) &&
+     markerRiseLeft>=(int16_t)contrast &&
+     markerRiseRight>=(int16_t)contrast &&
+     (int32_t)markerRiseLeft+markerRiseRight>=3*(int32_t)contrast;
+  if(!markerCandidateNow){
+   // Don't learn the crossbar while it is being confirmed. Adapt slowly to
+   // illumination changes instead of following every flicker near the edge.
+   markerBaseLeft=(uint16_t)(((uint32_t)markerBaseLeft*15+l+8)/16);
+   markerBaseRight=(uint16_t)(((uint32_t)markerBaseRight*15+r+8)/16);
+  }
+  return markerCandidateNow;
+ }
  // Follow the line using a filtered PD term and a speed schedule that slows down when off-centre.
  // The same controller runs on AVR hardware and in the WASM simulator.
  void follow(const SensorInput &s,int16_t pwm,uint32_t now){
@@ -183,8 +220,15 @@ struct RadialRobot {
    }
    case SEARCH_OUT:case DELIVERY_OUT:{
     if(state==SEARCH_OUT&&e>=z(Z_OUT_MIN_MS)&&contact){pickup(now,0);break;}
-    if(wideTimer.test(e>=z(Z_OUT_MIN_MS)&&wide(s),now,v(P_MARKER_MS))){enter(state==SEARCH_OUT?APPROACH:DELIVERY_CREEP,now);break;}
-    if(e>z(Z_OUT_MAX_MS)){fail(STATION_TIMEOUT,now);break;}follow(s,cruise,now);break;
+    const bool marker=crossbar(s,now);
+    if(wideTimer.test(e>=z(Z_OUT_MIN_MS)&&marker,now,v(P_MARKER_MS))){
+     enter(state==SEARCH_OUT?APPROACH:DELIVERY_CREEP,now);break;
+    }
+    if(e>z(Z_OUT_MAX_MS)){fail(STATION_TIMEOUT,now);break;}
+    // Reduce speed while confirming the bar, so a short mark isn't missed.
+    if(marker&&e>=z(Z_OUT_MIN_MS))drive(slow,slow);
+    else follow(s,cruise,now);
+    break;
    }
    case APPROACH:
     if(contact){pickup(now,e);break;}
@@ -219,8 +263,9 @@ struct RadialRobot {
    case HUB_CENTRE:
     if(e>=v(expectedHub?P_CENTRE_RIGHT_MS:P_CENTRE_LEFT_MS)){if(expectedHub==hub&&purpose==SEARCH_LEG&&!loaded)searchPos++;hub=expectedHub;plan(now);}else drive(v(P_CENTRE_PWM),v(P_CENTRE_PWM));break;
    case BRIDGE:{
-    bool w=wide(s);if(clearTimer.test(!w,now,v(P_MARKER_CLEAR_MS)))wideArmed=true;
-    if(wideArmed&&wideTimer.test(w,now,v(P_MARKER_MS))){wideArmed=false;if(crosses)crosses--;}
+    const bool marker=crossbar(s,now);
+    if(clearTimer.test(!marker,now,v(P_MARKER_CLEAR_MS)))wideArmed=true;
+    if(wideArmed&&wideTimer.test(marker,now,v(P_MARKER_MS))){wideArmed=false;if(crosses)crosses--;}
     bool candidate=e>=v(P_BRIDGE_MIN_MS)&&crosses==0&&(v(P_HUB_MODE)==0?s.hub[1-hub]:e>=v(P_BRIDGE_ENTRY_MS));
     if(hubTimer.test(candidate,now,v(P_HUB_CONFIRM_MS))){expectedHub=1-hub;enter(HUB_CENTRE,now);}
     else if(e>v(P_BRIDGE_MAX_MS))fail(HUB_TIMEOUT,now);else if(candidate)drive(v(P_CENTRE_PWM),v(P_CENTRE_PWM));else follow(s,cruise,now);break;
