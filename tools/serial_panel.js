@@ -77,7 +77,7 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  const terminal=document.createElement('div');
  const diagnosticsNote=document.createElement('p');
  diagnosticsNote.className='hint';
- diagnosticsNote.textContent='Для реальной калибровки включите «Телеметрия вкл.», проведите короткую безопасную пробу и сохраните журнал. В нём есть значения трёх LDR, PWM колёс, ошибка линии и длительность её потери.';
+ diagnosticsNote.textContent='Для реальной калибровки включите «Телеметрия вкл.», проведите короткую безопасную пробу и сохраните журнал. В потоке видны три LDR, фактические команды PWM на драйвер и ошибка слежения. Полный отчёт доступен кнопкой «Статус» после остановки.';
  terminal.append(diagnosticsNote);
  terminal.append($('serialLog'),$('serialForm'));
  const clearLog=document.createElement('button');
@@ -201,7 +201,7 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
  pane.replaceChildren(connectionBar,$('serialSupport'),dashboard,shortcuts,groups);
  const idleStates=[0,16,17];
  const states=['Ожидание','Поворот к лучу','Выезд из круга','Поиск линии','Поиск груза','Подъезд к грузу','Подъём вил','Отход','Разворот','Возврат в круг','Подъезд к центру','Переезд','К месту выгрузки','Подъезд к выгрузке','Опускание вил','Отъезд после выгрузки','Готово','Остановка','По линии до груза'];
- const faults=['','Ошибка настроек','Груз не найден','Линия потеряна','Зона не найдена','Круг не найден','Линия после разворота не найдена','Не удалось выехать на линию','Груз потерян','Груз застрял','Остановлено','Лимит времени заезда','Подъёмник не успел переместиться'];
+ const faults=['','Ошибка настроек','Груз не найден','Линия потеряна','Зона не найдена','Круг не найден','Линия после разворота не найдена','Не удалось выехать на линию','Груз потерян','Груз застрял','Остановлено','Лимит времени заезда','Подъёмник не успел переместиться','Линия при развороте найдена слишком рано'];
  const modeHelp=()=>$('robotModeHelp').textContent=$('robotMode').value==='line'
   ?'Поставьте робота на линию с опущенными вилами. У груза он остановится и поднимет его. Для этого режима достаточно калибровки белого и чёрного.'
   :'Поставьте робота в заданный стартовый круг. Он ищет груз по лучам и отвозит его в зону разгрузки.';
@@ -248,6 +248,19 @@ window.setupAmurSerial=function({getCfg,configError,base,meta,download,projectCo
   const values=s.match(/\bline_tuning=([\d,]+)/)?.[1].split(',');
   if(values?.length===lineFields.length&&!lineDirty)lineFields.forEach(({key},i)=>{$('live-'+key).value=values[i];});
   buttons();
+ }
+ if(s.startsWith('motion=')){
+  const values=s.slice(7).split(',').map(Number);
+  if(values.length===12&&values.every(Number.isInteger)){
+   const [state,fault,left,centre,right,pwmL,pwmR,angle,contact,held,error,marker]=values;
+   if(telemetry)telemetry.state=state;
+   $('robotCargo').textContent=contact?'Обнаружен':'Нет';
+   $('robotLift').textContent=angle+'°';
+   $('robotWheels').textContent=pwmL+' / '+pwmR;
+   showStage(state,fault,held,telemetry?.armed);
+   $('liveHardware').textContent=`Датчики ${left} / ${centre} / ${right} · на драйвере ${pwmL}/${pwmR} · ошибка линии ${error} · отметка ${marker?'да':'нет'}`;
+   buttons();
+  }
  }
  const transition=s.match(/^stage=(\d+) fault=(\d+) held=(0|1)$/);
  if(transition){

@@ -147,6 +147,24 @@ int main(){
  tuned.outputMotors(30,0); // Direction reversal is not another kick.
  assert(outputPins[10]!=145);
  tuned.outputMotors(0,0);
+ // A steering correction that restarts one wheel does not restart the
+ // chassis kick. A configured kick also cannot reduce the steady PWM.
+ tuned.outputMotors(30,30);
+ clockMs+=70;
+ tuned.outputMotors(0,30);
+ tuned.outputMotors(30,30);
+ assert(outputPins[10]!=145&&outputPins[11]!=145);
+ tuned.outputMotors(0,30);
+ clockMs+=100;
+ tuned.outputMotors(30,30);
+ assert(outputPins[10]==145&&outputPins[11]!=145);
+ tuned.outputMotors(0,0);
+ cmd(tuned,"motor dynamics 80 60 0 110 160 16");
+ tuned.outputMotors(20,20);
+ assert(outputPins[10]==100&&outputPins[11]==110);
+ tuned.outputMotors(0,0);
+ cmd(tuned,"motor dynamics 99999999999 60 75 110 160 16");assert(tuned.motorKickPwm==80);
+ cmd(tuned,"motor dynamics 145 60 75 110 160 16");
  cmd(tuned,"arm");cmd(tuned,"jog 15 0 50");steps(tuned,1);
  assert(outputPins[10]==15);steps(tuned,5);assert(outputPins[10]==0);
  cmd(tuned,"motor dynamics 145 151 75 110 160 16");assert(tuned.motorKickMs==60);

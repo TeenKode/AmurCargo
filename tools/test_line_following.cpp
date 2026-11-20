@@ -50,6 +50,23 @@ int main(){
  assert(timed.motionMs(1000,40,85)>1000);
  assert(timed.motionMs(0,40,85)==0);
 
+ // Quantized pulse on-time feeds both the driver and estimated travel.
+ timed.configureMotion(70,70,90,110,160,16);
+ assert(timed.crawlOn(1)==16);
+ assert(timed.effectiveWheelPwm(1,1000,70)==11);
+ assert(timed.crawlOn(40)==58);
+ timed.configureMotion(70,70,150,110,160,16);
+ assert(timed.crawlOn(115)==0&&timed.effectiveWheelPwm(115,1000,70)==115);
+
+ // Delayed loop iterations do not stretch the configured PWM ramp or
+ // skip the zero crossing when either wheel reverses.
+ timed.init(timing,0);timed.drive(85,85);
+ timed.services(35);assert(timed.left==15&&timed.right==15);
+ timed.services(42);assert(timed.left==20&&timed.right==20);
+ timed.drive(-85,85);
+ timed.services(100);assert(timed.left==0&&timed.right==50);
+ timed.services(110);assert(timed.left==-5&&timed.right==55);
+
  Settings settings;loadDefaultSettings(settings);
  RadialRobot robot;robot.init(settings,0);
  robot.follow(sample(0,1000,0),85,10);
@@ -80,6 +97,21 @@ int main(){
  robot.follow(sample(0,0,1000),85,20);
  assert(robot.filteredDerivative==250);
  assert(robot.correction==25);
+ // Two zero/minimum PWM floors must not erase every command difference
+ // when cruise PWM is below approach PWM. Check both sides of a sharp bend.
+ loadDefaultSettings(settings);robot.init(settings,0);
+ robot.follow(sample(650,850,350),40,10);
+ assert(robot.effectiveWheelPwm(robot.wantRight,1000,70)>70);
+ robot.follow(sample(1000,0,0),40,20);
+ assert(robot.wantLeft==0&&robot.wantRight>0);
+ robot.follow(sample(0,0,1000),40,30);
+ assert(robot.wantRight==0&&robot.wantLeft>0);
+ // Normalize D by actual time between samples.
+ settings.v[P_KP]=0;settings.v[P_KD]=100;settings.v[P_MAX_CORRECTION]=180;
+ robot.init(settings,0);
+ robot.follow(sample(0,1000,0),85,10);
+ robot.follow(sample(0,0,1000),85,30);
+ assert(robot.filteredDerivative==125);
  // With a load, base speed remains below unloaded speed even on the same bend.
  settings.v[P_KP]=110;settings.v[P_KD]=15;robot.init(settings,0);
  robot.follow(sample(0,1000,0),85,10);
@@ -150,6 +182,21 @@ int main(){
  assert(robot.state==RETURN_HUB&&robot.wantLeft==0&&robot.wantRight==0);
  assert(robot.left==0&&robot.right==0); // No coasting past 180 degrees.
 
+ // Seeing black at an outer detector is not departure from the old line.
+ robot.init(settings,0);robot.enter(UTURN,0);
+ robot.tick(sample(1000,0,0),settle+50);
+ robot.tick(sample(1000,0,0),settle+100);
+ assert(!robot.turnGapSeen);
+ robot.tick(sample(0,0,0),settle+110);
+ robot.tick(sample(0,0,0),settle+160);
+ assert(robot.turnGapSeen);
+ // Even if the confirmation completes after the earliest admissible time,
+ // an earlier crossing began too soon and must stop instead of adding a lap.
+ robot.tick(sample(0,1000,0),settle+480);
+ assert(robot.wantLeft==-settings.v[P_APPROACH_PWM]);
+ robot.tick(sample(0,1000,0),settle+520);
+ assert(robot.state==FAULT&&robot.fault==TURN_EARLY&&robot.left==0&&robot.right==0);
+
  // A false one-frame line sighting does not complete the U-turn.
  robot.init(settings,0);robot.enter(UTURN,0);
  robot.tick(sample(0,0,0),settle+10);
@@ -203,6 +250,9 @@ int main(){
  robot.tick(hub,settings.v[P_SETTLE_MS]+10);assert(robot.state==ACQUIRE);
  robot.tick(sample(0,1000,0),settings.v[P_SETTLE_MS]+40);
  robot.tick(sample(0,0,0),settings.v[P_SETTLE_MS]+50);
+ robot.tick(sample(1000,0,0),settings.v[P_SETTLE_MS]+55);
+ robot.tick(sample(1000,0,0),settings.v[P_SETTLE_MS]+87);
+ assert(robot.state==ACQUIRE&&robot.wantLeft<robot.wantRight);
  robot.tick(sample(0,1000,0),settings.v[P_SETTLE_MS]+90);
  assert(robot.state==ACQUIRE);
  robot.tick(sample(0,1000,0),settings.v[P_SETTLE_MS]+90+settings.v[P_TURN_LINE_MS]+1);

@@ -40,7 +40,7 @@ struct RobotHardware {
  int16_t appliedLeft,appliedRight;
  uint8_t motorMinLeft,motorMinRight;
  uint8_t motorKickPwm,motorKickMs,motorCrawlLimit,motorCrawlPwm,motorCrawlPeriod,motorCrawlMinOn;
- int8_t lastRequestedSign[2];uint32_t kickStarted[2];
+ int8_t lastRequestedSign[2];uint32_t kickStarted[2],wheelStopped[2];
  bool lineMode,armed,stream,calibrating,jogging,jogWithKick,jogHoldLogged,rawButton,stableButton,skipButtonRelease,lineOverflow,servoReversed,manualServoPending,contactPullup;
  uint8_t calKind,samples,lineLength;
  uint32_t sampleSum[3],lastRead,buttonChanged,buttonPressed,lastStream,jogStarted;
@@ -138,35 +138,29 @@ struct RobotHardware {
   lastRequestedSign[0]=lastRequestedSign[1]=0;
  }
  // These effects never modify USB jog, which must remain an exact PWM measurement.
- // Kick only at a true stop->move transition; crawl uses aligned low-frequency
- // bursts so both wheels keep a common time base (no additional blocking delays).
- int16_t shapedMotor(int16_t requested,uint16_t trim,uint8_t minimum,uint8_t channel,uint32_t now){
+ // Kick at chassis start or when a wheel restarts after a sustained stop.
+ // Crawl bursts share a time base across the two wheels.
+ int16_t shapedMotor(int16_t requested,uint16_t trim,uint8_t minimum,uint8_t channel,uint32_t now,bool chassisStart){
   const int8_t sign=requested>0?1:requested<0?-1:0;
   const int8_t before=lastRequestedSign[channel];
   lastRequestedSign[channel]=sign;
-  if(!sign)return 0;
-  const uint16_t power=(uint16_t)clamp16((int32_t)abs16(requested)*trim/1000L,0,255);
-  if(!before)kickStarted[channel]=now;
-  else if(before!=sign)kickStarted[channel]=now-(uint32_t)motorKickMs; // never kick on reversal
-  if(motorKickPwm&&motorKickMs&&(uint32_t)(now-kickStarted[channel])<motorKickMs &&
-     power<motorKickPwm)return sign*(int16_t)motorKickPwm;
-  if(motorCrawlLimit&&power<motorCrawlLimit){
-   uint16_t on=(uint32_t)power*motorCrawlPeriod/motorCrawlPwm;
-   if(on<motorCrawlMinOn)on=motorCrawlMinOn;
-   if(on>=motorCrawlPeriod)on=motorCrawlPeriod-1;
-   const uint8_t level=(now%motorCrawlPeriod)<on?motorCrawlPwm:0;
-   return sign*(int16_t)level;
+  if(!sign){
+   if(before)wheelStopped[channel]=now;
+   return 0;
   }
-  const int16_t steady=(int16_t)(power<minimum?minimum:power);
-  return sign*steady;
+  const uint8_t power=robot.trimmedPwm(abs16(requested),trim);
+  if(before!=sign){
+   const bool restart=chassisStart||(!before&&(uint32_t)(now-wheelStopped[channel])>=100);
+   kickStarted[channel]=restart?now:now-(uint32_t)motorKickMs;
+  }
+  const uint8_t on=robot.crawlOn(power),steady=power<minimum?minimum:power;
+  const uint8_t runningPwm=on?motorCrawlPwm:steady;
+  if(motorKickPwm>runningPwm&&(uint32_t)(now-kickStarted[channel])<motorKickMs)
+   return sign*(int16_t)motorKickPwm;
+  if(on)return (now%motorCrawlPeriod)<on?sign*(int16_t)motorCrawlPwm:0;
+  return sign*(int16_t)steady;
  }
  // True stop remains zero; calibrated minimum is applied AFTER trim.
- static int16_t motorOutput(int16_t command,uint16_t trim,uint8_t minimum){
-  if(!command)return 0;
-  int16_t power=clamp16((int32_t)abs16(command)*trim/1000L,0,255);
-  if(power<minimum)power=minimum;
-  return command<0?-power:power;
- }
  enum CalibrationState { CAL_READY, CAL_INCOMPLETE, CAL_HUB_OVERLAP };
  CalibrationState calibrationState()const{
   const bool useHubSamples=!lineMode&&v(P_HUB_MODE)==0;
@@ -204,7 +198,12 @@ struct RobotHardware {
   if(configError)return;
   // USB jog remains an exact command, never shaped by kick or crawl.
   if(directPwm){lastRequestedSign[0]=lastRequestedSign[1]=0;l=clamp16(l,-255,255);r=clamp16(r,-255,255);}
-  else{const uint32_t now=millis();l=shapedMotor(l,v(P_LEFT_TRIM),motorMinLeft,0,now);r=shapedMotor(r,v(P_RIGHT_TRIM),motorMinRight,1,now);}
+  else{
+   const uint32_t now=millis();
+   const bool chassisStart=!lastRequestedSign[0]&&!lastRequestedSign[1];
+   l=shapedMotor(l,v(P_LEFT_TRIM),motorMinLeft,0,now,chassisStart);
+   r=shapedMotor(r,v(P_RIGHT_TRIM),motorMinRight,1,now,chassisStart);
+  }
   if(v(P_LEFT_REVERSE))l=-l;if(v(P_RIGHT_REVERSE))r=-r;
   shieldMotor(12,10,l,appliedLeft);shieldMotor(13,11,r,appliedRight);
   if(v(P_STANDBY_PIN)!=255)digitalWrite(v(P_STANDBY_PIN),(l||r)?HIGH:LOW);
@@ -222,7 +221,7 @@ struct RobotHardware {
   armed=stream=calibrating=jogging=jogWithKick=jogHoldLogged=skipButtonRelease=lineOverflow=manualServoPending=false;lineLength=samples=0;lastRead=lastStream=buttonChanged=millis();
   lineHistorySlot=0;lineHistoryReady=false;appliedLeft=appliedRight=0;
   lastAudibleState=IDLE;
-  lastRequestedSign[0]=lastRequestedSign[1]=0;kickStarted[0]=kickStarted[1]=0;
+  lastRequestedSign[0]=lastRequestedSign[1]=0;kickStarted[0]=kickStarted[1]=wheelStopped[0]=wheelStopped[1]=lastRead;
   if(configError){Serial.print(F("CONFIG ERROR "));Serial.println(configError);buzzer.play(ShieldBuzzer::ERROR,millis());return;}
   motorMinLeft=motorMinRight=70; // Starting estimate, not a measured motor threshold.
   StoredMotorTuning motorData;EEPROM.get(960,motorData);
@@ -323,57 +322,74 @@ struct RobotHardware {
    releaseButton(now-buttonPressed,now);
   }
  }
+ void motionStatus(){
+  // A full status takes several PWM/sensor periods to transmit at 115200.
+  // Write one bounded record only if it fits in the AVR TX ring immediately.
+  if(Serial.availableForWrite()<58)return;
+  const int16_t values[]={
+   (int16_t)robot.state,(int16_t)robot.fault,
+   (int16_t)raw[0],(int16_t)raw[1],(int16_t)raw[2],appliedLeft,appliedRight,
+   robot.servoAngle,contact(),robot.loaded,robot.previousError,robot.markerCandidateNow
+  };
+  Serial.print(F("motion="));
+  for(uint8_t i=0;i<sizeof(values)/sizeof(values[0]);i++){
+   if(i)Serial.print(',');
+   Serial.print(values[i]);
+  }
+  Serial.println();
+ }
+ __attribute__((noinline)) static void statusValue(const __FlashStringHelper *name,int16_t value){
+  Serial.print(name);Serial.print(value);
+ }
  void status(){
-  Serial.print(F("state="));Serial.print((int)robot.state);Serial.print(F(" fault="));Serial.print((int)robot.fault);Serial.print(F(" armed="));Serial.print(armed);
-  Serial.print(F(" hub="));Serial.print(robot.hub);Serial.print(F(" ray="));Serial.print(robot.ray);Serial.print(F(" held="));Serial.print(robot.loaded);Serial.print(F(" angle="));Serial.print(robot.servoAngle);
-  Serial.print(F(" servo_reverse="));Serial.print(servoReversed?1:0);Serial.print(F(" servo_output="));Serial.print(servoOutputAngle());
-  Serial.print(F(" servo_goal="));Serial.print(robot.servoGoal);
-  Serial.print(F(" servo_low="));Serial.print(v(P_LIFT_LOW));
-  Serial.print(F(" servo_high="));Serial.print(v(P_LIFT_HIGH));
-  Serial.print(F(" servo_settled="));Serial.print(servoSettled(millis())?1:0);
-  Serial.print(F(" start_button="));Serial.print(stableButton?1:0);
-   Serial.print(F(" start_raw="));Serial.print(digitalRead(v(P_START_PIN)));
-   Serial.print(F(" start_pin="));Serial.print(v(P_START_PIN));
+  if(robot.active()||jogging){motionStatus();return;}
+  statusValue(F("state="),(int)robot.state);statusValue(F(" fault="),(int)robot.fault);statusValue(F(" armed="),armed);
+  statusValue(F(" hub="),robot.hub);statusValue(F(" ray="),robot.ray);statusValue(F(" held="),robot.loaded);statusValue(F(" angle="),robot.servoAngle);
+  statusValue(F(" servo_reverse="),servoReversed?1:0);statusValue(F(" servo_output="),servoOutputAngle());
+  statusValue(F(" servo_goal="),robot.servoGoal);
+  statusValue(F(" servo_low="),v(P_LIFT_LOW));
+  statusValue(F(" servo_high="),v(P_LIFT_HIGH));
+  statusValue(F(" servo_settled="),servoSettled(millis())?1:0);
+  statusValue(F(" start_button="),stableButton?1:0);
+   statusValue(F(" start_raw="),digitalRead(v(P_START_PIN)));
+   statusValue(F(" start_pin="),v(P_START_PIN));
    Serial.print(F(" start_hold_ms="));Serial.print(stableButton?(uint32_t)(millis()-buttonPressed):0UL);
   Serial.print(F(" raw="));for(uint8_t i=0;i<3;i++){Serial.print(raw[i]);Serial.print(' ');}Serial.print(F(" line="));for(uint8_t i=0;i<3;i++){Serial.print(input.line[i]);Serial.print(' ');}
-  Serial.print(F(" contact="));Serial.print(contact());
-   Serial.print(F(" contact_raw="));Serial.print(digitalRead(v(P_CONTACT_PIN)));
-   Serial.print(F(" contact_low="));Serial.print(v(P_CONTACT_LOW));
-   Serial.print(F(" contact_pullup="));Serial.print(contactPullup?1:0);
-   Serial.print(F(" contact_pin="));Serial.print(v(P_CONTACT_PIN));
+  statusValue(F(" contact="),contact());
+   statusValue(F(" contact_raw="),digitalRead(v(P_CONTACT_PIN)));
+   statusValue(F(" contact_low="),v(P_CONTACT_LOW));
+   statusValue(F(" contact_pullup="),contactPullup?1:0);
+   statusValue(F(" contact_pin="),v(P_CONTACT_PIN));
   // Diagnostic values make illumination problems and failed ray acquisition
   // distinguishable from a motor or PID tuning problem in a saved serial log.
-  Serial.print(F(" pwm="));Serial.print(robot.left);Serial.print(' ');Serial.print(robot.right);
-  Serial.print(F(" target="));Serial.print(robot.wantLeft);Serial.print(' ');Serial.print(robot.wantRight);
-  Serial.print(F(" err="));Serial.print(robot.previousError);
-  Serial.print(F(" corr="));Serial.print(robot.correction);
-  Serial.print(F(" dfilter="));Serial.print(robot.filteredDerivative);
+  statusValue(F(" pwm="),robot.left);Serial.print(' ');Serial.print(robot.right);
+  statusValue(F(" target="),robot.wantLeft);Serial.print(' ');Serial.print(robot.wantRight);
+  statusValue(F(" err="),robot.previousError);
+  statusValue(F(" corr="),robot.correction);
+  statusValue(F(" dfilter="),robot.filteredDerivative);
   Serial.print(F(" lost_ms="));Serial.print(robot.lostTimer.active?(uint32_t)(millis()-robot.lostTimer.since):0UL);
-  Serial.print(F(" marker="));Serial.print(robot.markerCandidateNow?1:0);
-  Serial.print(F(" marker_base="));Serial.print(robot.markerBaseLeft);Serial.print(' ');Serial.print(robot.markerBaseRight);
-  Serial.print(F(" marker_rise="));Serial.print(robot.markerRiseLeft);Serial.print(' ');Serial.print(robot.markerRiseRight);
+  statusValue(F(" marker="),robot.markerCandidateNow?1:0);
+  statusValue(F(" marker_base="),robot.markerBaseLeft);Serial.print(' ');Serial.print(robot.markerBaseRight);
+  statusValue(F(" marker_rise="),robot.markerRiseLeft);Serial.print(' ');Serial.print(robot.markerRiseRight);
   Serial.print(F(" marker_confirm_ms="));Serial.print(robot.wideTimer.active?(uint32_t)(millis()-robot.wideTimer.since):0UL);
-  Serial.print(F(" cal="));Serial.print((int)calibrationState());
-  Serial.print(F(" motor_min="));Serial.print(motorMinLeft);Serial.print(',');Serial.print(motorMinRight);
-  Serial.print(F(" motor_trim="));Serial.print(v(P_LEFT_TRIM));Serial.print(',');Serial.print(v(P_RIGHT_TRIM));
-  Serial.print(F(" motor_speed="));Serial.print(v(P_DRIVE_PWM));Serial.print(',');Serial.print(v(P_LOADED_PWM));Serial.print(',');
+  statusValue(F(" cal="),(int)calibrationState());
+  statusValue(F(" motor_min="),motorMinLeft);Serial.print(',');Serial.print(motorMinRight);
+  statusValue(F(" motor_trim="),v(P_LEFT_TRIM));Serial.print(',');Serial.print(v(P_RIGHT_TRIM));
+  statusValue(F(" motor_speed="),v(P_DRIVE_PWM));Serial.print(',');Serial.print(v(P_LOADED_PWM));Serial.print(',');
   Serial.print(v(P_APPROACH_PWM));Serial.print(',');Serial.print(v(P_CENTRE_PWM));Serial.print(',');
   Serial.print(v(P_TURN_PWM));Serial.print(',');Serial.print(v(P_TURN_LOADED_PWM));
-  Serial.print(F(" motor_ramp="));Serial.print(v(P_RAMP_STEP));Serial.print(',');Serial.print(v(P_RAMP_MS));
-  Serial.print(F(" motor_dynamics="));Serial.print(motorKickPwm);Serial.print(',');
+  statusValue(F(" motor_ramp="),v(P_RAMP_STEP));Serial.print(',');Serial.print(v(P_RAMP_MS));
+  statusValue(F(" motor_dynamics="),motorKickPwm);Serial.print(',');
   Serial.print(motorKickMs);Serial.print(',');Serial.print(motorCrawlLimit);Serial.print(',');
   Serial.print(motorCrawlPwm);Serial.print(',');Serial.print(motorCrawlPeriod);Serial.print(',');
   Serial.print(motorCrawlMinOn);
-  Serial.print(F(" motor_applied="));Serial.print(appliedLeft);Serial.print(',');Serial.print(appliedRight);
-  Serial.print(F(" motor_jog="));Serial.print(jogging?1:0);
-  Serial.print(F(" buzzer="));Serial.print(buzzer.enabled?1:0);
+  statusValue(F(" motor_applied="),appliedLeft);Serial.print(',');Serial.print(appliedRight);
+  statusValue(F(" motor_jog="),jogging?1:0);
+  statusValue(F(" buzzer="),buzzer.enabled?1:0);
   Serial.print(F(" line_tuning="));
   for(uint8_t i=0;i<sizeof(lineParams);i++){if(i)Serial.print(',');Serial.print(settings.v[lineParams[i]]);}
-  Serial.print(F(" mode="));Serial.print(lineMode?1:0);
-  Serial.print(F(" motor_jog_stage="));
-  if(!jogging)Serial.println(F("idle"));
-  else if(!jogWithKick)Serial.println(F("direct"));
-  else Serial.println(jogHoldLogged?F("hold"):F("kick"));
+  statusValue(F(" mode="),lineMode?1:0);
+  Serial.println(F(" motor_jog_stage=idle"));
  }
  static uint8_t servoLimitsCheck(const StoredServoLimits &limits){
   return 0xA7 ^ limits.low ^ (uint8_t)(limits.high*3) ^ limits.reverse;
@@ -384,7 +400,22 @@ struct RobotHardware {
   return robot.servoAngle==robot.servoGoal &&
          (uint32_t)(now-robot.lastServo)>=v(P_SERVO_SETTLE_MS);
  }
- bool number(char *s,long &n){if(!s)return false;char *end;n=strtol(s,&end,10);return *s&&!*end;}
+ // All numeric COM arguments fit in -2000..2000. Reject overflow before
+ // narrowing to a setting or motor command.
+ __attribute__((noinline)) static bool number(const char *s,int16_t &n){
+  if(!s)return false;
+  const bool negative=*s=='-';
+  if(negative||*s=='+')s++;
+  if(!*s)return false;
+  uint16_t value=0;
+  for(;*s;s++){
+   if(*s<'0'||*s>'9')return false;
+   value=value*10+(*s-'0');
+   if(value>2000)return false;
+  }
+  n=negative?-(int16_t)value:(int16_t)value;
+  return true;
+ }
  void handle(char *line,uint32_t now){
   char *cmd=strtok(line," \t");if(!cmd)return;
   if(!strcmp(cmd,"stop")){manualServoPending=false;jogging=false;robot.fail(ABORTED,now);armed=false;outputMotors(0,0);Serial.println(F("STOPPED. Servo holds current angle."));return;}
@@ -422,8 +453,8 @@ struct RobotHardware {
    StoredLineTuning t={0x4C31,{},0};
    if(action&&!strcmp(action,"set")){
     for(uint8_t i=0;i<sizeof(lineParams);i++){
-     long n;
-     if(!number(strtok(0," \t"),n)||n<0||n>2000){Serial.println(F("LINE REFUSED: invalid tuning"));return;}
+     int16_t n;
+     if(!number(strtok(0," \t"),n)||n<0){Serial.println(F("LINE REFUSED: invalid tuning"));return;}
      t.values[i]=(uint16_t)n;
     }
     if(strtok(0," \t")||!applyLine(t)){Serial.println(F("LINE REFUSED: invalid tuning"));return;}
@@ -464,7 +495,7 @@ struct RobotHardware {
   if(!strcmp(cmd,"motor")){
    char *action=strtok(0," \t");
    if(action&&!strcmp(action,"dynamics")){
-    long a[6];bool ok=true;
+    int16_t a[6];bool ok=true;
     for(uint8_t i=0;i<6;i++){char *word=strtok(0," \t");if(!number(word,a[i])||a[i]<0||a[i]>255){ok=false;break;}}
     if(strtok(0," \t"))ok=false;
     if(!ok){Serial.println(F("MOTOR REFUSED: dynamics needs 6 integers 0..255"));return;}
@@ -476,7 +507,7 @@ struct RobotHardware {
     Serial.println(F("MOTOR DYNAMICS UPDATED: RAM only; use motor save"));status();return;
    }
    if(action&&!strcmp(action,"set")){
-    long a[12];bool ok=true;
+    int16_t a[12];bool ok=true;
     for(uint8_t i=0;i<12;i++){
      char *word=strtok(0," \t");
      if(!number(word,a[i])){ok=false;break;}
@@ -507,7 +538,7 @@ struct RobotHardware {
    if(calibrating||contact()){
     Serial.println(F("SERVO REFUSED: finish sensor calibration and remove load"));return;
    }
-   long low,high;
+   int16_t low,high;
    char *first=strtok(0," \t"),*second=strtok(0," \t");
    if(!number(first,low)||low<0||low>180||strtok(0," \t")){
     Serial.println(F("SERVO REFUSED: angle must be 0..180"));return;
@@ -555,7 +586,7 @@ struct RobotHardware {
     // Explicit kick is independent of saved motor settings.
     // Both stages bypass ramp, min PWM, trim and crawl pulses.
     const bool withKick=!strcmp(cmd,"jogkick");
-    long l,r,t,kp=0,km=0;
+    int16_t l,r,t,kp=0,km=0;
     char *a=strtok(0," \t"),*b=strtok(0," \t"),*c=strtok(0," \t");
     char *d=withKick?strtok(0," \t"):nullptr,*e=withKick?strtok(0," \t"):nullptr;
     const bool valid=armed&&!calibrating&&digitalRead(v(P_START_PIN))!=LOW&&
@@ -638,7 +669,7 @@ struct RobotHardware {
   if(manualServoPending&&servoSettled(now)){
     manualServoPending=false;status();
   }
-  if(stream&&(uint32_t)(now-lastStream)>=150){lastStream=now;status();}
+  if(stream&&(uint32_t)(now-lastStream)>=150){lastStream=now;motionStatus();}
   buzzer.tick(now);
  }
 };
