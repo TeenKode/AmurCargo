@@ -35,7 +35,7 @@ def wrap_guide(title, body):
 
 def build():
     version = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
-    if not re.fullmatch(r"(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)", version):
+    if not re.fullmatch(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", version):
         raise ValueError("Invalid project version in package.json")
     start_template = START_TEMPLATE.read_text(encoding="utf-8")
     if "__PROJECT_VERSION__" not in start_template:
