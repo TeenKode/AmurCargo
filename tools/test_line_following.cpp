@@ -17,7 +17,7 @@ int main(){
  timing.v[P_TURN_PWM]=40;
  const uint32_t slow45=timed.pivotMs(timing.v[P_TURN45_MS]);
  assert(slow45>timing.v[P_TURN45_MS]);
- assert(slow45==(510UL*85+35)/70); // Physical motor floor is 70, not requested 40.
+ assert(slow45>=617&&slow45<=620); // Floor 70, not 40; Q8 precision.
  timed.enter(HUB_TURN,0);timed.turnSteps=1;
  const uint32_t turnDeadline=timing.v[P_SETTLE_MS]+timing.v[P_TURN_START_MS]+slow45;
  timed.tick(sample(0,0,0),turnDeadline-1);
