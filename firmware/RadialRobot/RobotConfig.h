@@ -24,7 +24,7 @@ inline void loadDefaultSettings(Settings &s){
  s.v[P_LED_PIN]=255;
  s.v[P_LEFT_REVERSE]=0;
  s.v[P_RIGHT_REVERSE]=0;
- s.v[P_CONTACT_LOW]=1;
+ s.v[P_CONTACT_LOW]=0;
  s.v[P_DRIVE_PWM]=85;
  s.v[P_LOADED_PWM]=75;
  s.v[P_APPROACH_PWM]=55;
