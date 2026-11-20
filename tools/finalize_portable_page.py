@@ -1,6 +1,10 @@
 from pathlib import Path
 import json,base64
 R=Path(__file__).resolve().parents[1];O=R/'simulator';p=O/'Open_Simulation_3D.html';s=p.read_text(encoding='utf-8')
+version=json.loads((R/'package.json').read_text(encoding='utf-8'))['version']
+if '<div class="head-actions">' not in s:raise ValueError('Simulator header missing: cannot place version badge')
+s=s.replace('<div class="head-actions">','<div class="head-actions"><span class="amur-version-badge" data-project-version="'+version+'">v'+version+'</span>',1)
+s=s.replace('</style>','.amur-version-badge{display:inline-block;border:1px solid #cbd9e5;border-radius:999px;background:#f1f6fb;color:#315a76;font-size:11px;font-weight:700;padding:5px 9px;white-space:nowrap}</style>',1)
 sources={f.name:f.read_text(encoding='utf-8') for f in sorted((R/'firmware/RadialRobot').iterdir()) if f.suffix in ('.h','.ino')}
 scripts='<script>window.AMUR_PROJECT_SOURCES='+json.dumps(sources,ensure_ascii=True).replace('<','\\u003c')+';</script>'
 scripts+=''.join('<script>'+(R/'tools'/f).read_text(encoding='utf-8')+'</script>' for f in ['world_editor.js','webserial_uploader.js','project_export.js','serial_panel.js','manual_panel.js'])
