@@ -5,7 +5,7 @@
 // No tone(), delay(), timers or interrupts: D10/D11 PWM and SG90 timing stay intact.
 struct ShieldBuzzer {
  enum Event : uint8_t { READY, ARMED, START, STEP, MARKER, PICKED, DELIVERY, RELEASE,
-                        COMPLETE, WARNING, STOPPED, ERROR, ACK, TEST };
+                        COMPLETE, WARNING, STOPPED, ERROR, ACK, TEST, MODE_LINE, MODE_FULL };
  static const uint8_t PIN = 4;
  bool enabled = true;
  bool sounding = false;
@@ -38,6 +38,8 @@ struct ShieldBuzzer {
    case ERROR: p=5;count=3;on=330;gap=140;break;
    case ACK: on=90;break;
    case TEST: count=3;on=75;gap=90;break;
+   case MODE_LINE: count=3;on=100;gap=100;break;
+   case MODE_FULL: on=400;break;
   }
   if(!enabled || (remaining && p<priority))return;
   priority=p;remaining=count;onMs=on;gapMs=gap;
