@@ -54,6 +54,25 @@ int main(){
  assert(outputPins[10]==15&&outputPins[11]==0);
  steps(h,5);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
  cmd(h,"arm");cmd(h,"jog 0 0 100");assert(!h.jogging);
+ // A two-stage diagnostic proves whether low PWM continues after an initial kick.
+ // It bypasses ALL autonomous limits, trims, ramp, and crawl periods.
+ cmd(h,"arm");cmd(h,"jogkick 20 -25 800 150 60");assert(h.jogging&&h.jogWithKick);
+ steps(h,1);assert(outputPins[10]==150&&outputPins[11]==150);
+ assert(outputPins[12]==HIGH&&outputPins[13]==LOW);
+ steps(h,5);assert(h.jogging&&h.jogHoldLogged);
+ assert(outputPins[10]==20&&outputPins[11]==25); // Hold never raised to minimum 70.
+ steps(h,74);assert(!h.jogging&&outputPins[10]==0&&outputPins[11]==0);
+ cmd(h,"jogkick 20 0 1000 145 60");assert(h.jogging); // Still armed.
+ steps(h,1);assert(outputPins[10]==145);
+ inputPins[h.v(P_START_PIN)]=LOW;steps(h,5);assert(!h.jogging&&!h.armed&&outputPins[10]==0);
+ inputPins[h.v(P_START_PIN)]=HIGH;steps(h,5);
+ cmd(h,"arm");cmd(h,"jogkick 20 0 100 145 100");assert(!h.jogging); // No hold phase.
+ cmd(h,"jogkick 20 0 100 145 151");assert(!h.jogging);
+ cmd(h,"jogkick 20 0 100 145");assert(!h.jogging);
+ cmd(h,"jogkick 0 0 100 145 60");assert(!h.jogging);
+ cmd(h,"jogkick -100 0 200 90 50");assert(h.jogging);
+ steps(h,1);assert(outputPins[10]==100&&outputPins[12]==LOW); // Kick never reduces PWM.
+ steps(h,20);assert(!h.jogging&&outputPins[10]==0);
  for(int duration : {1000, 20}){
   cmd(h,"arm");
   cmd(h,duration==20?"jog 100 100 20":"jog 100 100 1000");
