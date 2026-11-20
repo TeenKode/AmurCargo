@@ -5,7 +5,8 @@ R=Path(__file__).resolve().parents[1];sys.path.insert(0,str(R/'tools/cadlibs'))
 import trimesh
 from OCP.STEPControl import STEPControl_Reader,STEPControl_Writer,STEPControl_AsIs
 from OCP.BRepAlgoAPI import BRepAlgoAPI_Cut,BRepAlgoAPI_Fuse
-from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox,BRepPrimAPI_MakeCylinder,BRepPrimAPI_MakeCone
+from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox,BRepPrimAPI_MakeCylinder,BRepPrimAPI_MakeCone,BRepPrimAPI_MakePrism
+from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace,BRepBuilderAPI_MakePolygon
 from OCP.BRepBuilderAPI import BRepBuilderAPI_Transform
 from OCP.BRepCheck import BRepCheck_Analyzer
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
@@ -77,10 +78,40 @@ for x,z in [(-6,23),(6,23),(-5,30.25),(5,30.25)]:spine=BRepAlgoAPI_Cut(spine,cyl
 for side in (-1,1):
  for z in (10,22,36,48):spine=BRepAlgoAPI_Cut(spine,cyl(1.3,6.8,side*19.5,5,z,d=(side,0,0))).Shape()
 spineMesh=export('01_Removable_Fork_Spine',spine);add('Fork_spine_removable',spineMesh)
+# The taper is horizontal. The underside stays flat and the retaining lip
+# follows the same outline across the final 3 mm of the arm.
+ARM_BLADE_WIDTH = 6
+ARM_TIP_WIDTH = 3
+ARM_TIP_Y = 56
+ARM_TAPER_LENGTH = 12
+ARM_TAPER_START_Y = ARM_TIP_Y - ARM_TAPER_LENGTH
+ARM_CENTER_X = 13
+
+def blade_section(center_x, start_y, z, height):
+    ys = [start_y]
+    if start_y < ARM_TAPER_START_Y:
+        ys.append(ARM_TAPER_START_Y)
+    ys.append(ARM_TIP_Y)
+    half_widths = [
+        (ARM_BLADE_WIDTH - (ARM_BLADE_WIDTH - ARM_TIP_WIDTH)
+         * max(0, y - ARM_TAPER_START_Y) / ARM_TAPER_LENGTH) / 2
+        for y in ys
+    ]
+    stations = list(zip(ys, half_widths))
+    polygon = BRepBuilderAPI_MakePolygon()
+    for y, half_width in stations:
+        polygon.Add(gp_Pnt(center_x - half_width, y, z))
+    for y, half_width in reversed(stations):
+        polygon.Add(gp_Pnt(center_x + half_width, y, z))
+    polygon.Close()
+    face = BRepBuilderAPI_MakeFace(polygon.Wire()).Face()
+    return BRepPrimAPI_MakePrism(face, gp_Vec(0, 0, height)).Shape()
+
 for side,label in [(-1,'Left'),(1,'Right')]:
- lo,hi=(9.5,19.5) if side>0 else (-19.5,-9.5);a,b=(10,16) if side>0 else (-16,-10)
+ lo,hi=(9.5,19.5) if side>0 else (-19.5,-9.5)
  arm=box(lo,2,0,hi,8,27)
- arm=BRepAlgoAPI_Fuse(arm,box(a,8,0,b,56,4)).Shape();arm=BRepAlgoAPI_Fuse(arm,box(a,53,4,b,56,6)).Shape()
+ arm=BRepAlgoAPI_Fuse(arm,blade_section(side*ARM_CENTER_X,8,0,4)).Shape()
+ arm=BRepAlgoAPI_Fuse(arm,blade_section(side*ARM_CENTER_X,53,4,2)).Shape()
  # Side screws preserve the former front envelope while providing a full
  # 6 mm engagement in the side column. Nothing projects behind the spine.
  for z in (10,22):
@@ -101,7 +132,7 @@ coupon=box(0,0,0,42,18,12)
 for x,d in [(8,2.5),(21,2.6),(34,2.7)]:coupon=BRepAlgoAPI_Cut(coupon,cyl(d/2,8.8,x,9,12,d=(0,0,-1))).Shape()
 export('00_M3_Plastic_Fit_Coupon',coupon)
 (O/'Fork_Adaptation_Meshes.json').write_text(json.dumps(items),encoding='utf-8')
-report=dict(revision='R4',source=str(src.relative_to(R)),source_sha256=hashlib.sha256(src.read_bytes()).hexdigest(),parts=records,removable_arms=True,same_arms_for_both_heights=True,arm_screws='4 x M3x16 countersunk, from inner side, directly into PETG',pilot_diameter_mm=2.6,pilot_depth_mm=6.8,nominal_thread_engagement_mm=6,arm_seat_y_mm=2,arm_root_thickness_mm=6,side_column_width_mm=8,upper_station_offset_mm=26,fork_top_low_mm=6,fork_top_high_mm=32,gap_mm=20,outer_span_mm=32,lip_height_mm=2,vertical_cargo_lift_mm=7.703,carriage_fasteners_preserved=True,assembly_y_mm=118,flat_back=True,no_rear_receiver_rails=True,min_crossbar_width_mm=8,button_window_mm=[9,8],button_window_local_z_mm=[12,20],button_spacer_quantity=2,button_spacer_thickness_mm=1.4,spine_requires_supports=False,previous_spine_volume_mm3=35164.48721345762,spine_material_reduction_percent=round(100*(1-spineMesh.volume/35164.48721345762),1),physical_print_tested=False)
+report=dict(revision='R5',source=str(src.relative_to(R)),source_sha256=hashlib.sha256(src.read_bytes()).hexdigest(),parts=records,removable_arms=True,same_arms_for_both_heights=True,arm_screws='4 x M3x16 countersunk, from inner side, directly into PETG',pilot_diameter_mm=2.6,pilot_depth_mm=6.8,nominal_thread_engagement_mm=6,arm_seat_y_mm=2,arm_root_thickness_mm=6,side_column_width_mm=8,upper_station_offset_mm=26,fork_top_low_mm=6,fork_top_high_mm=32,gap_mm=20,outer_span_mm=32,tip_width_mm=ARM_TIP_WIDTH,tip_gap_mm=2*ARM_CENTER_X-ARM_TIP_WIDTH,taper_length_mm=ARM_TAPER_LENGTH,lip_height_mm=2,vertical_cargo_lift_mm=7.703,carriage_fasteners_preserved=True,assembly_y_mm=118,flat_back=True,no_rear_receiver_rails=True,min_crossbar_width_mm=8,button_window_mm=[9,8],button_window_local_z_mm=[12,20],button_spacer_quantity=2,button_spacer_thickness_mm=1.4,spine_requires_supports=False,previous_spine_volume_mm3=35164.48721345762,spine_material_reduction_percent=round(100*(1-spineMesh.volume/35164.48721345762),1),physical_print_tested=False)
 (O/'Fork_Adaptation_Checks.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
 # Remove only this task's superseded one-piece adapter exports.
 for stem in ('Wide_Low_Fork','Vertical_High_Fork'):
