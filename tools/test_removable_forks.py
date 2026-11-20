@@ -34,6 +34,20 @@ checks.append('eight blind pilot holes: diameter 2.6 mm, 24 radial samples each'
 for dz in (0,26):
  for arm in (left,right):assert overlap(spine,move(arm,(0,0,dz)))<1e-5
 checks.append('both removable arms clear the spine at both height stations')
+# Probe both edges at full width and at two stations on the taper.
+for side, arm in ((-1, left), (1, right)):
+    for y, gap, elevations in ((43, 20, (0.01, 3.99)),
+                               (50, 19, (0.01, 3.99)),
+                               (55.9, 18 + 1/60, (0.01, 3.99, 5.99))):
+        center_x = side * (gap/2 + 3)
+        for z in elevations:
+            for edge in (-1, 1):
+                for delta, state in ((-0.01, TopAbs_IN), (0.01, TopAbs_OUT)):
+                    x = center_x + edge*(3 + delta)
+                    point = gp_Pnt(x, y, z)
+                    assert BRepClass3d_SolidClassifier(arm, point, 1e-7).State() == state
+    assert BRepClass3d_SolidClassifier(arm, gp_Pnt(side*12, 55.9, 6.01), 1e-7).State() == TopAbs_OUT
+checks.append('fork gap tapers from 20 to 18 mm over the last 12 mm; blades stay 6 mm wide with flat undersides and 2 mm retaining lips')
 for side,arm in [(-1,left),(1,right)]:
  for dz in (0,26):
   for z in (14,18):
