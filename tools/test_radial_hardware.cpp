@@ -75,6 +75,23 @@ int main(){
  h.outputMotors(-100,-80); // A real direction change must still be safe.
  assert(outputPins[12]==LOW&&outputPins[10]==100&&pwmZeroWrites[10]==zerosBefore+1);
  h.outputMotors(0,0);assert(outputPins[10]==0&&outputPins[11]==0);
+ // Tuned stall PWM preserves zero, sign and trim; out-of-range batches are atomic.
+ cmd(h,"motor set 100 110 1200 900 130 120 95 100 135 125 8 12");
+ assert(h.motorMinLeft==100&&h.motorMinRight==110&&h.v(P_DRIVE_PWM)==130);
+ h.outputMotors(20,-30);assert(outputPins[10]==100&&outputPins[11]==110);
+ h.outputMotors(0,0);assert(outputPins[10]==0&&outputPins[11]==0);
+ h.outputMotors(-200,250);assert(outputPins[10]==240&&outputPins[11]==225);
+ h.outputMotors(0,0);
+ cmd(h,"motor set 5 5 1000 1000 0 120 95 100 135 125 8 12");assert(h.v(P_DRIVE_PWM)==130);
+ cmd(h,"motor set 5 5 1000 1000 130 120 95 100 135 125 0 12");assert(h.motorMinLeft==100);
+ cmd(h,"motor save");
+ RobotHardware persistedMotors;persistedMotors.init();
+ assert(persistedMotors.motorMinLeft==100&&persistedMotors.motorMinRight==110);
+ assert(persistedMotors.v(P_LEFT_TRIM)==1200&&persistedMotors.v(P_RAMP_STEP)==8);
+ EEPROM.bytes[969]^=1;RobotHardware corruptedMotors;corruptedMotors.init();
+ assert(corruptedMotors.motorMinLeft==70&&corruptedMotors.v(P_DRIVE_PWM)==85);
+ cmd(h,"motor save");cmd(h,"motor clear");
+ RobotHardware erasedMotors;erasedMotors.init();assert(erasedMotors.motorMinRight==70&&erasedMotors.v(P_DRIVE_PWM)==85);
  Settings wrong=h.settings;wrong.v[P_SERVO_PIN]=10;assert(pinSettingsError(wrong)==305);
  wrong=h.settings;wrong.v[P_CONTACT_PIN]=12;assert(pinSettingsError(wrong)!=0);
  wrong=h.settings;wrong.v[P_START_PIN]=4;assert(pinSettingsError(wrong)==306);
