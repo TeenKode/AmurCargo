@@ -11,12 +11,13 @@ struct __FlashStringHelper {};
 #define F(x) reinterpret_cast<const __FlashStringHelper*>(x)
 inline unsigned long clockMs=0;
 inline int inputPins[32],outputPins[32],adcPins[32],pinModes[32];
+inline int pwmWrites[32],pwmZeroWrites[32];
 inline unsigned long millis(){return clockMs;}
 inline void delay(unsigned long t){clockMs+=t;}
 inline void pinMode(uint8_t p,int mode){pinModes[p]=mode;}
 inline int digitalRead(uint8_t p){return inputPins[p];}
 inline void digitalWrite(uint8_t p,int v){outputPins[p]=v;}
-inline void analogWrite(uint8_t p,int v){outputPins[p]=v;}
+inline void analogWrite(uint8_t p,int v){outputPins[p]=v;pwmWrites[p]++;if(v==0)pwmZeroWrites[p]++;}
 inline int analogRead(uint8_t p){return adcPins[p];}
 template<typename T>T constrain(T v,T a,T b){return std::max(a,std::min(v,b));}
 struct SerialMock {
