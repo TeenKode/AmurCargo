@@ -43,7 +43,7 @@ inline void loadDefaultSettings(Settings &s){
  s.v[P_MAX_CORRECTION]=28;
  s.v[P_SENSOR_MS]=10;
  s.v[P_LOST_MS]=250;
- s.v[P_MARKER_MS]=35;
+ s.v[P_MARKER_MS]=20;
  s.v[P_MARKER_CLEAR_MS]=80;
  s.v[P_HUB_CONFIRM_MS]=60;
  s.v[P_CONTACT_MS]=30;
