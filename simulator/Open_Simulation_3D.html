@@ -243,20 +243,40 @@ g.AmurProject={zip,build(configHeader,board){const files={};for(const [name,text
  function buttons(){
   const connected=!!monitor&&!monitor.closing;
   const locked=busy||openingMonitor||!!monitor;
-  $('flashUno').disabled=$('openMonitor').disabled=!supported||locked;
+  // The monitor owns the port, but flashing may safely close it first.
+  $('flashUno').disabled=!supported||busy||openingMonitor||!!monitor?.closing;
+  $('openMonitor').disabled=!supported||locked;
   $('closeMonitor').disabled=!connected;
   $('cancelFlash').disabled=!controller;
   $('downloadHex').disabled=busy;
   $('boardProfile').disabled=$('manualReset').disabled=locked;
   $('applyServoDirection').disabled=!connected||!$('servoDetached').checked;
-  $('portStatus').textContent=connected?'COM-порт подключён · 115200 бод':'COM-порт отключён';
+  $('portStatus').textContent=connected?'COM-порт подключён · 115200 бод. Для прошивки нажмите «Записать программу по USB»: монитор будет отключён автоматически.':'COM-порт отключён';
   for(const button of pane.querySelectorAll('[data-command],[data-real-command],[data-real-jog],#calButtons button,#serialForm button'))button.disabled=!connected;
   for(const id of ['servoBack','servoForward','servoPreview'])$(id).disabled=!connected||!telemetry;
   for(const id of ['captureLow','captureHigh','saveServoLimits'])$(id).disabled=!connected||!telemetry?.settled;
  }
  function image(){if(configError())throw Error('Сначала исправьте настройки программы');return AmurFlash.patch(base,AmurFlash.boardMeta(meta,getCfg().uploadBoard||'uno'),getCfg());}
  $('downloadHex').onclick=()=>{try{download((getCfg().uploadBoard||'uno').startsWith('nano')?'Pogruzchik_NANO.hex':'Pogruzchik_UNO.hex',AmurFlash.hex(image()));log('HEX сформирован с текущими настройками.');}catch(e){log(e.message);}};
- $('flashUno').onclick=async()=>{if(busy||openingMonitor||monitor)return;busy=true;buttons();try{const firmware=image(),key=getCfg().uploadBoard||'uno',port=await navigator.serial.requestPort();controller=new AbortController();buttons();await AmurFlash.uploadBoard(port,firmware,meta,key,(p,s)=>{$('flashProgress').value=p;log(s);},controller.signal,$('manualReset').checked);}catch(e){log(e.name==='NotFoundError'?'Порт не выбран. В окне браузера нажмите на свою плату / COM-порт, затем «Подключить».':e.name==='NetworkError'?'Не удалось открыть порт. Закройте Arduino IDE и другие вкладки с подключением к плате.':'Загрузка: '+e.message);}finally{busy=false;controller=null;buttons();}};
+ $('flashUno').onclick=async()=>{
+  if(busy||openingMonitor||monitor?.closing)return;
+  busy=true;buttons();
+  try{
+   // A connected monitor is not an error: close it and release its locks
+   // before opening the bootloader on the same COM port.
+   if(monitor){
+    log('Освобождаю COM-порт: отключаю монитор перед прошивкой.');
+    await $('closeMonitor').onclick();
+    if(monitor)throw Error('Монитор COM-порта ещё не отключился. Повторите попытку.');
+   }
+   const firmware=image(),key=getCfg().uploadBoard||'uno';
+   const port=await navigator.serial.requestPort();
+   controller=new AbortController();buttons();
+   await AmurFlash.uploadBoard(port,firmware,meta,key,(p,s)=>{$('flashProgress').value=p;log(s);},controller.signal,$('manualReset').checked);
+  }catch(e){
+   log(e.name==='NotFoundError'?'Порт не выбран. В окне браузера нажмите на свою плату / COM-порт, затем «Подключить».':e.name==='NetworkError'?'Не удалось открыть порт. Закройте Arduino IDE и другие вкладки с подключением к плате.':'Загрузка: '+e.message);
+  }finally{busy=false;controller=null;buttons();}
+ };
  $('cancelFlash').onclick=()=>controller?.abort();
  function clearTelemetry(){
   telemetry=null;limitsLoaded=false;
