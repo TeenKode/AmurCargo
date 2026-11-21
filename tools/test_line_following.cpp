@@ -71,7 +71,30 @@ int main(){
  assert(robot.filteredDerivative==0); // No derivative kick on recovery.
  robot.follow(sample(1000,1000,1000),85,85);
  assert(robot.correction==0&&robot.wantLeft==85&&robot.wantRight==85);
+ // A weak sighting on the other side must replace an earlier strong one.
+ for(const bool lineOnLeft:{false,true}){
+  robot.init(settings,0);
+  robot.follow(lineOnLeft?sample(0,0,1000):sample(1000,0,0),85,10);
+  robot.follow(lineOnLeft?sample(450,850,350):sample(350,850,450),85,20);
+  robot.follow(sample(0,0,0),85,30);
+  robot.follow(sample(0,0,0),85,65);
+  assert(lineOnLeft?robot.wantLeft==0&&robot.wantRight>0:robot.wantRight==0&&robot.wantLeft>0);
+ }
+ // A centred sample provides no direction for searching through a gap.
+ robot.init(settings,0);
+ robot.follow(sample(0,0,1000),85,10);
+ robot.follow(sample(0,1000,0),85,20);
+ robot.follow(sample(0,0,0),85,30);
+ robot.follow(sample(0,0,0),85,65);
+ assert(robot.wantLeft==0&&robot.wantRight==0);
+ // A short dropout must not postpone steering when an outer sensor sees the line again.
+ robot.init(settings,0);
+ robot.follow(sample(0,1000,0),85,10);
+ robot.follow(sample(0,0,0),85,11);
+ robot.follow(sample(1000,0,0),85,12);
+ assert(robot.wantLeft<robot.wantRight&&robot.filteredDerivative==0);
  // A missing line is allowed only within the configured, bounded recovery time.
+ robot.init(settings,0);
  robot.follow(sample(1000,0,0),85,95);
  robot.follow(sample(0,0,0),85,105);
  robot.follow(sample(0,0,0),85,105+settings.v[P_LOST_MS]);
@@ -214,6 +237,22 @@ int main(){
  robot.init(settings,0);
  robot.follow(sample(1000,0,0),85,10);
  assert(robot.wantLeft>=settings.v[P_APPROACH_PWM]&&robot.wantRight>=settings.v[P_APPROACH_PWM]);
+
+ // At low cruise speed the inner wheel minimum can overpower the
+ // requested heading. Check the applied, trim-normalized PWM in both directions.
+ for(const bool lineOnLeft:{false,true}){
+  const uint16_t innerTrim=1200,outerTrim=900;
+  settings.v[P_LEFT_TRIM]=lineOnLeft?innerTrim:outerTrim;
+  settings.v[P_RIGHT_TRIM]=lineOnLeft?outerTrim:innerTrim;
+  robot.configureMotion(lineOnLeft?120:65,lineOnLeft?65:120);
+  robot.init(settings,0);
+  robot.follow(lineOnLeft?sample(700,650,0):sample(0,650,700),60,10);
+  const uint16_t inner=robot.effectiveWheelPwm(lineOnLeft?robot.wantLeft:robot.wantRight,innerTrim,120);
+  const uint16_t outer=robot.effectiveWheelPwm(lineOnLeft?robot.wantRight:robot.wantLeft,outerTrim,65);
+  assert((uint32_t)outer*innerTrim>(uint32_t)inner*outerTrim);
+ }
+ loadDefaultSettings(settings);
+ robot.configureMotion(70,70);
 
  // Sensor-guided exit from the hub, while retaining the calibrated exit timer.
  robot.init(settings,0);robot.enter(HUB_EXIT,0);

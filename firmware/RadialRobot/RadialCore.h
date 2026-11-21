@@ -178,10 +178,10 @@ struct RadialRobot {
    else drive(0,0);
    return;
   }
-  if(lostTimer.active)resetDerivative=true;
+  const bool reacquired=lostTimer.active;
   lostTimer.clear();
   const uint32_t sampleElapsed=now-lastLine;
-  if(sampleElapsed>=v(P_SENSOR_MS)){
+  if(reacquired||sampleElapsed>=v(P_SENSOR_MS)){
    lastLine=now;
    const bool marker=wide(s);
    uint32_t sum=(uint32_t)s.line[0]+s.line[1]+s.line[2];
@@ -190,8 +190,8 @@ struct RadialRobot {
    if(abs16(error)<=25)error=0;
    if(marker){correction=0;filteredDerivative=0;lineDirection=0;}
    else {
-    if(error>80)lineDirection=1;
-    else if(error< -80)lineDirection=-1;
+    // Search using the latest sighting, including weak offsets or a centred sample.
+    lineDirection=(error>0)-(error<0);
     // Filter derivative over four samples; discard the transient on reacquisition.
     if(resetDerivative||sampleElapsed>4UL*v(P_SENSOR_MS))filteredDerivative=0;
     else{
@@ -214,17 +214,21 @@ struct RadialRobot {
    int16_t steer=clamp16(correction,-steerLimit,steerLimit);
    int16_t l=base+steer,r=base-steer;
    if(steer){
-    // If the outside wheel also lands on its minimum, both wheels can get
-    // the same effective drive in spite of different controller requests.
     int16_t &outer=steer>0?l:r,&inner=steer>0?r:l;
     const uint16_t trim=v(steer>0?P_LEFT_TRIM:P_RIGHT_TRIM);
-    const uint8_t minimum=steer>0?minMotorLeft:minMotorRight;
+    const uint16_t innerTrim=v(steer>0?P_RIGHT_TRIM:P_LEFT_TRIM);
+    const uint8_t innerMinimum=steer>0?minMotorRight:minMotorLeft;
+    uint16_t minimum=steer>0?minMotorLeft:minMotorRight;
+    // A higher inner-wheel minimum can reverse the requested steering.
+    // Compare the floors in the outer wheel's trim scale.
+    if(inner&&trimmedPwm(inner,innerTrim)<innerMinimum){
+     const uint16_t innerFloor=(uint32_t)innerMinimum*trim/innerTrim;
+     if(innerFloor>minimum)minimum=innerFloor;
+    }
     if(trimmedPwm(outer,trim)<=minimum){
-     if(magnitude>=650&&s.line[1]<v(P_LINE_THRESHOLD))inner=0;
-     else {
-      const uint8_t boost=abs16(steer)>12?12:abs16(steer);
-      outer=((uint32_t)(minimum+boost)*1000+trim-1)/trim;
-     }
+     const uint8_t boost=abs16(steer)>12?12:abs16(steer);
+     if((magnitude>=650&&s.line[1]<v(P_LINE_THRESHOLD))||minimum+boost>trimmedPwm(255,trim))inner=0;
+     else outer=((uint32_t)(minimum+boost)*1000+trim-1)/trim;
     }
    }
    drive(l,r);
